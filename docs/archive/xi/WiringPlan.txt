@@ -1,0 +1,36 @@
+Wiring Plan to Close RH(ξ) Unconditionally (non-build)
+
+Targets to instantiate (all already present in build under rh/):
+
+1) Use the bridge in rh/Proof/Main.lean
+   - Theorem: RH_riemannXi_from_RS_offZeros
+     Inputs needed:
+       (a) symXi: ∀ ρ, riemannXi ρ = 0 → riemannXi (1 − ρ) = 0
+       (b) G : ℂ → ℂ and hXiEq: ∀ s, riemannXi s = G s * riemannZeta s
+       (c) hGnz: ∀ ρ ∈ RH.RS.Ω, G ρ ≠ 0
+       (d) Θ : ℂ → ℂ, hSchur: RH.RS.IsSchurOn Θ (Ω \ {z | ζ z = 0})
+       (e) assign: local removable-set assignment at each putative zero (shape expected by RS)
+
+2) Formalize (b)–(c) (archive→rh move once stable)
+   - In CompletedXi.lean (archive):
+     G(s) := (1/2)·s·(1−s)·π^{−s/2}·Γ(s/2)
+     xi(s) := G(s)·ζ(s)
+     xi_factorization: xi = G * ζ
+   - Show hGnz on Ω = {Re > 1/2} (Gamma(·) and polynomial factor are nonzero there, away from s = 0,1). Handle boundary cancellation via ξ where needed.
+
+3) Formalize (a) symmetry (archive→rh move once stable)
+   - From functional equation ξ(s) = ξ(1 − s): derive symXi.
+
+4) Provide (d)–(e) via RS layer
+   - Θ Schur on Ω \ Z(ζ) using the Cayley of J with outer cancellation as in RS.
+   - assign: for each ρ with ζ(ρ)=0 in Ω, provide U ⊆ Ω, removable set Z, analytic g, with g ρ = 1 and Θ = g on U\\{ρ}, plus a witness point where g ≠ 1.
+
+5) Single wire-up edit in rh/ (build)
+   - Import/formally expose G, xi_factorization, symXi, Θ, assign.
+   - Call RH_riemannXi_from_RS_offZeros with these witnesses.
+   - Export closed theorem: ∀ ρ, riemannXi ρ = 0 → ρ.re = 1/2
+
+Notes
+- All archive files are non-build to keep main green while drafting.
+- Move components into rh/academic_framework and rh/RS only once proofs are ready.
+

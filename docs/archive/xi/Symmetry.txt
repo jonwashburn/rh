@@ -1,0 +1,14 @@
+ξ zero symmetry (archive sketch)
+
+- Functional equation: ξ(s) = ξ(1−s).
+- Immediate corollary: if ξ(ρ)=0 then ξ(1−ρ)=0.
+- Formalization outline in Lean:
+  theorem xi_symmetry_zero (riemannXi : ℂ → ℂ)
+      (funcEq : ∀ s, riemannXi s = riemannXi (1 - s)) :
+      ∀ ρ, riemannXi ρ = 0 → riemannXi (1 - ρ) = 0 := by
+    intro ρ hρ
+    simpa [funcEq ρ] using congrArg id hρ
+
+Notes:
+- Replace funcEq with the formal functional equation once available from mathlib or project proofs.
+- Wire this as symXi for the `RH_riemannXi_from_RS_offZeros` bridge.

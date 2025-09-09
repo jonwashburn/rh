@@ -1,0 +1,14 @@
+RS Θ and boundary/local assignment (archive sketch)
+
+- Inputs:
+  * Θ Schur on Ω \ Z(ζ)
+  * For each boundary z with Re z = 1, choose U ⊆ Ω, removable set Z ⊆ Ω, and analytic g with g ρ = 1 s.t. Θ = g on U\Z and (U ∩ Z) = {ρ}.
+
+- Goal:
+  Provide `assign` matching the shape expected by RH.RS.ZetaSchurDecomposition / LocalPinchDataZOff.
+
+- Outcome:
+  `ZetaNoZerosOnRe1_from_offZerosAssignment` yields ζ ≠ 0 on Re = 1; together with off-zeros data this yields ζ ≠ 0 on Ω; then via factorization and ξ-symmetry, RH for ξ follows.
+
+Implementation note:
+- This remains at the statement level until explicit Θ, N, and local removable data are supplied; later move into rh/RS once finished.
