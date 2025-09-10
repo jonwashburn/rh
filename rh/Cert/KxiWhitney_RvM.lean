@@ -66,9 +66,10 @@ lemma log_bracket_nonneg (T : ℝ) : 0 ≤ Real.log (bracket T) := by
     have : 0 ≤ T * T := by simpa [mul_comm] using sq_nonneg T
     linarith
   have hsqrt : 1 ≤ Real.sqrt (1 + T * T) := by
-    simpa [Real.sqrt_one] using (Real.sqrt_le_sqrt h1le)
+    have : Real.sqrt 1 ≤ Real.sqrt (1 + T * T) := Real.sqrt_le_sqrt h1le
+    simpa [Real.sqrt_one] using this
   have hbr : 1 ≤ bracket T := by simpa [bracket] using hsqrt
-  exact Real.log_nonneg_iff.mpr hbr
+  exact (Real.log_nonneg_iff.mpr hbr)
 
 /-- Minimal dyadic monotone-telescope bound on a VK window.
 

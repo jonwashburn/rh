@@ -282,9 +282,9 @@ theorem PPlusFromCarleson_bound_proof
       Real.sqrt_le_sqrt hE₀ hE
     -- Control √ζ(I) by √(Cζ · |I|)
     have hζ₀ : 0 ≤ CarlesonSystem.ζ I := CS.ζ_nonneg I
-    have hζ  : CarlesonSystem.ζ I ≤ Cζ * I.length := CS.budget I
+    have hζ  : CarlesonSystem.ζ I ≤ Cζ * (2 * I.len) := CS.budget I
     have hζ' : Real.sqrt (CarlesonSystem.ζ I)
-                ≤ Real.sqrt (Cζ * I.length) :=
+                ≤ Real.sqrt (Cζ * (2 * I.len)) :=
       Real.sqrt_le_sqrt hζ₀ hζ
     -- Combine the two monotonicities
     have hstep1 :
@@ -295,24 +295,34 @@ theorem PPlusFromCarleson_bound_proof
         Crem
         * Real.sqrt (PS.testEnergy I φ)
         * Real.sqrt (CarlesonSystem.ζ I)
-        ≤ Crem * Real.sqrt Aψ * Real.sqrt (Cζ * I.length) := by
+        ≤ Crem * Real.sqrt Aψ * Real.sqrt (Cζ * (2 * I.len)) := by
       -- multiply the first step by √ζ(I) on both sides, then replace by √(Cζ·|I|)
-      have step2 := mul_le_mul_of_nonneg_right hstep1 (Real.sqrt_nonneg (CarlesonSystem.ζ I))
+      have step2 := mul_le_mul_of_nonneg_right hstep1 (Real.sqrt_nonneg _)
       have : 0 ≤ Crem * Real.sqrt Aψ := mul_nonneg hCrem₀ (Real.sqrt_nonneg _)
       exact le_trans step2 (mul_le_mul_of_nonneg_left hζ' this)
     -- Replace `√(Cζ·|I|)` by `√Cζ · √|I|`
-    have hsplit :
-        Real.sqrt (Cζ * I.length) = Real.sqrt Cζ * Real.sqrt (I.length) := by
-      have hlen : 0 ≤ I.length := WhitneyInterval.length_nonneg I
-      simpa [Real.sqrt_mul hCζ₀ hlen]
+    have hsplit1 :
+        Real.sqrt (Cζ * (2 * I.len)) = Real.sqrt Cζ * Real.sqrt (2 * I.len) := by
+      have hlen : 0 ≤ (2 * I.len) := by
+        have : 0 ≤ I.len := I.nonneg
+        have : 0 ≤ 2 * I.len := mul_nonneg (by norm_num) this
+        simpa [mul_comm] using this
+      simpa using (Real.sqrt_mul hCζ₀ (2 * I.len))
+    have hsplit2 :
+        Real.sqrt (2 * I.len) = Real.sqrt (2 : ℝ) * Real.sqrt I.len := by
+      have h2 : 0 ≤ (2 : ℝ) := by norm_num
+      have hlen : 0 ≤ I.len := I.nonneg
+      simpa using (Real.sqrt_mul h2 I.len)
     -- Chain everything together
     calc
       PairingSystem.pairing (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ
           ≤ Crem * Real.sqrt (PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ)
                 * Real.sqrt (CarlesonSystem.ζ I) := h₁
-      _ ≤ Crem * Real.sqrt Aψ * Real.sqrt (Cζ * I.length) := h₂
-      _ = Crem * Real.sqrt Aψ * (Real.sqrt Cζ * Real.sqrt (I.length)) := by simpa [hsplit]
-      _ = (Crem * Real.sqrt Aψ * Real.sqrt Cζ) * Real.sqrt (I.length) := by ring
+      _ ≤ Crem * Real.sqrt Aψ * Real.sqrt (Cζ * (2 * I.len)) := h₂
+      _ = Crem * Real.sqrt Aψ * (Real.sqrt Cζ * Real.sqrt (2 * I.len)) := by simpa [hsplit1]
+      _ = Crem * Real.sqrt Aψ * (Real.sqrt Cζ * (Real.sqrt 2 * Real.sqrt I.len)) := by
+        simpa [hsplit2]
+      _ = (Crem * Real.sqrt Aψ * Real.sqrt Cζ * Real.sqrt 2) * Real.sqrt I.len := by ring
 
 /-- Specialization: `(P+)` numeric certificate for `F := 2·J` is immediate once
 instances exist. -/

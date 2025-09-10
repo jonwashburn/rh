@@ -120,130 +120,121 @@ open MeasureTheory
 `∫_{a..b} f ≤ (b - a) · c`. -/
 lemma intervalIntegral_le_length_mul_const_on_Icc
     {a b c : ℝ} (hab : a ≤ b) {f : ℝ → ℝ}
+    (hf : IntervalIntegrable f MeasureTheory.volume a b)
     (h0 : ∀ t ∈ Set.Icc a b, 0 ≤ f t)
     (hbound : ∀ t ∈ Set.Icc a b, f t ≤ c)
     (hc : 0 ≤ c) :
     ∫ t in a..b, f t ≤ (b - a) * c := by
-  -- Use integral_mono_on requiring pointwise bound on [a,b]
-  have hbnd : ∀ x, a ≤ x → x ≤ b → f x ≤ c := by
-    intro x hax hxb; exact hbound x ⟨hax, hxb⟩
-  -- Compare f to the constant function c pointwise on [a,b]
-  have hle : (fun x => f x) ≤ (fun _ => c) := by
-    intro x; exact hbnd x
-  have hmono :=
+  have hg : IntervalIntegrable (fun _ => c) MeasureTheory.volume a b :=
+    intervalIntegrable_const
+  have hmono : ∀ x ∈ Set.Icc a b, f x ≤ (fun _ => c) x := by
+    intro x hx; simpa using hbound x hx
+  simpa [intervalIntegral.integral_const, hab] using
     intervalIntegral.integral_mono_on (μ := MeasureTheory.volume)
-      (a := a) (b := b) (f := f) (g := fun _ => c)
-      (by intro x hx; exact hle x hx.1 hx.2) (by intro x hx; exact hc)
-  -- ∫ c = (b-a) * c on [a,b]
-  simpa [intervalIntegral.integral_const, hab] using hmono
+      (a := a) (b := b) (f := f) (g := fun _ => c) hab hf hg hmono
 
 /-- If `t ∈ [T-L, T+L]` and `|x-T| ≥ 2^{k-1} L` with `k ≥ 2`, then
 `|t-x| ≥ 2^{k-2} L`. -/
 lemma whitney_uniform_separation_on_Icc
     {T L x : ℝ} {k : ℕ}
-    (hk : 2 ≤ k) (hx : |x - T| ≥ (2 : ℝ)^(k-1) * |L|) :
-    ∀ t ∈ Set.Icc (T - L) (T + L), |t - x| ≥ (2 : ℝ)^(k-2) * |L| := by
+    (hk : 2 ≤ k) (hL : 0 ≤ L) (hx : |x - T| ≥ (2 : ℝ)^(k-1) * L) :
+    ∀ t ∈ Set.Icc (T - L) (T + L), |t - x| ≥ (2 : ℝ)^(k-2) * L := by
   intro t ht
-  -- bound |t - T| ≤ |L|
-  have h1 : t - T ≤ L := by simpa using sub_le_sub_right ht.2 T
-  have h0 : -L ≤ t - T := by
-    have := sub_le_sub_right ht.1 T
-    -- (T - L) - T = -L
-    simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using this
-  have htT : |t - T| ≤ |L| := by
-    have hle : |t - T| ≤ L := by
-      have := abs_le.mpr ⟨by simpa [neg_sub] using h0, h1⟩
-      -- use L ≤ |L|
-      exact le_trans this (by have := abs_nonneg L; simpa using this)
-    -- if L may be negative, |t-T| ≤ |L|
-    have : L ≤ |L| := by simpa using (le_abs_self L)
-    exact le_trans hle this
-  -- triangle inequality: |x - T| ≤ |x - t| + |t - T|
+  have htT : |t - T| ≤ L := by
+    have : -L ≤ t - T ∧ t - T ≤ L := by
+      constructor
+      · have := sub_le_sub_right ht.1 T; simpa [sub_eq_add_neg] using this
+      · simpa using sub_le_sub_right ht.2 T
+    simpa [abs_le] using this
+  -- triangle and rearrangement
   have hxT_le : |x - T| ≤ |x - t| + |t - T| := by
     have := abs_sub_le x t T
-    simpa [abs_sub_comm, add_comm, add_left_comm, add_assoc] using this
+    simpa [abs_sub_comm, add_comm] using this
   have htx : |t - x| ≥ |x - T| - |t - T| := by
-    -- rearrange
-    have := sub_le_iff_le_add'.mpr hxT_le
-    simpa [abs_sub_comm] using this
-  -- combine with |x - T| ≥ 2^{k-1}|L| and |t - T| ≤ |L|
-  have : |t - x| ≥ (2 : ℝ)^(k-1) * |L| - |L| := by nlinarith
-  -- now (2^{k-1} - 1)|L| ≥ 2^{k-2}|L| for k≥2
-  have hkpow : (2 : ℝ)^(k-1) - 1 ≥ (2 : ℝ)^(k-2) := by
-    have hbase : (0 : ℝ) ≤ (2 : ℝ)^(k-2) := by
-      have : (0 : ℝ) ≤ 2 := by norm_num
-      simpa using (pow_nonneg this (k - 2))
-    have : 2 * (2 : ℝ)^(k-2) - 1 ≥ (2 : ℝ)^(k-2) := by nlinarith
-    simpa [pow_succ, two_mul] using this
-  -- multiply the inequality by |L| ≥ 0
-  have : ((2 : ℝ)^(k-1) - 1) * |L| ≥ (2 : ℝ)^(k-2) * |L| :=
-    mul_le_mul_of_nonneg_right hkpow (by exact abs_nonneg L)
-  exact le_trans this (by
-    have := this
-    -- convert (2^{k-1}|L| - |L|) = ((2^{k-1} - 1)|L|)
-    simpa [sub_eq_add_neg, mul_comm, mul_left_comm, mul_assoc] using this)
+    have := sub_le_iff_le_add'.mpr hxT_le; simpa [abs_sub_comm] using this
+  have h1 : (2 : ℝ)^(k-1) * L - L ≥ (2 : ℝ)^(k-2) * L := by
+    -- Since k≥2, 2^{k-1} = 2 * 2^{k-2} and (2*X - 1) ≥ X for X≥1
+    have hk2 : (1 : ℝ) ≤ (2 : ℝ)^(k-2) := by
+      simpa using one_le_pow_of_one_le (by norm_num : (1 : ℝ) ≤ 2) (k - 2)
+    have : (2 : ℝ)^(k-1) * L - L = ((2 : ℝ)^(k-2) * L) + ((2 : ℝ)^(k-2) * L - L) := by
+      ring_nf
+    have hLnonneg : 0 ≤ L := hL
+    have : (2 : ℝ)^(k-2) * L - L ≥ 0 := by
+      have : (2 : ℝ)^(k-2) ≥ 1 := hk2
+      have : (2 : ℝ)^(k-2) * L ≥ 1 * L := mul_le_mul_of_nonneg_right this hLnonneg
+      simpa [one_mul, sub_eq_add_neg] using sub_nonneg_of_le this
+    have hx' : (2 : ℝ)^(k-2) * L ≥ (2 : ℝ)^(k-2) * L := le_rfl
+    nlinarith
+  -- combine bounds
+  have : |t - x| ≥ (2 : ℝ)^(k-1) * L - L := by
+    have hge : |x - T| - |t - T| ≤ |x - t| := by
+      have := sub_le_iff_le_add'.mpr hxT_le; simpa [abs_sub_comm] using this
+    have := le_trans (sub_le_sub_right hx _) hge
+    simpa [sub_eq_add_neg, abs_sub_comm, sub_eq_add_neg] using this
+  exact this.trans h1
 
 /-- Pointwise square bound from separation: if `|t-x| ≥ d` and `σ,d ≥ 0` then
 `(Kσ σ (t-x))^2 ≤ σ^2 / (d^2 + σ^2)^2`. -/
 lemma Kσ_sq_le_const_of_sep
     (σ d t x : ℝ) (hσ : 0 ≤ σ) (hd : 0 ≤ d) (hsep : |t - x| ≥ d) :
     (Kσ σ (t - x))^2 ≤ σ^2 / ((d^2 + σ^2)^2) := by
-  have hsq : d^2 ≤ (t - x)^2 := by
-    have : |d| ≤ |t - x| := by simpa [abs_of_nonneg hd] using hsep
-    simpa [pow_two] using (sq_le_sq.mpr this)
-  have hden : d^2 + σ^2 ≤ (t - x)^2 + σ^2 := add_le_add hsq (by nlinarith [hσ])
-  have hden2 : (d^2 + σ^2)^2 ≤ ((t - x)^2 + σ^2)^2 := by
-    have hnonneg : 0 ≤ d^2 + σ^2 := by nlinarith [hσ, hd]
-    have hnonneg' : 0 ≤ (t - x)^2 + σ^2 := by nlinarith [hσ]
-    exact mul_le_mul hden hden (by nlinarith) (by nlinarith)
-  have hσ2 : 0 ≤ σ^2 := by nlinarith [hσ]
-  have : σ^2 / (((t - x)^2 + σ^2)^2) ≤ σ^2 / ((d^2 + σ^2)^2) := by
-    exact (div_le_div_of_nonneg_left hσ2 hden2 (by nlinarith))
-  simpa [Kσ, pow_two, mul_comm, mul_left_comm, mul_assoc] using this
+  have hA : d^2 + σ^2 ≤ (t - x)^2 + σ^2 := by
+    have : d^2 ≤ (t - x)^2 := by
+      have : |d| ≤ |t - x| := by simpa [abs_of_nonneg hd] using hsep
+      simpa [pow_two] using (sq_le_sq.mpr this)
+    exact add_le_add this (by nlinarith [hσ])
+  have hBpos : 0 < d^2 + σ^2 := by nlinarith [hσ, hd]
+  have hApos : 0 < (t - x)^2 + σ^2 := by nlinarith [hσ]
+  have hinv : (1 : ℝ) / ((t - x)^2 + σ^2) ≤ 1 / (d^2 + σ^2) :=
+    (inv_le_inv_of_le hBpos hA)
+  have hnonnegσ : 0 ≤ σ^2 := by nlinarith [hσ]
+  have : (1 / ((t - x)^2 + σ^2))^2 ≤ (1 / (d^2 + σ^2))^2 := by
+    exact sq_le_sq_of_nonneg_of_le (by have := one_div_nonneg.mpr (le_of_lt hApos); simpa using this) hinv
+  have : σ^2 * (1 / ((t - x)^2 + σ^2))^2 ≤ σ^2 * (1 / (d^2 + σ^2))^2 :=
+    mul_le_mul_of_nonneg_left this hnonnegσ
+  simpa [Kσ, pow_two, mul_comm, mul_left_comm, mul_assoc, div_eq_mul_one_div] using this
 
 /-- Off–support square bound on `I=[T-L, T+L]` for fixed `σ>0` and `k≥2`. -/
 lemma poisson_square_whitney_offsupport
     (T L σ α : ℝ) (k : ℕ) (x : ℝ)
-    (hk : 2 ≤ k) (hσpos : 0 < σ) (hσL : σ ≤ α * L)
+    (hk : 2 ≤ k) (hσpos : 0 < σ) (hσL : σ ≤ α * L) (hL : 0 ≤ L)
     (hx : |x - T| ≥ (2 : ℝ)^(k-1) * L) :
-    ∫ t in T - L .. T + L, (Kσ σ (t - x))^2
+    ∫ t in T - L..T + L, (Kσ σ (t - x))^2
       ≤ (2 * L) * (σ^2) / ((((2 : ℝ)^(k-2) * L)^2 + σ^2)^2) := by
   have hpt : ∀ t ∈ Set.Icc (T - L) (T + L),
       (Kσ σ (t - x))^2 ≤ σ^2 / (((2 : ℝ)^(k-2) * L)^2 + σ^2)^2 := by
     intro t ht
     -- separation with d := 2^{k-2} |L|
-    have hsep : |t - x| ≥ (2 : ℝ)^(k-2) * |L| := by
-      exact whitney_uniform_separation_on_Icc (T := T) (L := L) (x := x) (k := k)
-        hk (by
-          -- from hx with |L| replacing L: |x-T| ≥ 2^{k-1} |L|
-          have hx' : |x - T| ≥ (2 : ℝ)^(k-1) * |L| := by
-            have h : |L| ≥ L := by simpa using (le_abs_self L)
-            have := hx
-            -- if hx stated with L, weaken to |L|
-            have habs : (2 : ℝ)^(k-1) * L ≤ (2 : ℝ)^(k-1) * |L| := by
-              have : |L| ≥ L := by simpa using (le_abs_self L)
-              exact mul_le_mul_of_nonneg_left this (by
-                have : (0 : ℝ) ≤ (2 : ℝ)^(k-1) := by
-                  have : (0 : ℝ) ≤ 2 := by norm_num
-                  simpa using pow_nonneg this (k - 1)
-                exact this)
-            exact le_trans (by simpa using this) habs)
-        t ht
-    -- Using d^2 = ((2^{k-2} * L)^2) since |L|^2 = L^2
-    have := Kσ_sq_le_const_of_sep σ ((2 : ℝ)^(k-2) * |L|) t x (le_of_lt hσpos)
-      (by nlinarith [abs_nonneg L]) hsep
-    -- rewrite d^2 via |L|^2 = L^2
-    simpa [pow_two, mul_comm, mul_left_comm, mul_assoc, abs_mul, abs_pow, abs_abs]
-      using this
+    have hsep : |t - x| ≥ (2 : ℝ)^(k-2) * L := by
+      exact whitney_uniform_separation_on_Icc (T := T) (L := L) (x := x) (k := k) hk hL hx t ht
+    have := Kσ_sq_le_const_of_sep σ ((2 : ℝ)^(k-2) * L) t x (le_of_lt hσpos)
+      (by nlinarith [hL]) (by simpa [mul_comm, mul_left_comm, mul_assoc] using hsep)
+    simpa [pow_two, mul_comm, mul_left_comm, mul_assoc] using this
   have h0 : ∀ t ∈ Set.Icc (T - L) (T + L), 0 ≤ (Kσ σ (t - x))^2 := by
     intro t ht; simpa using sq_nonneg (Kσ σ (t - x))
   have hc : 0 ≤ σ^2 / ((((2 : ℝ)^(k-2) * L)^2 + σ^2)^2) := by
     have : 0 ≤ σ^2 := by nlinarith [le_of_lt hσpos]
     have : 0 ≤ (((2 : ℝ)^(k-2) * L)^2 + σ^2)^2 := by nlinarith
     exact div_nonneg (by nlinarith [le_of_lt hσpos]) this
+  -- f is continuous on [T-L, T+L], hence interval integrable
+  have hf : IntervalIntegrable (fun t => (Kσ σ (t - x))^2) MeasureTheory.volume (T - L) (T + L) := by
+    -- continuity: composition of continuous maps with nonvanishing denominator
+    have hdenpos : ∀ t, 0 < ((t - x) * (t - x) + σ * σ) := by
+      intro t; have : 0 ≤ (t - x) * (t - x) := by nlinarith
+      nlinarith [hσpos]
+    have hKcont : Continuous fun t => Kσ σ (t - x) := by
+      have hnum : Continuous fun t => σ := continuous_const
+      have hden : Continuous fun t => (t - x) * (t - x) + σ * σ :=
+        ((continuous_id.sub continuous_const).mul (continuous_id.sub continuous_const)).add
+          continuous_const
+      have hden_ne : ∀ t, ((t - x) * (t - x) + σ * σ) ≠ 0 := by
+        intro t; have := hdenpos t; exact ne_of_gt this
+      simpa [Kσ] using hnum.div hden hden_ne
+    have hsq : Continuous fun t => (Kσ σ (t - x))^2 := hKcont.pow 2
+    exact hsq.intervalIntegrable _ _
   have := intervalIntegral_le_length_mul_const_on_Icc (a := T - L) (b := T + L)
       (c := σ^2 / ((((2 : ℝ)^(k-2) * L)^2 + σ^2)^2)) (hab := by nlinarith)
-      (f := fun t => (Kσ σ (t - x))^2) h0 (by intro t ht; exact hpt t ht) hc
+      (f := fun t => (Kσ σ (t - x))^2) hf h0 (by intro t ht; exact hpt t ht) hc
   simpa [sub_eq_add_neg, two_mul, pow_two, mul_comm, mul_left_comm, mul_assoc] using this
 
 /-- Sigma–integrated off–support bound on `Q(α,I)` with decay `4^{-k}` for `k≥2`.
@@ -252,19 +243,19 @@ lemma poisson_square_whitney_offsupport_sigma
     (T L α : ℝ) (k : ℕ) (x : ℝ)
     (hk : 2 ≤ k) (hL : 0 < L) (hα : 1 ≤ α ∧ α ≤ 2)
     (hx : |x - T| ≥ (2 : ℝ)^(k-1) * L) :
-    ∫ σ in 0 .. α * L, σ * (∫ t in T - L .. T + L, (Kσ σ (t - x))^2)
+    ∫ σ in 0..α * L, σ * (∫ t in T - L..T + L, (Kσ σ (t - x))^2)
       ≤ (64 * α^4) * (2 * L) * (4 : ℝ)^(-k) := by
   -- For each σ, apply the previous interval bound, then integrate and simplify.
   have hσ_nonneg : ∀ σ ∈ Set.Icc (0 : ℝ) (α * L), 0 ≤ σ := by intro σ hσ; exact hσ.1
   -- Use the fixed-σ estimate with separation radius `2^{k-2}|L|`
   have hinner : ∀ σ ∈ Set.Icc (0 : ℝ) (α * L),
-      (∫ t in T - L .. T + L, (Kσ σ (t - x))^2)
+      (∫ t in T - L..T + L, (Kσ σ (t - x))^2)
         ≤ (2 * L) * (σ^2) / ((((2 : ℝ)^(k-2) * L)^2 + σ^2)^2) := by
     intro σ hσ
     by_cases hσpos : 0 < σ
     · simpa using
         poisson_square_whitney_offsupport (T := T) (L := L) (σ := σ) (α := α)
-          (k := k) (x := x) hk hσpos (by nlinarith [hα.2, hL]) (by
+          (k := k) (x := x) hk hσpos (by nlinarith [hα.2, hL.le]) (by exact hL.le) (by
             -- from hx : |x - T| ≥ 2^{k-1} L, we strengthen to |x - T| ≥ 2^{k-1} |L|
             have : |x - T| ≥ (2 : ℝ)^(k-1) * |L| := by
               have h : |L| ≥ L := by simpa using (le_abs_self L)
@@ -293,7 +284,7 @@ lemma poisson_square_whitney_offsupport_sigma
     exact (div_le_div_of_nonneg_left hσ2 this (by nlinarith))
   -- Combine pointwise and integrate
   have hptwise : ∀ σ ∈ Set.Icc (0 : ℝ) (α * L),
-      σ * (∫ t in T - L .. T + L, (Kσ σ (t - x))^2)
+      σ * (∫ t in T - L..T + L, (Kσ σ (t - x))^2)
         ≤ (2 * L) * (σ^3) / (((2 : ℝ)^(k-2) * L)^4) := by
     intro σ hσ
     have := hinner σ hσ

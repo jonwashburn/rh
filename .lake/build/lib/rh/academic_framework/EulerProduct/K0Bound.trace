@@ -9,9 +9,9 @@
    "././././rh/academic_framework/EulerProduct/K0Bound.lean:112:44: try 'simp' instead of 'simpa'\nnote: this linter can be disabled with `set_option linter.unnecessarySimpa false`",
    "level": "warning"},
   {"message":
-   "././././rh/academic_framework/EulerProduct/K0Bound.lean:147:46: try 'simp' instead of 'simpa'\nnote: this linter can be disabled with `set_option linter.unnecessarySimpa false`",
+   "././././rh/academic_framework/EulerProduct/K0Bound.lean:149:46: try 'simp' instead of 'simpa'\nnote: this linter can be disabled with `set_option linter.unnecessarySimpa false`",
    "level": "warning"},
   {"message":
-   "././././rh/academic_framework/EulerProduct/K0Bound.lean:181:6: try 'simp' instead of 'simpa'\nnote: this linter can be disabled with `set_option linter.unnecessarySimpa false`",
+   "././././rh/academic_framework/EulerProduct/K0Bound.lean:183:6: try 'simp' instead of 'simpa'\nnote: this linter can be disabled with `set_option linter.unnecessarySimpa false`",
    "level": "warning"}],
- "depHash": "4733021006413316307"}
+ "depHash": "5304944025460739301"}
