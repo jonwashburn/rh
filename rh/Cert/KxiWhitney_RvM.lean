@@ -3,7 +3,7 @@ import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Data.Nat.Cast.Defs
 import rh.Cert.KxiWhitney
 
-/-(
+/- (
 Agent F — Kξ from RvM short‑interval zero counts (statement-level)
 
 This siloed Cert module records:
@@ -58,22 +58,17 @@ def annulusCount (Z : ZeroCountAPI) (c T : ℝ) (k : ℕ) : ℝ :=
 
 /-- `log ⟨T⟩ ≥ 0`. -/
 lemma log_bracket_nonneg (T : ℝ) : 0 ≤ Real.log (bracket T) := by
-  -- `bracket T = √(1+T^2) ≥ √1 = 1`
-  have h1 : 1 ≤ 1 + T^2 := by
-    have : 0 ≤ T^2 := sq_nonneg T
-    have : 0 ≤ 1 + T^2 := by simpa using add_nonneg (by norm_num) this
-    have hx : (1 : ℝ) ≤ 1 + T^2 := by
-      have : 0 ≤ T^2 := sq_nonneg T
-      have := add_le_add_left this 1
-      -- `0 ≤ T^2` ⇒ `1 ≤ 1 + T^2`
-      have : 1 ≤ 1 + T^2 := by linarith
-      exact this
-    exact hx
-  have : 1 ≤ bracket T := by
-    -- `sqrt` is monotone on nonnegatives: `√1 ≤ √(1+T^2)`
-    have := Real.sqrt_le_sqrt h1
-    simpa [bracket, Real.sqrt_one] using this
-  exact Real.log_nonneg_iff.mpr this
+  -- `bracket T = √(1+T^2) ≥ 1`, hence `log ≥ 0`.
+  have hsq : 0 ≤ 1 + T * T := by
+    have : 0 ≤ T * T := by simpa [mul_comm] using sq_nonneg T
+    simpa using add_nonneg (by norm_num) this
+  have h1le : (1 : ℝ) ≤ 1 + T * T := by
+    have : 0 ≤ T * T := by simpa [mul_comm] using sq_nonneg T
+    linarith
+  have hsqrt : 1 ≤ Real.sqrt (1 + T * T) := by
+    simpa [Real.sqrt_one] using (Real.sqrt_le_sqrt h1le)
+  have hbr : 1 ≤ bracket T := by simpa [bracket] using hsqrt
+  exact Real.log_nonneg_iff.mpr hbr
 
 /-- Minimal dyadic monotone-telescope bound on a VK window.
 
@@ -100,7 +95,8 @@ lemma monotone_telescope_dyadic
   -- Endpoints of the dyadic annulus
   set R1 : ℝ := ((2 : ℝ) ^ k) * L with hR1
   set R2 : ℝ := ((2 : ℝ) ^ (k + 1)) * L with hR2
-  have h2pos : 0 < ((2 : ℝ) ^ k) := by simpa using pow_pos (by norm_num : (0 : ℝ) < 2) k
+  have h2pos : 0 < ((2 : ℝ) ^ k) := by
+    simpa using pow_pos (by norm_num : (0 : ℝ) < 2) k
   have h2ge1 : (1 : ℝ) ≤ ((2 : ℝ) ^ k) := by
     simpa using one_le_pow_of_one_le (by norm_num : (1 : ℝ) ≤ 2) k
   have hR1_nonneg : 0 ≤ R1 := by
@@ -135,9 +131,12 @@ lemma monotone_telescope_dyadic
   have hfrac_ge : 2 ≤ α / ((2 : ℝ) ^ k) := by
     -- from `2^(k+1) ≤ α` obtain `2 ≤ α / 2^k`
     have hpos : 0 < ((2 : ℝ) ^ k) := h2pos
-    have := (le_div_iff (by exact hpos)).mpr ?_
-    · simpa [pow_succ, mul_comm, mul_left_comm, mul_assoc] using this
-    · simpa [pow_succ, mul_comm] using h2
+    have hmul : 2 * ((2 : ℝ) ^ k) ≤ α := by
+      have : (2 : ℝ) ^ (k + 1) ≤ α := h2
+      have : ((2 : ℝ) ^ k) * 2 ≤ α := by simpa [pow_succ, mul_comm] using this
+      simpa [mul_comm] using this
+    have := (le_div_iff₀ (by exact hpos)).mpr hmul
+    simpa using this
   have hconst : a2 * Λ ≤ (α * |a2|) * (1 / ((2 : ℝ) ^ k)) * Λ := by
     -- `a2 Λ ≤ |a2| Λ ≤ (α / 2^k) |a2| Λ` and `α / 2^k ≥ 2 ≥ 1`
     have h1 : a2 * Λ ≤ |a2| * Λ := by

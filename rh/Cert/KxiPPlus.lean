@@ -27,6 +27,7 @@ structure BoxEnergy where
 structure WhitneyInterval where
   t0 : ℝ
   len : ℝ
+  nonneg : 0 ≤ len
 
 /-- Concrete half–plane Carleson constructor for a Whitney interval: builds a
 `BoxEnergy` whose bound is the linear budget `K·|I| = K·(2L)`. -/
@@ -138,5 +139,199 @@ def PPlusFromCarleson_exists (F : ℂ → ℂ) : Prop :=
   (∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ) → PPlus F
 
 end
+
+end RH.Cert
+
+
+/-!
+## CR–Green admissible windows and (P+) certificate from Carleson budget
+
+This section introduces lightweight interfaces to encode the admissible‑window
+class used by the CR–Green pairing and exposes the two requested results:
+
+- a numeric certificate `PPlusFromCarleson_bound` producing a constant
+  `Ctest = Crem · √Aψ · √Cζ` such that the boundary pairing obeys
+  `pairing ≤ Ctest · √|I|` uniformly in the Whitney interval and hole placements;
+- a specialization to `F := 2·J`.
+
+These are mathlib‑only abstractions; concrete instances are provided by the RS
+layer (no axioms, no sorry).
+-/
+
+namespace RH.Cert
+
+open Real
+
+/- Whitney geometry helpers (reusing the existing `WhitneyInterval` record) -/
+namespace WhitneyInterval
+
+/-- Length of the Whitney interval. -/
+@[simp] def length (I : WhitneyInterval) : ℝ := 2 * I.len
+
+lemma length_nonneg (I : WhitneyInterval) : 0 ≤ I.length := by
+  have h2 : 0 ≤ (2 : ℝ) := by norm_num
+  simpa [length] using mul_nonneg h2 I.nonneg
+
+end WhitneyInterval
+
+/-- Carleson budget on Whitney boxes: `ζ(I) ≤ Cζ · |I|`. -/
+class CarlesonSystem : Type :=
+  (ζ   : WhitneyInterval → ℝ)
+  (Cζ  : ℝ)
+  (Cζ_nonneg : 0 ≤ Cζ)
+  (ζ_nonneg  : ∀ I, 0 ≤ ζ I)
+  (budget    : ∀ I, ζ I ≤ Cζ * I.length)
+
+attribute [simp] CarlesonSystem.ζ CarlesonSystem.Cζ
+
+/-- Cutoff CR–Green pairing system at fixed `(F, ψ, α, α')`.
+Only scale‑invariant constants appear.
+- `Aψ` is the uniform Poisson test‑energy cap for windows
+- `Crem` controls the cutoff/side/top remainder in the pairing
+- the main inequality is `pairing ≤ Crem * √(testEnergy) * √ζ(I)` -/
+class PairingSystem (F : ℂ → ℂ) (ψ : Type) (α α' : ℝ) [CarlesonSystem] : Type :=
+  (Window : WhitneyInterval → Type)
+  (testEnergy : ∀ I, Window I → ℝ)
+  (testEnergy_nonneg : ∀ I (φ : Window I), 0 ≤ testEnergy I φ)
+  (Aψ : ℝ)
+  (Aψ_nonneg : 0 ≤ Aψ)
+  (uniform_test_energy : ∀ I (φ : Window I), testEnergy I φ ≤ Aψ)
+  (pairing : ∀ I, Window I → ℝ)
+  (Crem : ℝ)
+  (Crem_nonneg : 0 ≤ Crem)
+  (cutoff_pairing_bound :
+      ∀ I (φ : Window I),
+        pairing I φ
+        ≤ Crem * Real.sqrt (testEnergy I φ) * Real.sqrt (CarlesonSystem.ζ I))
+
+namespace PairingSystem
+
+variable {F : ℂ → ℂ} {ψ : Type} {α α' : ℝ}
+variable [CarlesonSystem]
+variable [PS : PairingSystem F ψ α α']
+
+/-- Expose the window type from the pairing system. -/
+abbrev Window (I : WhitneyInterval) := PS.Window I
+
+/-- Expose the pairing functional. -/
+@[simp] def pairing (I : WhitneyInterval) (φ : Window (F:=F) (ψ:=ψ) (α:=α) (α':=α') I) : ℝ :=
+  (PS.pairing I φ)
+
+/-- Expose the test energy. -/
+@[simp] def testEnergy (I : WhitneyInterval) (φ : Window (F:=F) (ψ:=ψ) (α:=α) (α':=α') I) : ℝ :=
+  PS.testEnergy I φ
+
+lemma uniform_test_energy
+    (I : WhitneyInterval) (φ : Window (F:=F) (ψ:=ψ) (α:=α) (α':=α') I) :
+    PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ ≤ PS.Aψ :=
+  PS.uniform_test_energy I φ
+
+lemma cutoff_pairing_bound
+    (I : WhitneyInterval) (φ : Window (F:=F) (ψ:=ψ) (α:=α) (α':=α') I) :
+    PairingSystem.pairing (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ
+    ≤ PS.Crem * Real.sqrt (PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ)
+        * Real.sqrt (CarlesonSystem.ζ I) :=
+  PS.cutoff_pairing_bound I φ
+
+end PairingSystem
+
+/-- Numeric (P+) certificate: existence of a uniform constant `Ctest` with
+`Ctest = Crem · √Aψ · √Cζ` such that the pairing obeys
+`pairing ≤ Ctest · √|I|` for all windows at scale `I`. -/
+def PPlusFromCarleson_bound (F : ℂ → ℂ) [CarlesonSystem]
+    [PairingSystem F ψ α α'] : Prop :=
+  ∃ (Ctest : ℝ), 0 ≤ Ctest ∧
+    ∀ (I : WhitneyInterval)
+      (φ : PairingSystem.Window (F:=F) (ψ:=ψ) (α:=α) (α':=α') I),
+        PairingSystem.pairing (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ
+        ≤ Ctest * Real.sqrt (I.length)
+
+/-- Main theorem (numeric certificate): from the abstract CR–Green cutoff bound,
+the uniform test‑energy cap, and the Whitney Carleson budget, we deduce the
+uniform `(P+)` estimate with `Ctest = Crem · √Aψ · √Cζ`. -/
+theorem PPlusFromCarleson_bound
+    (F : ℂ → ℂ) [CS : CarlesonSystem]
+    [PS : PairingSystem F ψ α α'] :
+    PPlusFromCarleson_bound (F:=F) (ψ:=ψ) (α:=α) (α':=α') := by
+  classical
+  /-
+  Math note (constants and inequalities):
+  - Inputs (nonstandard items exposed as interface methods):
+    • uniform_test_energy: testEnergy(I,φ) ≤ Aψ (scale-invariant, independent of I, holes).
+    • cutoff_pairing_bound: pairing(I,φ) ≤ Crem · √(testEnergy(I,φ)) · √(ζ(I)).
+    • Carleson budget: ζ(I) ≤ Cζ · |I| with |I| = 2·len.
+  - Monotonicity: from testEnergy ≤ Aψ and ζ(I) ≤ Cζ·|I|, apply √(·) to get
+    √(testEnergy) ≤ √Aψ and √ζ(I) ≤ √(Cζ·|I|).
+  - Algebra: √(Cζ·|I|) = √Cζ · √|I|, hence
+    pairing ≤ (Crem · √Aψ · √Cζ) · √|I|.
+    Set Ctest := Crem · √Aψ · √Cζ.
+  All constants depend only on (α,ψ) and Cζ; no dependence on (T,L) nor on hole placements.
+  -/
+  -- Shorthands for constants
+  let Aψ  : ℝ := PS.Aψ
+  have hAψ₀ : 0 ≤ Aψ := PS.Aψ_nonneg
+  let Crem : ℝ := PS.Crem
+  have hCrem₀ : 0 ≤ Crem := PS.Crem_nonneg
+  let Cζ   : ℝ := CS.Cζ
+  have hCζ₀ : 0 ≤ Cζ := CS.Cζ_nonneg
+  -- Candidate global test constant: Crem · √Aψ · √Cζ
+  refine ⟨Crem * Real.sqrt Aψ * Real.sqrt Cζ, ?_, ?_⟩
+  · -- Nonnegativity of the constant
+    have : 0 ≤ Real.sqrt Aψ := Real.sqrt_nonneg _
+    have : 0 ≤ Crem * Real.sqrt Aψ := mul_nonneg hCrem₀ (by exact Real.sqrt_nonneg _)
+    exact mul_nonneg this (Real.sqrt_nonneg _)
+  · -- The Whitney‑uniform bound
+    intro I φ
+    -- Start from cutoff‑pairing bound with √(testEnergy)·√(ζ(I))
+    have h₁ := PairingSystem.cutoff_pairing_bound (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ
+    -- Control √(testEnergy) by √Aψ
+    have hE₀ : 0 ≤ PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ :=
+      PS.testEnergy_nonneg I φ
+    have hE   : PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ ≤ Aψ :=
+      PS.uniform_test_energy I φ
+    have hE'  : Real.sqrt (PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ)
+                  ≤ Real.sqrt Aψ :=
+      Real.sqrt_le_sqrt hE₀ hE
+    -- Control √ζ(I) by √(Cζ · |I|)
+    have hζ₀ : 0 ≤ CarlesonSystem.ζ I := CS.ζ_nonneg I
+    have hζ  : CarlesonSystem.ζ I ≤ Cζ * I.length := CS.budget I
+    have hζ' : Real.sqrt (CarlesonSystem.ζ I)
+                ≤ Real.sqrt (Cζ * I.length) :=
+      Real.sqrt_le_sqrt hζ₀ hζ
+    -- Combine the two monotonicities
+    have hstep1 :
+        Crem * Real.sqrt (PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ)
+        ≤ Crem * Real.sqrt Aψ :=
+      mul_le_mul_of_nonneg_left hE' hCrem₀
+    have h₂ :
+        Crem
+        * Real.sqrt (PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ)
+        * Real.sqrt (CarlesonSystem.ζ I)
+        ≤ Crem * Real.sqrt Aψ * Real.sqrt (Cζ * I.length) := by
+      -- multiply the first step by √ζ(I) on both sides, then replace by √(Cζ·|I|)
+      have step2 := mul_le_mul_of_nonneg_right hstep1 (Real.sqrt_nonneg (CarlesonSystem.ζ I))
+      have : 0 ≤ Crem * Real.sqrt Aψ := mul_nonneg hCrem₀ (Real.sqrt_nonneg _)
+      exact le_trans step2 (mul_le_mul_of_nonneg_left hζ' this)
+    -- Replace `√(Cζ·|I|)` by `√Cζ · √|I|`
+    have hsplit :
+        Real.sqrt (Cζ * I.length) = Real.sqrt Cζ * Real.sqrt (I.length) := by
+      have hlen : 0 ≤ I.length := WhitneyInterval.length_nonneg I
+      simpa [Real.sqrt_mul hCζ₀ hlen]
+    -- Chain everything together
+    calc
+      PairingSystem.pairing (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ
+          ≤ Crem * Real.sqrt (PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ)
+                * Real.sqrt (CarlesonSystem.ζ I) := h₁
+      _ ≤ Crem * Real.sqrt Aψ * Real.sqrt (Cζ * I.length) := h₂
+      _ = Crem * Real.sqrt Aψ * (Real.sqrt Cζ * Real.sqrt (I.length)) := by simpa [hsplit]
+      _ = (Crem * Real.sqrt Aψ * Real.sqrt Cζ) * Real.sqrt (I.length) := by ring
+
+/-- Specialization: `(P+)` numeric certificate for `F := 2·J` is immediate once
+instances exist. -/
+theorem PPlusFromCarleson_bound_twoJ
+    (J : ℂ → ℂ) [CarlesonSystem]
+    [PairingSystem (fun s => (2 : ℂ) * J s) ψ α α'] :
+    PPlusFromCarleson_bound (F := fun s => (2 : ℂ) * J s) (ψ:=ψ) (α:=α) (α':=α') :=
+  PPlusFromCarleson_bound (F := fun s => (2 : ℂ) * J s) (ψ:=ψ) (α:=α) (α':=α')
 
 end RH.Cert
