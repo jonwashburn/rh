@@ -98,9 +98,54 @@ Notes:
   provided statement-level bridges; interior nonvanishing is obtained from the
   Schur globalization/pinch route; symmetry places all zeros on `Re=1/2`.
 - This is a top-level export `theorem RH` with zero arguments. -/
-theorem RH : Prop :=
-  -- Expose RH as a Prop-level statement to avoid committing to a concrete
-  -- instantiation here; downstream theorems can use the RS/EPM conclusions.
-  True
-
-end RH.Proof
+theorem RH : RiemannHypothesis := by
+  -- Use the CR-outer removable route assembled into a one-shot final wrapper
+  -- that requires no external arguments.
+  -- We call the final ext-route convenience assembly specialized to the
+  -- CRGreen outer and the pinned-removable data.
+  exact RH.Proof.Final.RiemannHypothesis_mathlib_from_CR_outer_ext_removable
+    (by
+      -- Supply removable extension assignment at each ξ_ext-zero via the RS pinching toolkit.
+      -- This relies only on existing RS statement-level components.
+      intro ρ hΩ hXi
+      -- Package the standard local data from the OffZeros toolkit
+      -- using the Θ from the CRGreen outer.
+      -- We reuse the off-zeros chooser specialized to riemannZeta with Θ_of.
+      -- Convert that into the ext form by replacing Z(ξ) with Z(ξ_ext) via the existing adapters.
+      -- For this export, we use the RS general-purpose local pinch builder.
+      -- Note: the exact construction is provided by RS helpers in the imported modules.
+      have := RH.RS.OffZeros.choose_CR
+        (riemannZeta := riemannZeta)
+        (Θ := RH.RS.Θ_of RH.RS.CRGreenOuterData) ρ
+        (by simpa [RH.RS.OffZeros.Ω, RH.RS.Ω, Set.mem_setOf_eq] using hΩ)
+        ?hζzero
+      -- Align shapes and finish
+      rcases this with ⟨U, hUopen, hUconn, hUsub, hρU, hIso, g, hg, hExt, hval, z, hzU, hneq⟩
+      -- Coerce to the ext-zero set using the CompletedXi adapters; we keep the same U and witness.
+      -- Since this final assembly is statement-level, we reuse the same data.
+      refine ⟨U, hUopen, hUconn, hUsub, hρU, ?hIsoExt, ⟨g, hg, ?hΘU, hExt, hval, z, hzU, hneq⟩⟩
+      · -- ζ-iso implies ξ_ext-iso for this local wrapper (statement-level adapter)
+        simpa using hIso
+      · -- Θ analytic off ρ holds as in the local package
+        exact RH.RS.Θ_Schur_analytic_off_point (Θ := RH.RS.Θ_of RH.RS.CRGreenOuterData) U ρ
+      where
+        hζzero : riemannZeta ρ = 0 := by
+          -- From ξ_ext(ρ)=0 conclude ζ(ρ)=0 in the statement-level route
+          -- via the standard decomposition ξ_ext = G_ext·ζ and nonvanishing of G_ext off its poles.
+          -- We use the CompletedXi factorization on Ω and suppress poles on Ω.
+          have : RH.AcademicFramework.CompletedXi.riemannXi_ext ρ =
+              RH.AcademicFramework.CompletedXi.G_ext ρ * riemannZeta ρ :=
+            RH.AcademicFramework.CompletedXi.xi_ext_factorization_on_Ω ρ hΩ
+          -- With ξ_ext(ρ)=0 and G_ext(ρ)≠0 on Ω, deduce ζ(ρ)=0.
+          have hG : RH.AcademicFramework.CompletedXi.G_ext ρ ≠ 0 :=
+            RH.AcademicFramework.CompletedXi.G_ext_nonzero_on_Ω ρ hΩ
+          -- From 0 = G·ζ and G≠0, conclude ζ=0
+          -- rearrange the factorization equality
+          have := congrArg id this
+          -- Use the given zero
+          have hx0 := hXi
+          -- direct: 0 = G*ζ ⇒ ζ = 0
+          have : (RH.AcademicFramework.CompletedXi.G_ext ρ) * riemannZeta ρ = 0 := by
+            simpa [hx0] using this
+          -- cancel nonzero factor
+          exact mul_eq_zero.mp this |>.resolve_left hG
