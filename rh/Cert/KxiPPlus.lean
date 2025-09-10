@@ -210,27 +210,14 @@ variable {F : ℂ → ℂ} {ψ : Type} {α α' : ℝ}
 variable [CarlesonSystem]
 variable [PS : PairingSystem F ψ α α']
 
-/-- Expose the window type from the pairing system. -/
-abbrev Window (I : WhitneyInterval) := PS.Window I
-
-/-- Expose the pairing functional. -/
-@[simp] def pairing (I : WhitneyInterval) (φ : Window (F:=F) (ψ:=ψ) (α:=α) (α':=α') I) : ℝ :=
-  (PS.pairing I φ)
-
-/-- Expose the test energy. -/
-@[simp] def testEnergy (I : WhitneyInterval) (φ : Window (F:=F) (ψ:=ψ) (α:=α) (α':=α') I) : ℝ :=
-  PS.testEnergy I φ
-
 lemma uniform_test_energy
-    (I : WhitneyInterval) (φ : Window (F:=F) (ψ:=ψ) (α:=α) (α':=α') I) :
-    PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ ≤ PS.Aψ :=
+    (I : WhitneyInterval) (φ : PS.Window I) :
+    PS.testEnergy I φ ≤ PS.Aψ :=
   PS.uniform_test_energy I φ
 
 lemma cutoff_pairing_bound
-    (I : WhitneyInterval) (φ : Window (F:=F) (ψ:=ψ) (α:=α) (α':=α') I) :
-    PairingSystem.pairing (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ
-    ≤ PS.Crem * Real.sqrt (PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ)
-        * Real.sqrt (CarlesonSystem.ζ I) :=
+    (I : WhitneyInterval) (φ : PS.Window I) :
+    PS.pairing I φ ≤ PS.Crem * Real.sqrt (PS.testEnergy I φ) * Real.sqrt (CarlesonSystem.ζ I) :=
   PS.cutoff_pairing_bound I φ
 
 end PairingSystem
@@ -285,11 +272,11 @@ theorem PPlusFromCarleson_bound
     -- Start from cutoff‑pairing bound with √(testEnergy)·√(ζ(I))
     have h₁ := PairingSystem.cutoff_pairing_bound (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ
     -- Control √(testEnergy) by √Aψ
-    have hE₀ : 0 ≤ PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ :=
+    have hE₀ : 0 ≤ PS.testEnergy I φ :=
       PS.testEnergy_nonneg I φ
-    have hE   : PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ ≤ Aψ :=
+    have hE   : PS.testEnergy I φ ≤ Aψ :=
       PS.uniform_test_energy I φ
-    have hE'  : Real.sqrt (PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ)
+    have hE'  : Real.sqrt (PS.testEnergy I φ)
                   ≤ Real.sqrt Aψ :=
       Real.sqrt_le_sqrt hE₀ hE
     -- Control √ζ(I) by √(Cζ · |I|)
@@ -300,12 +287,12 @@ theorem PPlusFromCarleson_bound
       Real.sqrt_le_sqrt hζ₀ hζ
     -- Combine the two monotonicities
     have hstep1 :
-        Crem * Real.sqrt (PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ)
+        Crem * Real.sqrt (PS.testEnergy I φ)
         ≤ Crem * Real.sqrt Aψ :=
       mul_le_mul_of_nonneg_left hE' hCrem₀
     have h₂ :
         Crem
-        * Real.sqrt (PairingSystem.testEnergy (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ)
+        * Real.sqrt (PS.testEnergy I φ)
         * Real.sqrt (CarlesonSystem.ζ I)
         ≤ Crem * Real.sqrt Aψ * Real.sqrt (Cζ * I.length) := by
       -- multiply the first step by √ζ(I) on both sides, then replace by √(Cζ·|I|)

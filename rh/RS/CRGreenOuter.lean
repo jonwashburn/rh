@@ -124,13 +124,14 @@ lemma intervalIntegral_le_length_mul_const_on_Icc
     (hbound : ∀ t ∈ Set.Icc a b, f t ≤ c)
     (hc : 0 ≤ c) :
     ∫ t in a..b, f t ≤ (b - a) * c := by
-  have hmono : ∀ t ∈ Set.Ioc a b, f t ≤ c := by
-    intro t ht; exact hbound t ⟨le_of_lt ht.1, ht.2⟩
-  have :=
-    intervalIntegral.integral_mono_on (μ := MeasureTheory.volume)
-      (a := a) (b := b) (f := f) (g := fun _ => c)
-      (by intro t ht; exact hmono t ht)
-  simpa [intervalIntegral.integral_const, hab] using this
+  -- Use integral_mono_on requiring pointwise bound on [a,b]
+  have hbnd : ∀ x, a ≤ x → x ≤ b → f x ≤ c := by
+    intro x hax hxb; exact hbound x ⟨hax, hxb⟩
+  have hmono :=
+    intervalIntegral.integral_le_integral_of_le (μ := MeasureTheory.volume)
+      (a := a) (b := b) (hfab := hbnd)
+  -- ∫ c = (b-a) * c on [a,b]
+  simpa [intervalIntegral.integral_const, hab] using hmono
 
 /-- If `t ∈ [T-L, T+L]` and `|x-T| ≥ 2^{k-1} L` with `k ≥ 2`, then
 `|t-x| ≥ 2^{k-2} L`. -/
@@ -146,11 +147,15 @@ lemma whitney_uniform_separation_on_Icc
     -- (T - L) - T = -L
     simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using this
   have htT : |t - T| ≤ |L| := by
-    have := abs_le.mpr ⟨by simpa [neg_sub] using h0, h1⟩
-    -- |t - T| ≤ L and L ≤ |L|
-    exact le_trans this (by simpa using (abs_nonneg L))
+    have hle : |t - T| ≤ L := by
+      have := abs_le.mpr ⟨by simpa [neg_sub] using h0, h1⟩
+      -- use L ≤ |L|
+      exact le_trans this (by have := abs_nonneg L; simpa using this)
+    -- if L may be negative, |t-T| ≤ |L|
+    have : L ≤ |L| := by simpa using (le_abs_self L)
+    exact le_trans hle this
   -- triangle inequality: |x - T| ≤ |x - t| + |t - T|
-  have hxT_le : |x - T| ≤ |x - t| + |t - T| := by simpa using (abs_sub_le x t T)
+  have hxT_le : |x - T| ≤ |x - t| + |t - T| := by simpa [abs_sub_comm] using (abs_sub_le x t T)
   have htx : |t - x| ≥ |x - T| - |t - T| := by
     -- rearrange
     have := sub_le_iff_le_add'.mpr hxT_le
@@ -163,7 +168,7 @@ lemma whitney_uniform_separation_on_Icc
       have : (0 : ℝ) ≤ 2 := by norm_num
       simpa using (pow_nonneg this (k - 2))
     have : 2 * (2 : ℝ)^(k-2) - 1 ≥ (2 : ℝ)^(k-2) := by nlinarith
-    simpa [pow_succ, two_mul, pow_zero] using this
+    simpa [pow_succ, two_mul] using this
   -- multiply the inequality by |L| ≥ 0
   have : ((2 : ℝ)^(k-1) - 1) * |L| ≥ (2 : ℝ)^(k-2) * |L| :=
     mul_le_mul_of_nonneg_right hkpow (by exact abs_nonneg L)
@@ -184,10 +189,10 @@ lemma Kσ_sq_le_const_of_sep
   have hden2 : (d^2 + σ^2)^2 ≤ ((t - x)^2 + σ^2)^2 := by
     have hnonneg : 0 ≤ d^2 + σ^2 := by nlinarith [hσ, hd]
     have hnonneg' : 0 ≤ (t - x)^2 + σ^2 := by nlinarith [hσ]
-    exact mul_le_mul hden hden (by nlinarith [hnonneg]) (by nlinarith [hnonneg'])
+    exact mul_le_mul hden hden (by nlinarith) (by nlinarith)
   have hσ2 : 0 ≤ σ^2 := by nlinarith [hσ]
   have : σ^2 / (((t - x)^2 + σ^2)^2) ≤ σ^2 / ((d^2 + σ^2)^2) := by
-    exact (div_le_div_of_nonneg_left hσ2 (by exact hden2) (by nlinarith))
+    exact (div_le_div_of_nonneg_left hσ2 hden2 (by nlinarith))
   simpa [Kσ, pow_two, mul_comm, mul_left_comm, mul_assoc] using this
 
 /-- Off–support square bound on `I=[T-L, T+L]` for fixed `σ>0` and `k≥2`. -/
