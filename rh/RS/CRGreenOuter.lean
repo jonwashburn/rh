@@ -127,9 +127,13 @@ lemma intervalIntegral_le_length_mul_const_on_Icc
   -- Use integral_mono_on requiring pointwise bound on [a,b]
   have hbnd : ∀ x, a ≤ x → x ≤ b → f x ≤ c := by
     intro x hax hxb; exact hbound x ⟨hax, hxb⟩
+  -- Compare f to the constant function c pointwise on [a,b]
+  have hle : (fun x => f x) ≤ (fun _ => c) := by
+    intro x; exact hbnd x
   have hmono :=
-    intervalIntegral.integral_le_integral_of_le (μ := MeasureTheory.volume)
-      (a := a) (b := b) (hfab := hbnd)
+    intervalIntegral.integral_mono_on (μ := MeasureTheory.volume)
+      (a := a) (b := b) (f := f) (g := fun _ => c)
+      (by intro x hx; exact hle x hx.1 hx.2) (by intro x hx; exact hc)
   -- ∫ c = (b-a) * c on [a,b]
   simpa [intervalIntegral.integral_const, hab] using hmono
 
@@ -155,7 +159,9 @@ lemma whitney_uniform_separation_on_Icc
     have : L ≤ |L| := by simpa using (le_abs_self L)
     exact le_trans hle this
   -- triangle inequality: |x - T| ≤ |x - t| + |t - T|
-  have hxT_le : |x - T| ≤ |x - t| + |t - T| := by simpa [abs_sub_comm] using (abs_sub_le x t T)
+  have hxT_le : |x - T| ≤ |x - t| + |t - T| := by
+    have := abs_sub_le x t T
+    simpa [abs_sub_comm, add_comm, add_left_comm, add_assoc] using this
   have htx : |t - x| ≥ |x - T| - |t - T| := by
     -- rearrange
     have := sub_le_iff_le_add'.mpr hxT_le
