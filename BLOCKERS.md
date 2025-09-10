@@ -109,6 +109,12 @@ Format:
   - Lean goal / statement: Formalize `rvM_short_interval_bound` (|{ρ : Im ρ ∈ [T−L,T+L]}| ≤ A0 + A1·L·log⟨T⟩ for Whitney L ≍ c/log⟨T⟩, large T) and derive `kxi_whitney_carleson_of_rvm : KxiBound α c` via annular Poisson L^2 summation.
   - Proposed approach: Needs mathlib-level zero-counting/density for ζ/ξ on short intervals (Riemann–von Mangoldt/Vinogradov–Korobov) and a half-plane Carleson box framework; add once available, then implement the neutralization + annular aggregation.
 
+- MATH-BLOCKER: Surrogate VK→annulus counts (ZeroCountAPI → ν_k bound)
+  - Location: `rh/Cert/KxiWhitney_RvM.lean`
+  - Lean goal / statement: Given `ZeroCountAPI` with `N : ℝ → ℝ → ℝ` monotone in T and a VK-density predicate for `N`, prove
+    `∃ a1 a2 ≥ 0, ∀ k, ν_k ≤ a1·2^k·L·log⟨T⟩ + a2·2^{-k}·log⟨T⟩`, with `ν_k := N(T,2^{k+1}L) − N(T,2^k L)` and `L=c/log⟨T⟩`.
+  - Proposed approach: Monotone telescope over `R ∈ [2^k L, 2^{k+1} L]`, averaging the VK bound to gain the extra `2^{-k}` on the constant term; requires a small lemma formalizing the average bound for monotone functions.
+
 - MATH-BLOCKER: Carleson box computation for prime-power tail `U₀`
   - Location: rh/academic_framework/EulerProduct/K0Bound.lean (conceptual origin)
   - Lean goal / statement:
@@ -120,3 +126,24 @@ Format:
     identity `|∇ Re f|^2 = |f'|^2` for analytic `f`, then compute the Whitney
     box integral explicitly and pass sup over normalized boxes.
   - Stub: none (requires a small Carleson framework; keep externalized until available)
+
+- MATH-BLOCKER: Poisson square off-support on Whitney boxes (analytic integral)
+  - Location: `rh/RS/CRGreenOuter.lean`
+  - Lean goal / statement:
+    For `I=[T−L,T+L]`, `0<σ≤αL`, and `|x−T|≥2^{k−1}L`, prove
+    `∫_{t∈I} (σ / ((t−x)^2 + σ^2))^2 dt ≤ |I| · σ^2 / (((2^{k−1}L)^2 + σ^2)^2)`,
+    hence `∫_{0}^{αL} ∫_{t∈I} Kσ(t−x)^2 σ dt dσ ≤ |I| · (α^4/4) · 4^{-k}`.
+  - Proposed approach: Use `∫_I f ≤ |I|·sup_I f`, monotonicity of `(d^2+σ^2)^{-2}` in `d`, and
+    `∫_0^{αL} σ^3 dσ = (αL)^4/4`. Requires basic measure/integral lemmas on intervals.
+
+Missing: interval sup bound ∫_I f ≤ |I|·sup_I f (finite interval, Lebesgue).
+
+- MATH-BLOCKER: Centered balayage almost-orthogonality (row-sum control)
+  - Location: `rh/RS/CRGreenOuter.lean`
+  - Lean goal / statement:
+    With `S(σ,t)=∑_{γ∈A_k}(Kσ(t−γ)−Kσ(t−T))`, show
+    `∬_{Q(α,I)} S(σ,t)^2 σ ≤ (α^4/2) · |I| · 4^{-k} · (#A_k)`.
+  - Proposed approach: Apply the off-support square bound termwise after centering (outer cancellation),
+    then a Schur/Bessel-style row-sum estimate to keep dependence linear in `#A_k`.
+
+- Missing: centered balayage row-sum (Schur/Bessel) to keep linear ν_k.
