@@ -189,7 +189,7 @@ Only scale‑invariant constants appear.
 - `Aψ` is the uniform Poisson test‑energy cap for windows
 - `Crem` controls the cutoff/side/top remainder in the pairing
 - the main inequality is `pairing ≤ Crem * √(testEnergy) * √ζ(I)` -/
-class PairingSystem (F : ℂ → ℂ) (ψ : Type) (α α' : ℝ) [CarlesonSystem] : Type :=
+class PairingSystem (F : ℂ → ℂ) (ψ : Type) (α α' : ℝ) [CarlesonSystem] : Type _ :=
   (Window : WhitneyInterval → Type)
   (testEnergy : ∀ I, Window I → ℝ)
   (testEnergy_nonneg : ∀ I (φ : Window I), 0 ≤ testEnergy I φ)
