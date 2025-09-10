@@ -210,12 +210,12 @@ variable {F : ℂ → ℂ} {ψ : Type} {α α' : ℝ}
 variable [CarlesonSystem]
 variable [PS : PairingSystem F ψ α α']
 
-lemma uniform_test_energy
+lemma testEnergy_le_Aψ
     (I : WhitneyInterval) (φ : PS.Window I) :
     PS.testEnergy I φ ≤ PS.Aψ :=
   PS.uniform_test_energy I φ
 
-lemma cutoff_pairing_bound
+lemma cutoff_pairing_bound_le
     (I : WhitneyInterval) (φ : PS.Window I) :
     PS.pairing I φ ≤ PS.Crem * Real.sqrt (PS.testEnergy I φ) * Real.sqrt (CarlesonSystem.ζ I) :=
   PS.cutoff_pairing_bound I φ
@@ -225,8 +225,8 @@ end PairingSystem
 /-- Numeric (P+) certificate: existence of a uniform constant `Ctest` with
 `Ctest = Crem · √Aψ · √Cζ` such that the pairing obeys
 `pairing ≤ Ctest · √|I|` for all windows at scale `I`. -/
-def PPlusFromCarleson_bound (F : ℂ → ℂ) [CarlesonSystem]
-    [PairingSystem F ψ α α'] : Prop :=
+def PPlusFromCarleson_bound (F : ℂ → ℂ) (ψ : Type) (α α' : ℝ)
+    [CarlesonSystem] [PairingSystem F ψ α α'] : Prop :=
   ∃ (Ctest : ℝ), 0 ≤ Ctest ∧
     ∀ (I : WhitneyInterval)
       (φ : PairingSystem.Window (F:=F) (ψ:=ψ) (α:=α) (α':=α') I),
@@ -236,8 +236,9 @@ def PPlusFromCarleson_bound (F : ℂ → ℂ) [CarlesonSystem]
 /-- Main theorem (numeric certificate): from the abstract CR–Green cutoff bound,
 the uniform test‑energy cap, and the Whitney Carleson budget, we deduce the
 uniform `(P+)` estimate with `Ctest = Crem · √Aψ · √Cζ`. -/
-theorem PPlusFromCarleson_bound
-    (F : ℂ → ℂ) [CS : CarlesonSystem]
+theorem PPlusFromCarleson_bound_proof
+    (F : ℂ → ℂ) (ψ : Type) (α α' : ℝ)
+    [CS : CarlesonSystem]
     [PS : PairingSystem F ψ α α'] :
     PPlusFromCarleson_bound (F:=F) (ψ:=ψ) (α:=α) (α':=α') := by
   classical
@@ -270,12 +271,12 @@ theorem PPlusFromCarleson_bound
   · -- The Whitney‑uniform bound
     intro I φ
     -- Start from cutoff‑pairing bound with √(testEnergy)·√(ζ(I))
-    have h₁ := PairingSystem.cutoff_pairing_bound (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ
+    have h₁ := PairingSystem.cutoff_pairing_bound_le (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ
     -- Control √(testEnergy) by √Aψ
     have hE₀ : 0 ≤ PS.testEnergy I φ :=
       PS.testEnergy_nonneg I φ
     have hE   : PS.testEnergy I φ ≤ Aψ :=
-      PS.uniform_test_energy I φ
+      PairingSystem.testEnergy_le_Aψ (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ
     have hE'  : Real.sqrt (PS.testEnergy I φ)
                   ≤ Real.sqrt Aψ :=
       Real.sqrt_le_sqrt hE₀ hE
@@ -316,9 +317,9 @@ theorem PPlusFromCarleson_bound
 /-- Specialization: `(P+)` numeric certificate for `F := 2·J` is immediate once
 instances exist. -/
 theorem PPlusFromCarleson_bound_twoJ
-    (J : ℂ → ℂ) [CarlesonSystem]
+    (J : ℂ → ℂ) (ψ : Type) (α α' : ℝ) [CarlesonSystem]
     [PairingSystem (fun s => (2 : ℂ) * J s) ψ α α'] :
     PPlusFromCarleson_bound (F := fun s => (2 : ℂ) * J s) (ψ:=ψ) (α:=α) (α':=α') :=
-  PPlusFromCarleson_bound (F := fun s => (2 : ℂ) * J s) (ψ:=ψ) (α:=α) (α':=α')
+  PPlusFromCarleson_bound_proof (F := fun s => (2 : ℂ) * J s) (ψ:=ψ) (α:=α) (α':=α')
 
 end RH.Cert
