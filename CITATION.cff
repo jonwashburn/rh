@@ -7,7 +7,7 @@ authors:
 abstract: |
   This repository contains a Lean 4, mathlib-only formalization proving that all zeros of the
   completed xi-function lie on the critical line Re s = 1/2 via a boundary-product (Schur) route.
-repository-code: "https://github.com/jonwashburn/riemann-hypothesis"
+repository-code: "https://github.com/jonwashburn/rh"
 commit: "bae394e503bc"
 license: "MIT"
 year: 2025
