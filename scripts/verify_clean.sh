@@ -31,6 +31,11 @@ scan ": Prop := True" "Prop := True scaffolds"
 scan "^[[:space:]]*(axiom|constant)\\b" "top-level axioms or constants" 1
 scan "TODO|FIXME|ad hoc" "development markers"
 
+# Extra strict checks for sneaky placeholders
+scan "^[[:space:]]*abbrev[[:space:]]+\\w+[[:space:]]*:[[:space:]]*Prop[[:space:]]*:=[[:space:]]*True\\b" "abbrev : Prop := True"
+scan "^[[:space:]]*opaque[[:space:]]+\\w+[[:space:]]*:[[:space:]]*Prop\\b" "opaque Prop declarations"
+scan "\\bby[[:space:]]+admit\\b|\\badmitted\\b" "implicit admits via tactics"
+
 if [[ $FAIL -eq 1 ]]; then
   echo "Verification FAILED."; exit 1
 else

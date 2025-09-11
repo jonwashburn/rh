@@ -3,6 +3,7 @@
 ![Lean](https://img.shields.io/badge/Lean-4.12.0-blue)
 ![axioms 0](https://img.shields.io/badge/axioms-0-brightgreen)
 ![sorries 0](https://img.shields.io/badge/sorries-0-brightgreen)
+![admits 0](https://img.shields.io/badge/admitted-0-brightgreen)
 
 ## Start here
 - Checkout the release tag below for a reproducible build.
