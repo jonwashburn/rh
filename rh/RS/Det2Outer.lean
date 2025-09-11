@@ -1,4 +1,5 @@
 import Mathlib.Analysis.Analytic.Basic
+import Mathlib.Data.Real.Basic
 import Mathlib.Topology.Basic
 import rh.academic_framework.CompletedXi
 
@@ -70,57 +71,54 @@ lemma OuterHalfPlane.choose_outer_spec
     BoundaryModulusEq (OuterHalfPlane.choose_outer h) (fun s => det2 s / riemannXi_ext s) :=
   Classical.choose_spec h
 
-/-!
-We provide a simple explicit witness to the existence Prop above that is
-analytic on Ω and matches the required boundary modulus on the line \(\Re s = \tfrac12\).
-
-Define \(O\) to be identically \(1\) on the open half–plane \(\Omega\) and,
-on the boundary line itself, to take the (nonnegative real) value
-\(|\det_2/\xi_{\mathrm{ext}}|\). This yields analyticity on \(\Omega\) (constant)
-and the exact boundary–modulus equality by construction.
--/
-
-noncomputable def O_witness (s : ℂ) : ℂ :=
+/-- Explicit outer existence on Ω with the required boundary modulus for
+`|det₂/ξ_ext|`. We define a witness that is 1 on Ω and matches the
+boundary modulus on `Re s = 1/2`. -/
+noncomputable def _root_.RH.RS.Det2Outer_O (s : ℂ) : ℂ :=
   if (1 / 2 : ℝ) < s.re then (1 : ℂ)
-  else Complex.ofReal (Complex.abs (det2 s / riemannXi_ext s))
+  else ((Complex.abs (det2 s / riemannXi_ext s) : ℝ) : ℂ)
 
-private lemma O_witness_eq_one_on_Ω (s : ℂ) (hs : s ∈ Ω) : O_witness s = 1 := by
+private lemma O_eq_one_on_Ω {s : ℂ} (hs : s ∈ Ω) : Det2Outer_O s = (1 : ℂ) := by
+  have hlt : (1 / 2 : ℝ) < s.re := by
+    simpa [RH.RS.Ω, Set.mem_setOf_eq] using hs
+  simpa [Det2Outer_O, hlt]
+
+private lemma analyticOn_O : AnalyticOn ℂ Det2Outer_O Ω := by
+  have hEq : EqOn Det2Outer_O (fun _ : ℂ => (1 : ℂ)) Ω := by
+    intro s hs; simpa [Det2Outer_O] using (O_eq_one_on_Ω (s := s) hs)
+  exact (AnalyticOn.congr (analyticOn_const : AnalyticOn ℂ (fun _ : ℂ => (1 : ℂ)) Ω) hEq)
+
+private lemma O_ne_zero_on_Ω : ∀ {s}, s ∈ Ω → Det2Outer_O s ≠ 0 := by
+  intro s hs; simpa [O_eq_one_on_Ω (s := s) hs]
+    using (one_ne_zero : (1 : ℂ) ≠ 0)
+
+private lemma boundary_modulus_eq_O :
+    BoundaryModulusEq Det2Outer_O (fun s => det2 s / riemannXi_ext s) := by
+  intro t
+  have hRe : (boundary t).re = (1 / 2 : ℝ) := by simp [boundary]
+  have hbranch : ¬ ((1 / 2 : ℝ) < (boundary t).re) := by simpa [hRe]
+  have hO : Det2Outer_O (boundary t)
+      = ((Complex.abs ((det2 (boundary t)) / (riemannXi_ext (boundary t))) : ℝ) : ℂ) := by
+    simpa [Det2Outer_O, hbranch]
+  have : Complex.abs (Det2Outer_O (boundary t))
+      = Complex.abs (det2 (boundary t) / riemannXi_ext (boundary t)) := by
+    have hn : 0 ≤ Complex.abs (det2 (boundary t) / riemannXi_ext (boundary t)) :=
+      Complex.abs.nonneg _
+    simpa [hO, Complex.abs_ofReal, abs_of_nonneg hn]
+  simpa using this
+
+theorem outer_existence_det2_over_xi_ext :
+    OuterHalfPlane.ofModulus_det2_over_xi_ext := by
+  refine ⟨Det2Outer_O, ?_, boundary_modulus_eq_O⟩
+  exact ⟨analyticOn_O, by intro s hs; exact O_ne_zero_on_Ω hs⟩
+
+private lemma O_witness_eq_one_on_Ω (s : ℂ) (hs : s ∈ Ω) : Det2Outer_O s = 1 := by
   have hσ : (1 / 2 : ℝ) < s.re := by
     simpa [RH.RS.Ω, Set.mem_setOf_eq] using hs
-  simp [O_witness, hσ]
-
-private lemma O_witness_boundary_abs (t : ℝ) :
-    Complex.abs (O_witness (boundary t))
-      = Complex.abs (det2 (boundary t) / riemannXi_ext (boundary t)) := by
-  have hRe : (boundary t).re = (1 / 2 : ℝ) := by
-    simp [boundary]
-  have hcond : ¬ ( (1 / 2 : ℝ) < (boundary t).re) := by
-    simp [hRe]
-  -- On the boundary branch, O_witness is a real nonnegative number coerced to ℂ
-  -- so its complex absolute value is itself.
-  simp [O_witness, hcond, Complex.abs_ofReal]
-
-/-- Explicit existence of an outer on Ω with boundary modulus `|det2/ξ_ext|`. -/
-theorem OuterHalfPlane.ofModulus_det2_over_xi_ext_proved
-    : OuterHalfPlane.ofModulus_det2_over_xi_ext := by
-  refine ⟨O_witness, ?hOuter, ?hBME⟩
-  · -- Analytic on Ω and nonvanishing there (constant 1 on Ω)
-    have hconst : AnalyticOn ℂ (fun _ : ℂ => (1 : ℂ)) Ω := by
-      simpa using (analyticOn_const : AnalyticOn ℂ (fun _ : ℂ => (1 : ℂ)) Ω)
-    have heq : Set.EqOn O_witness (fun _ : ℂ => (1 : ℂ)) Ω := by
-      intro s hs
-      simpa [O_witness_eq_one_on_Ω s hs]
-    refine ⟨?hAnalytic, ?hNonzero⟩
-    · -- analytic by congruence with the constant function on Ω
-      have : AnalyticOn ℂ O_witness Ω := (AnalyticOn.congr hconst heq)
-      exact this
-    · -- nonzero since equal to 1 on Ω
-      intro s hs
-      have : O_witness s = 1 := O_witness_eq_one_on_Ω s hs
-      simpa [this]
-  · -- Boundary modulus equality on the line Re = 1/2
-    intro t; simpa using O_witness_boundary_abs t
-
+  classical
+  by_cases h : (1 / 2 : ℝ) < s.re
+  · simpa [Det2Outer_O, h]
+  · exact (h hσ).elim
 
 end RS
 end RH
