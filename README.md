@@ -1,4 +1,4 @@
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17055989.svg)](https://doi.org/10.5281/zenodo.17055989)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17094131.svg)](https://www.researchgate.net/publication/395024442_A_Function-Theoretic_Route_to_the_Riemann_Hypothesis)
 [![CI](https://github.com/jonwashburn/rh/actions/workflows/ci.yml/badge.svg)](https://github.com/jonwashburn/rh/actions/workflows/ci.yml)
 ![Lean](https://img.shields.io/badge/Lean-4.12.0-blue)
 ![axioms 0](https://img.shields.io/badge/axioms-0-brightgreen)
