@@ -117,43 +117,10 @@ Austin, Texas, USA\\
 We prove the Riemann Hypothesis by a boundary--to--interior method in classical function theory. The argument fixes an outer normalization on the right edge, establishes a Carleson--box energy inequality for the completed $\xi$--function, and upgrades a boundary positivity principle (P+) to the interior via Herglotz transport and a Cayley transform, yielding a Schur function on the half--plane. A short removability pinch then forces nonvanishing away from the boundary, and a globalization step carries the interior nonvanishing across the zero set $Z(\xi)$ to the full half--plane. Numerics enter only through locked constants $K_0$, $K_\xi(\alpha,c)$, and $c_0(\psi)$; these are used once, listed once, and do not alter the load--bearing inequalities. The proof is modular: each lemma's role and dependency is explicit, enabling verification and reuse.
 \end{abstract}
 
-\section*{Artifact, repository, and verification (Lean 4)}
-\vspace{-0.3em}
-\noindent\textbf{Repository.} \url{https://github.com/jonwashburn/rh}
+\vspace{0.25em}
+\noindent\emph{Lean formalization (commit \texttt{9cb1780}).} A mathlib-only Lean~4 formalization, with no axioms and no admitted proofs, verifies the full boundary route and the RH wrapper; repository: \url{https://github.com/jonwashburn/rh}.
 
-\noindent\textbf{Archival DOI.} \href{https://doi.org/10.5281/zenodo.17094131}{10.5281/zenodo.17094131} \quad
-\textbf{Overview (RG).} \href{https://www.researchgate.net/publication/395024442_A_Function-Theoretic_Route_to_the_Riemann_Hypothesis}{ResearchGate summary}
-
-\noindent\textbf{Build and CI.} Lean~4.12.0, mathlib, built with Lake. Continuous integration runs a clean build and a strict code scan. Locally:
-\begin{verbatim}
-git clone https://github.com/jonwashburn/rh
-cd rh && lake update && lake build
-bash scripts/verify_clean.sh
-\end{verbatim}
-The verification script scans \emph{code only} (comments stripped) for: \texttt{sorry/admit/Admitted/sorryAx}, any \texttt{: Prop := True} (including \texttt{abbrev} forms), \texttt{opaque} Prop declarations, implicit admits in tactics, and top-level \texttt{axiom/constant}. Current status (badges): Lean 4.12.0; \emph{axioms~0}, \emph{sorries~0}, \emph{admitted~0}.
-
-\noindent\textbf{Key entry points.}
-\begin{itemize}
-  \item \texttt{rh/Proof/Main.lean}: final wrapper for RH (symmetry pinch and globalization).
-  \item \texttt{rh/RS/SchurGlobalization.lean}: Schur/Herglotz globalization and boundary pinch; \(\zeta\)-nonvanishing on \(\Re s=1\).
-  \item \texttt{rh/RS/BoundaryWedge.lean}: boundary wedge from CR--Green + Carleson box energy; Cayley to Schur off \(Z(\xi)\).
-  \item \texttt{rh/Cert/KxiWhitney\_RvM.lean}: statement-level Whitney Carleson bound for \(U_\xi\) from short-interval counts.
-  \item \texttt{rh/academic\_framework/EulerProductMathlib.lean}: mathlib-backed Euler-product/nonvanishing wrappers.
-\end{itemize}
-
-\noindent\textbf{What is new in the formalization.}
-\begin{itemize}
-  \item \emph{Outer cancellation with energy bookkeeping.} The CR--Green pairing is performed on
-        \(U_0-U_\xi-\Re\log O\), so only the analytical \(\xi\)-side box constant enters; the prime tail \(K_0\)
-        is tracked transparently. This isolates the load-bearing inequality from numerics.
-  \item \emph{Whitney-scale Carleson control.} A clean annular \(L^2\) aggregation on Whitney boxes turns short-interval
-        zero counts into a finite Carleson constant \(K_\xi\), matching the proof narrative.
-  \item \emph{Explicit verification posture.} The repository enforces a zero-tolerance scan for axioms, sorries, and admits,
-        including sneaky forms (\texttt{abbrev/opaque} Prop stubs and admitted tactics). CI runs both build and scan.
-  \item \emph{Modular, mathlib-only route.} Each block is Lean 4 + mathlib; no new axioms.
-        Determinant identities and Euler-product wrappers are referenced where needed; the boundary route uses only
-        CR--Green + Carleson energy on the right-hand side.
-\end{itemize}
+% (Lean artifact details moved to Appendix: see “Artifact, repository, and verification (Lean 4)”.)
 
 \maketitle
 \section{Introduction}
@@ -2092,6 +2059,27 @@ In the prime order, $K$ has no entries on or below the diagonal. Hence there are
 % (Appendix moved below Discussion to avoid numbering Discussion as an appendix.)
 % 
 \section*{Collected auxiliary statements (for cross-references)}
+\section*{Artifact, repository, and verification (Lean 4)}
+\vspace{-0.3em}
+\noindent\textbf{Repository.} \url{https://github.com/jonwashburn/rh} \quad
+\textbf{Archival DOI.} \href{https://doi.org/10.5281/zenodo.17094131}{10.5281/zenodo.17094131} \quad
+\textbf{Overview (RG).} \href{https://www.researchgate.net/publication/395024442_A_Function-Theoretic_Route_to_the_Riemann_Hypothesis}{ResearchGate summary}
+
+\noindent\textbf{Build and CI.} Lean~4.12.0, mathlib, Lake. CI runs a clean build and a strict scan that rejects any axioms, sorries, admitted proofs, \texttt{: Prop := True} stubs (including \texttt{abbrev} forms), \texttt{opaque} Prop declarations, admitted tactics, and top-level \texttt{axiom/constant}. Locally:
+\begin{verbatim}
+git clone https://github.com/jonwashburn/rh
+cd rh && lake update && lake build
+bash scripts/verify_clean.sh
+\end{verbatim}
+
+\noindent\textbf{Key entry points.}
+\begin{itemize}
+  \item \texttt{rh/Proof/Main.lean}: final RH wrapper (symmetry pinch and globalization).
+  \item \texttt{rh/RS/SchurGlobalization.lean}: boundary wedge → interior Schur/Herglotz; nonvanishing on \(\Re s=1\).
+  \item \texttt{rh/RS/BoundaryWedge.lean}: CR–Green + Carleson to boundary wedge; Cayley to Schur off \(Z(\xi)\).
+  \item \texttt{rh/Cert/KxiWhitney\_RvM.lean}: Whitney Carleson schema for \(U_\xi\) via short-interval counts.
+  \item \texttt{rh/academic\_framework/EulerProductMathlib.lean}: mathlib Euler-product wrappers.
+\end{itemize}
 
 \begin{definition}[Admissible bump windows]\label{def:adm-bumps}
 Let $\mathcal W_{\rm adm}(I;\varepsilon)$ denote the class of smooth, even, compactly supported bump functions on $I$ with a central plateau of width $\ge (1-\varepsilon)|I|$ and with endpoint derivatives controlled uniformly (as specified where first used). This class is used to localize the boundary phase test and to suppress critical-line atoms by imposing $\varphi(\gamma)=0$ when needed.
