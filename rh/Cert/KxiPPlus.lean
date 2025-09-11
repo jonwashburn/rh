@@ -2,6 +2,7 @@ import Mathlib.Data.Real.Basic
 import Mathlib.Data.Complex.Basic
 import Mathlib.Tactic
 import rh.academic_framework.GammaBounds
+import rh.Cert.K0PPlus
 -- keep this file independent of heavy analytic interfaces
 
 namespace RH.Cert
@@ -55,8 +56,8 @@ structure FunctionalEquationStripFactors where
   hB : 0 ≤ B
   carleson : ConcreteHalfPlaneCarleson B
 
-/-- Certificate-ready flag: kept as `True` for interface satisfaction. -/
-def CertificateReady : Prop := True
+/-- Certificate-ready flag: arithmetic tail available and a factors witness exists. -/
+def CertificateReady : Prop := K0Available ∧ Nonempty FunctionalEquationStripFactors
 
 /-- Existence form (concrete): any factors witness yields `∃ Kξ, ConcreteHalfPlaneCarleson Kξ`. -/
 theorem exists_KxiBound_if_factors
@@ -279,27 +280,45 @@ theorem PPlusFromCarleson_bound_proof
       PairingSystem.testEnergy_le_Aψ (F:=F) (ψ:=ψ) (α:=α) (α':=α') I φ
     have hE'  : Real.sqrt (PS.testEnergy I φ)
                   ≤ Real.sqrt Aψ :=
-      Real.sqrt_le_sqrt hE₀ hE
+      Real.sqrt_le_sqrt hE
     -- Control √ζ(I) by √(Cζ · |I|)
     have hζ₀ : 0 ≤ CarlesonSystem.ζ I := CS.ζ_nonneg I
     have hζ  : CarlesonSystem.ζ I ≤ Cζ * (2 * I.len) := CS.budget I
     have hζ' : Real.sqrt (CarlesonSystem.ζ I)
                 ≤ Real.sqrt (Cζ * (2 * I.len)) :=
-      Real.sqrt_le_sqrt hζ₀ hζ
+      Real.sqrt_le_sqrt hζ
     -- Combine the two monotonicities
     have hstep1 :
         Crem * Real.sqrt (PS.testEnergy I φ)
         ≤ Crem * Real.sqrt Aψ :=
       mul_le_mul_of_nonneg_left hE' hCrem₀
+    -- First, use √(testEnergy) ≤ √Aψ and multiply by √ζ(I), then by Crem ≥ 0
+    have step1 :
+        Real.sqrt (PS.testEnergy I φ) * Real.sqrt (CarlesonSystem.ζ I)
+        ≤ Real.sqrt Aψ * Real.sqrt (CarlesonSystem.ζ I) :=
+      mul_le_mul_of_nonneg_right hE' (Real.sqrt_nonneg _)
+    have stepE :
+        Crem * (Real.sqrt (PS.testEnergy I φ) * Real.sqrt (CarlesonSystem.ζ I))
+        ≤ Crem * (Real.sqrt Aψ * Real.sqrt (CarlesonSystem.ζ I)) :=
+      mul_le_mul_of_nonneg_left step1 hCrem₀
+    -- Next, replace √ζ(I) by √(Cζ·|I|) and multiply by Crem·√Aψ ≥ 0
+    have hζA :
+        Real.sqrt (CarlesonSystem.ζ I) * Real.sqrt Aψ
+        ≤ Real.sqrt (Cζ * (2 * I.len)) * Real.sqrt Aψ :=
+      mul_le_mul_of_nonneg_right hζ' (Real.sqrt_nonneg _)
+    have stepZ :
+        Crem * (Real.sqrt Aψ * Real.sqrt (CarlesonSystem.ζ I))
+        ≤ Crem * (Real.sqrt Aψ * Real.sqrt (Cζ * (2 * I.len))) := by
+      have := mul_le_mul_of_nonneg_left hζA hCrem₀
+      simpa [mul_comm, mul_left_comm, mul_assoc] using this
     have h₂ :
         Crem
         * Real.sqrt (PS.testEnergy I φ)
         * Real.sqrt (CarlesonSystem.ζ I)
         ≤ Crem * Real.sqrt Aψ * Real.sqrt (Cζ * (2 * I.len)) := by
-      -- multiply the first step by √ζ(I) on both sides, then replace by √(Cζ·|I|)
-      have step2 := mul_le_mul_of_nonneg_right hstep1 (Real.sqrt_nonneg _)
-      have : 0 ≤ Crem * Real.sqrt Aψ := mul_nonneg hCrem₀ (Real.sqrt_nonneg _)
-      exact le_trans step2 (mul_le_mul_of_nonneg_left hζ' this)
+      -- reorganize to apply stepE then stepZ
+      have := le_trans stepE stepZ
+      simpa [mul_comm, mul_left_comm, mul_assoc] using this
     -- Replace `√(Cζ·|I|)` by `√Cζ · √|I|`
     have hsplit1 :
         Real.sqrt (Cζ * (2 * I.len)) = Real.sqrt Cζ * Real.sqrt (2 * I.len) := by
@@ -323,6 +342,12 @@ theorem PPlusFromCarleson_bound_proof
       _ = Crem * Real.sqrt Aψ * (Real.sqrt Cζ * (Real.sqrt 2 * Real.sqrt I.len)) := by
         simpa [hsplit2]
       _ = (Crem * Real.sqrt Aψ * Real.sqrt Cζ * Real.sqrt 2) * Real.sqrt I.len := by ring
+      _ = Crem * Real.sqrt Aψ * Real.sqrt Cζ * Real.sqrt (I.length) := by
+        -- rewrite √|I| as √(2L) = √2·√L
+        have : Real.sqrt (I.length) = Real.sqrt (2 * I.len) := by
+          simp [WhitneyInterval.length]
+        simp [this, hsplit2, mul_comm, mul_left_comm, mul_assoc]
+      _ = (Crem * Real.sqrt Aψ * Real.sqrt Cζ) * Real.sqrt (I.length) := by ring
 
 /-- Specialization: `(P+)` numeric certificate for `F := 2·J` is immediate once
 instances exist. -/

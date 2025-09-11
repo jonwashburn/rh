@@ -33,12 +33,6 @@ theorem zeta_nonzero_re_eq_one
     riemannZeta z ≠ 0 :=
   RH.RS.ZetaNoZerosOnRe1FromSchur B z hz
 
-/-- Prop-level hook mirroring the intended RS export; callers can depend on this
-statement-shaped wrapper until the RS proof is provided. -/
-def zeta_nonzero_re_eq_one_statement
-    (z : ℂ) (hz : z.re = 1) (w : RH.RS.ZetaSchurDecomposition) : Prop :=
-  RH.RS.ZetaNoZerosOnRe1FromSchur_Statement z hz w
-
 /-! Boundary-line nonvanishing via the RS boundary bridge (once the ζ→Θ/N
 bridge provides local pinch data for each boundary point). -/
 
@@ -62,12 +56,6 @@ theorem zeta_nonzero_re_eq_one_from_bridgeStatement
     (h : RH.RS.ZetaSchurBridgeStatement) :
     riemannZeta z ≠ 0 :=
   RH.RS.ZetaNoZerosOnRe1FromSchur_from_bridgeStatement h z hz
-
-/-- Statement-level wrapper mirroring the RS export, from a boundary bridge. -/
-theorem zeta_nonzero_re_eq_one_statement_from_bridge
-    (z : ℂ) (hz : z.re = 1) (B : RH.RS.ZetaSchurBoundaryBridge) :
-    RH.RS.ZetaNoZerosOnRe1FromSchur_Statement z hz B.w :=
-  RH.RS.ZetaNoZerosOnRe1FromSchur_Statement_from_bridge B z hz
 
 -- Note: boundary-line nonvanishing is delegated to the RS layer when needed.
 -- We intentionally do not duplicate it here to keep this module mathlib-only.

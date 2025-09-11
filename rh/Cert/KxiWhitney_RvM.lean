@@ -46,9 +46,9 @@ def VK_bound (α c : ℝ) (Z : ZeroCountAPI) : Prop :=
   ∃ a1 a2 T0 : ℝ,
     ∀ ⦃T R : ℝ⦄,
       T0 ≤ T →
-      let L := whitneyLength c T
-      → L ≤ R → R ≤ α * L
-      → Z.N T R ≤ a1 * R * Real.log (bracket T) + a2 * Real.log (bracket T)
+      (let L := whitneyLength c T in
+        L ≤ R → R ≤ α * L →
+        Z.N T R ≤ a1 * R * Real.log (bracket T) + a2 * Real.log (bracket T))
 
 /-- Annulus count at dyadic scale `k`: \#zeros with radii in `[2^k L, 2^{k+1} L]`.
 We model it by the monotone telescope difference of cumulative counts. -/
@@ -59,17 +59,23 @@ def annulusCount (Z : ZeroCountAPI) (c T : ℝ) (k : ℕ) : ℝ :=
 /-- `log ⟨T⟩ ≥ 0`. -/
 lemma log_bracket_nonneg (T : ℝ) : 0 ≤ Real.log (bracket T) := by
   -- `bracket T = √(1+T^2) ≥ 1`, hence `log ≥ 0`.
-  have hsq : 0 ≤ 1 + T * T := by
-    have : 0 ≤ T * T := by simpa [mul_comm] using sq_nonneg T
-    simpa using add_nonneg (by norm_num) this
   have h1le : (1 : ℝ) ≤ 1 + T * T := by
-    have : 0 ≤ T * T := by simpa [mul_comm] using sq_nonneg T
+    have : 0 ≤ T * T := by exact mul_self_nonneg T
     linarith
   have hsqrt : 1 ≤ Real.sqrt (1 + T * T) := by
     have : Real.sqrt 1 ≤ Real.sqrt (1 + T * T) := Real.sqrt_le_sqrt h1le
     simpa [Real.sqrt_one] using this
   have hbr : 1 ≤ bracket T := by simpa [bracket] using hsqrt
-  exact (Real.log_nonneg_iff.mpr hbr)
+  -- From `1 ≤ bracket T` and `bracket T > 0`, we conclude `0 ≤ log (bracket T)`.
+  have hbpos : 0 < bracket T := by
+    have hpos : 0 < 1 + T * T := by
+      have : 0 ≤ T * T := mul_self_nonneg T
+      linarith
+    simpa [bracket] using Real.sqrt_pos.mpr hpos
+  have hlog : 0 ≤ Real.log (bracket T) := by
+    have hiff := Real.log_nonneg_iff.mpr hbpos
+    exact hiff.mpr hbr
+  exact hlog
 
 /-- Minimal dyadic monotone-telescope bound on a VK window.
 
@@ -125,9 +131,10 @@ lemma monotone_telescope_dyadic
       simpa [hdef] using (le_trans le_rfl this)
     exact le_trans this hN_R2
   -- Repackage the linear-in-R term using `R2 = 2^{k+1} L`
-  have hlin : a1 * R2 * Λ ≤ (2 * a1) * ((2 : ℝ) ^ k) * L * Λ := by
-    have : R2 = ((2 : ℝ) ^ (k + 1)) * L := by simpa [hR2]
-    simpa [this, pow_succ, mul_left_comm, mul_assoc] using le_of_eq rfl
+  have hlin' : a1 * R2 * Λ ≤ (2 * a1) * ((2 : ℝ) ^ k) * L * Λ := by
+    have : a1 * R2 * Λ = (2 * a1) * ((2 : ℝ) ^ k) * L * Λ := by
+      simp [hR2, pow_succ, two_mul, mul_left_comm, mul_assoc]
+    exact le_of_eq this
   -- Gain `2^{-k}` on the constant by `α / 2^k ≥ 2`
   have hfrac_ge : 2 ≤ α / ((2 : ℝ) ^ k) := by
     -- from `2^(k+1) ≤ α` obtain `2 ≤ α / 2^k`
@@ -136,7 +143,7 @@ lemma monotone_telescope_dyadic
       have : (2 : ℝ) ^ (k + 1) ≤ α := h2
       have : ((2 : ℝ) ^ k) * 2 ≤ α := by simpa [pow_succ, mul_comm] using this
       simpa [mul_comm] using this
-    have := (le_div_iff₀ (by exact hpos)).mpr hmul
+    have : 2 ≤ α / ((2 : ℝ) ^ k) := (le_div_iff₀ (by exact hpos)).mpr hmul
     simpa using this
   have hconst : a2 * Λ ≤ (α * |a2|) * (1 / ((2 : ℝ) ^ k)) * Λ := by
     -- `a2 Λ ≤ |a2| Λ ≤ (α / 2^k) |a2| Λ` and `α / 2^k ≥ 2 ≥ 1`
@@ -152,7 +159,7 @@ lemma monotone_telescope_dyadic
     simpa [div_eq_mul_inv, mul_left_comm, mul_assoc] using this
   -- Combine terms
   have : νk ≤ (2 * a1) * ((2 : ℝ) ^ k) * L * Λ + (α * |a2|) * (1 / ((2 : ℝ) ^ k)) * Λ := by
-    have := add_le_add hlin hconst
+    have := add_le_add hlin' hconst
     exact le_trans hnu_le this
   simpa using this
 
@@ -201,9 +208,8 @@ theorem kxi_whitney_carleson_of_rvm (α c : ℝ) : KxiBound α c := by
   let Kξ := (64 * α ^ 4) * ((1 : ℝ) / 7 + (1 : ℝ) / 15) * (max c 0)
   refine ⟨Kξ, ?_, And.intro rfl rfl⟩
   have hα4 : 0 ≤ α ^ 4 := by
-    have : 0 ≤ α ^ 2 := sq_nonneg α
-    have : 0 ≤ (α ^ 2) ^ 2 := sq_nonneg (α ^ 2)
-    simpa [pow_mul, pow_two] using this
+    have h2 : 0 ≤ α ^ 2 := by exact sq_nonneg α
+    simpa [pow_two] using mul_nonneg h2 h2
   have hcoef : 0 ≤ 64 * α ^ 4 := by
     have : 0 ≤ (64 : ℝ) := by norm_num
     exact mul_nonneg this hα4
@@ -271,9 +277,8 @@ theorem kxi_whitney_carleson_of_annular_counts
   let Kξ := ((α ^ 4) / 2) * (a1 / 7 + a2 / 15) * (max c 0)
   refine ⟨Kξ, ?hKξ_nonneg, And.intro rfl rfl⟩
   have hα : 0 ≤ α ^ 4 := by
-    have : 0 ≤ α ^ 2 := by exact sq_nonneg α
-    have : 0 ≤ (α ^ 2) ^ 2 := by exact sq_nonneg (α ^ 2)
-    simpa [pow_mul, pow_two] using this
+    have h2 : 0 ≤ α ^ 2 := by exact sq_nonneg α
+    simpa [pow_two] using mul_nonneg h2 h2
   have hsum : 0 ≤ (a1 / 7 + a2 / 15) := by
     have h1 : 0 ≤ a1 / 7 := by
       have : 0 < (7 : ℝ) := by norm_num
@@ -284,11 +289,8 @@ theorem kxi_whitney_carleson_of_annular_counts
     exact add_nonneg h1 h2
   have hc : 0 ≤ max c 0 := by exact le_max_right _ _
   have : 0 ≤ ((α ^ 4) / 2) := by
-    have : 0 ≤ α ^ 4 := hα
-    have : 0 ≤ (α ^ 4) * (1 / 2) := by
-      have : 0 ≤ (1 / 2 : ℝ) := by norm_num
-      exact mul_nonneg this ‹0 ≤ α ^ 4› |>.symm
-    simpa [div_eq_mul_inv] using this
+    have hpos : 0 < (2 : ℝ) := by norm_num
+    exact div_nonneg hα (le_of_lt hpos)
   -- combine nonnegativity of all factors
   have : 0 ≤ ((α ^ 4) / 2) * (a1 / 7 + a2 / 15) := mul_nonneg ‹0 ≤ ((α ^ 4) / 2)› hsum
   exact mul_nonneg this hc

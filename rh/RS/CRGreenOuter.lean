@@ -2,6 +2,7 @@ import Mathlib.Data.Real.Basic
 import Mathlib.MeasureTheory.Integral.IntervalIntegral
 import Mathlib.Topology.Algebra.Algebra
 import Mathlib.Algebra.BigOperators.Ring
+import Mathlib.Algebra.Order.Chebyshev
 
 /-!
 # CR–Green pairing and outer cancellation (algebraic strengthening)
@@ -148,29 +149,33 @@ lemma whitney_uniform_separation_on_Icc
     simpa [abs_le] using this
   -- triangle and rearrangement
   have hxT_le : |x - T| ≤ |x - t| + |t - T| := by
-    have := abs_sub_le x t T
+    have := abs_sub_le x T t
+    -- |x - T| ≤ |x - t| + |t - T|
     simpa [abs_sub_comm, add_comm] using this
   have htx : |t - x| ≥ |x - T| - |t - T| := by
     have := sub_le_iff_le_add'.mpr hxT_le; simpa [abs_sub_comm] using this
   have h1 : (2 : ℝ)^(k-1) * L - L ≥ (2 : ℝ)^(k-2) * L := by
-    -- Since k≥2, 2^{k-1} = 2 * 2^{k-2} and (2*X - 1) ≥ X for X≥1
-    have hk2 : (1 : ℝ) ≤ (2 : ℝ)^(k-2) := by
-      simpa using one_le_pow_of_one_le (by norm_num : (1 : ℝ) ≤ 2) (k - 2)
-    have : (2 : ℝ)^(k-1) * L - L = ((2 : ℝ)^(k-2) * L) + ((2 : ℝ)^(k-2) * L - L) := by
-      ring_nf
+    -- 2^{k-1} L - L = (2^{k-2}L) + (2^{k-2}L - L) ≥ 2^{k-2}L for L ≥ 0
     have hLnonneg : 0 ≤ L := hL
-    have : (2 : ℝ)^(k-2) * L - L ≥ 0 := by
-      have : (2 : ℝ)^(k-2) ≥ 1 := hk2
-      have : (2 : ℝ)^(k-2) * L ≥ 1 * L := mul_le_mul_of_nonneg_right this hLnonneg
+    have hk2 : 2 ≤ k := hk
+    have hpow : (2 : ℝ)^(k-1) = 2 * (2 : ℝ)^(k-2) := by
+      have : k - 1 = (k - 2) + 1 := by omega
+      simpa [this, pow_add, pow_one, two_mul]
+    have : (2 : ℝ)^(k-1) * L - L = (2 : ℝ)^(k-2) * L + ((2 : ℝ)^(k-2) * L - L) := by
+      simpa [hpow, two_mul, add_comm, add_left_comm, add_assoc, mul_add, sub_eq_add_neg]
+    have hrest : (2 : ℝ)^(k-2) * L - L ≥ 0 := by
+      have hge : (2 : ℝ)^(k-2) ≥ (1 : ℝ) := by
+        have : (1 : ℝ) ≤ 2 := by norm_num
+        simpa using one_le_pow_of_one_le this (k - 2)
+      have : (2 : ℝ)^(k-2) * L ≥ 1 * L := mul_le_mul_of_nonneg_right hge hLnonneg
       simpa [one_mul, sub_eq_add_neg] using sub_nonneg_of_le this
-    have hx' : (2 : ℝ)^(k-2) * L ≥ (2 : ℝ)^(k-2) * L := le_rfl
     nlinarith
   -- combine bounds
   have : |t - x| ≥ (2 : ℝ)^(k-1) * L - L := by
     have hge : |x - T| - |t - T| ≤ |x - t| := by
       have := sub_le_iff_le_add'.mpr hxT_le; simpa [abs_sub_comm] using this
     have := le_trans (sub_le_sub_right hx _) hge
-    simpa [sub_eq_add_neg, abs_sub_comm, sub_eq_add_neg] using this
+    simpa [sub_eq_add_neg, abs_sub_comm] using this
   exact this.trans h1
 
 /-- Pointwise square bound from separation: if `|t-x| ≥ d` and `σ,d ≥ 0` then
@@ -186,10 +191,13 @@ lemma Kσ_sq_le_const_of_sep
   have hBpos : 0 < d^2 + σ^2 := by nlinarith [hσ, hd]
   have hApos : 0 < (t - x)^2 + σ^2 := by nlinarith [hσ]
   have hinv : (1 : ℝ) / ((t - x)^2 + σ^2) ≤ 1 / (d^2 + σ^2) :=
-    (inv_le_inv_of_le hBpos hA)
+    one_div_le_one_div_of_le (by exact le_of_lt hApos) hA
   have hnonnegσ : 0 ≤ σ^2 := by nlinarith [hσ]
   have : (1 / ((t - x)^2 + σ^2))^2 ≤ (1 / (d^2 + σ^2))^2 := by
-    exact sq_le_sq_of_nonneg_of_le (by have := one_div_nonneg.mpr (le_of_lt hApos); simpa using this) hinv
+    have hnon : 0 ≤ (1 : ℝ) / ((t - x)^2 + σ^2) := by
+      have : 0 ≤ ((t - x)^2 + σ^2) := by nlinarith
+      simpa using one_div_nonneg.mpr this
+    exact mul_self_le_mul_self_of_nonneg_of_le hnon hinv
   have : σ^2 * (1 / ((t - x)^2 + σ^2))^2 ≤ σ^2 * (1 / (d^2 + σ^2))^2 :=
     mul_le_mul_of_nonneg_left this hnonnegσ
   simpa [Kσ, pow_two, mul_comm, mul_left_comm, mul_assoc, div_eq_mul_one_div] using this
@@ -380,11 +388,8 @@ lemma finset_cauchy_schwarz_nonneg
     {ι} (s : Finset ι) (a : ι → ℝ) :
     (∑ i in s, a i)^2 ≤ (s.card : ℝ) * (∑ i in s, (a i)^2) := by
   classical
-  -- Expand `(∑ a_i)^2 = ∑∑ a_i a_j` and bound by `card * ∑ a_i^2`
-  have h := Real.cauchySchwarz_mul (s := s) (f := fun _ => (1 : ℝ)) (g := a)
-  -- From mathlib: `|∑ f_i g_i| ≤ sqrt(∑ f_i^2) * sqrt(∑ g_i^2)`.
-  -- Square both sides and evaluate `∑ 1^2 = card`.
-  simpa using h
+  simpa using (sq_sum_le_card_mul_sum_sq (s := s) (f := a) :
+    (∑ i ∈ s, a i) ^ 2 ≤ s.card * ∑ i ∈ s, a i ^ 2)
 
 /-- Annular Whitney L² bound with linear `|A_k|` and decay `4^{-k}` for `k ≥ 2`. -/
 lemma annular_balayage_L2
@@ -413,7 +418,12 @@ lemma annular_balayage_L2
             (a := T - L) (b := T + L)
             (f := fun t => (∑ γ in Ak, (Kσ σ (t - γ)))^2 * σ)
             (g := fun t => (Ak.card : ℝ) * (∑ γ in Ak, (Kσ σ (t - γ))^2) * σ)
-            (by intro t ht; have := hpt σ t; nlinarith)
+            (by
+              intro t ht
+              have hcs :
+                (∑ γ in Ak, (Kσ σ (t - γ)))^2 ≤ (Ak.card : ℝ) * (∑ γ in Ak, (Kσ σ (t - γ))^2) := by
+                simpa using finset_cauchy_schwarz_nonneg (s := Ak) (a := fun γ => Kσ σ (t - γ))
+              exact mul_le_mul_of_nonneg_right hcs hσ.1)
         simpa using htmono)
   -- Bound the σ-integral of each (γ)-term using the off-support σ-lemma
   have hone : ∀ γ ∈ Ak,

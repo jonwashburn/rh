@@ -1,5 +1,35 @@
 {"log":
  [{"message":
    ".> LEAN_PATH=././.lake/packages/batteries/.lake/build/lib:././.lake/packages/Qq/.lake/build/lib:././.lake/packages/aesop/.lake/build/lib:././.lake/packages/proofwidgets/.lake/build/lib:././.lake/packages/Cli/.lake/build/lib:././.lake/packages/importGraph/.lake/build/lib:././.lake/packages/LeanSearchClient/.lake/build/lib:././.lake/packages/mathlib/.lake/build/lib:././.lake/build/lib DYLD_LIBRARY_PATH= /Users/jonathanwashburn/.elan/toolchains/leanprover--lean4---v4.12.0/bin/lean -Dpp.unicode.fun=true -Dpp.proofs.withType=false -DautoImplicit=false -DrelaxedAutoImplicit=false ././././rh/Cert/KxiPPlus.lean -R ./././. -o ././.lake/build/lib/rh/Cert/KxiPPlus.olean -i ././.lake/build/lib/rh/Cert/KxiPPlus.ilean -c ././.lake/build/ir/rh/Cert/KxiPPlus.c --json",
-   "level": "trace"}],
- "depHash": "4312157165097530083"}
+   "level": "trace"},
+  {"message":
+   "././././rh/Cert/KxiPPlus.lean:334:6: try 'simp' instead of 'simpa'\nnote: this linter can be disabled with `set_option linter.unnecessarySimpa false`",
+   "level": "warning"},
+  {"message":
+   "././././rh/Cert/KxiPPlus.lean:341:77: try 'simp' instead of 'simpa'\nnote: this linter can be disabled with `set_option linter.unnecessarySimpa false`",
+   "level": "warning"},
+  {"message":
+   "././././rh/Cert/KxiPPlus.lean:343:8: try 'simp' instead of 'simpa'\nnote: this linter can be disabled with `set_option linter.unnecessarySimpa false`",
+   "level": "warning"},
+  {"message":
+   "././././rh/Cert/KxiPPlus.lean:261:7: unused variable `hAψ₀`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   "././././rh/Cert/KxiPPlus.lean:277:9: unused variable `hE₀`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   "././././rh/Cert/KxiPPlus.lean:285:9: unused variable `hζ₀`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   "././././rh/Cert/KxiPPlus.lean:291:9: unused variable `hstep1`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   "././././rh/Cert/KxiPPlus.lean:325:11: unused variable `hlen`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   "././././rh/Cert/KxiPPlus.lean:332:11: unused variable `h2`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   "././././rh/Cert/KxiPPlus.lean:333:11: unused variable `hlen`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"}],
+ "depHash": "9604792441388936746"}
