@@ -19,6 +19,18 @@ def K0Available : Prop := RH.Cert.K0Available
 /-- Readiness flag for certificate chain hooks: both `K0` and `Kξ` are available. -/
 def Ready : Prop := K0Available ∧ KxiAvailable
 
+/-- From a functional‑equation closed‑strip factors witness, we can still
+obtain `KxiAvailable` via the Whitney–box provider (interface level). -/
+theorem KxiAvailable_of_factors
+    (h : Nonempty RH.Cert.FunctionalEquationStripFactors) :
+    KxiAvailable := by
+  -- We ignore the specific witness and use the RvM export at any parameters.
+  exact ⟨(1 : ℝ), (1 : ℝ), RH.Cert.KxiWhitneyRvM.kxi_whitney_carleson_of_rvm 1 1⟩
+
+/-- Proven availability of `Kξ`: use the RvM export at concrete parameters. -/
+theorem KxiAvailable_proved : KxiAvailable :=
+  ⟨(1 : ℝ), (1 : ℝ), RH.Cert.KxiWhitneyRvM.kxi_whitney_carleson_of_rvm 1 1⟩
+
 /-- If `K0Available` holds and a factors witness exists, the certificate
 track is ready (modulo the `CertificateReady` flag exposed by `rh/Cert`). -/
 theorem Ready_of_factors
@@ -33,17 +45,5 @@ theorem Ready_unconditional : Ready := by
   refine And.intro ?hK0 ?hKxi
   · exact RH.Cert.K0Available_proved
   · exact KxiAvailable_proved
-
-/-- From a functional‑equation closed‑strip factors witness, we can still
-obtain `KxiAvailable` via the Whitney–box provider (interface level). -/
-theorem KxiAvailable_of_factors
-    (h : Nonempty RH.Cert.FunctionalEquationStripFactors) :
-    KxiAvailable := by
-  -- We ignore the specific witness and use the RvM export at any parameters.
-  exact ⟨(1 : ℝ), (1 : ℝ), RH.Cert.KxiWhitneyRvM.kxi_whitney_carleson_of_rvm 1 1⟩
-
-/-- Proven availability of `Kξ`: use the RvM export at concrete parameters. -/
-theorem KxiAvailable_proved : KxiAvailable :=
-  ⟨(1 : ℝ), (1 : ℝ), RH.Cert.KxiWhitneyRvM.kxi_whitney_carleson_of_rvm 1 1⟩
 
 end RH.AcademicFramework.Certificate

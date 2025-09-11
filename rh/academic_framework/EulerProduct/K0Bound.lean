@@ -13,7 +13,7 @@ We record a formal definition of the prime-power tail constant
 
 valid at the level of nonnegative series (interpreted via `tsum` on
 `ℝ≥0∞` upper bounds or via absolute convergence on `ℝ`). We also give
-a general inequality that reduces bounding `K0` to bounding the prime
+ a general inequality that reduces bounding `K0` to bounding the prime
 Dirichlet series blocks `P(k) := ∑_{p} p^{-k}` for integers `k ≥ 2`.
 
 This file purposefully stops short of a hard numeric evaluation such as
@@ -186,5 +186,10 @@ theorem K0_bound_on_strip_proved : K0_bound_on_strip := by
     tsum_nonneg hterm_nonneg
   have hcoef : 0 ≤ (1/4 : ℝ) := by norm_num
   exact mul_nonneg hcoef hsum_nonneg
+
+/-- Exported nonnegativity as a plain inequality. Kept in sync with
+`K0_bound_on_strip_proved` for dependents that prefer the Prop alias. -/
+theorem K0_nonneg : 0 ≤ K0 := by
+  simpa [K0_bound_on_strip] using K0_bound_on_strip_proved
 
 end RH.AcademicFramework.EulerProduct.K0

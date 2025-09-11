@@ -44,11 +44,9 @@ structure ZeroCountAPI where
 with `L = whitneyLength c T`. The constants `a1, a2, T0` are external inputs. -/
 def VK_bound (α c : ℝ) (Z : ZeroCountAPI) : Prop :=
   ∃ a1 a2 T0 : ℝ,
-    ∀ ⦃T R : ℝ⦄,
-      T0 ≤ T →
-      (let L := whitneyLength c T in
-        L ≤ R → R ≤ α * L →
-        Z.N T R ≤ a1 * R * Real.log (bracket T) + a2 * Real.log (bracket T))
+    ∀ ⦃T R : ℝ⦄, T0 ≤ T →
+      whitneyLength c T ≤ R → R ≤ α * whitneyLength c T →
+        Z.N T R ≤ a1 * R * Real.log (bracket T) + a2 * Real.log (bracket T)
 
 /-- Annulus count at dyadic scale `k`: \#zeros with radii in `[2^k L, 2^{k+1} L]`.
 We model it by the monotone telescope difference of cumulative counts. -/
@@ -73,7 +71,7 @@ lemma log_bracket_nonneg (T : ℝ) : 0 ≤ Real.log (bracket T) := by
       linarith
     simpa [bracket] using Real.sqrt_pos.mpr hpos
   have hlog : 0 ≤ Real.log (bracket T) := by
-    have hiff := Real.log_nonneg_iff.mpr hbpos
+    have hiff := Real.log_nonneg_iff hbpos
     exact hiff.mpr hbr
   exact hlog
 
@@ -133,7 +131,7 @@ lemma monotone_telescope_dyadic
   -- Repackage the linear-in-R term using `R2 = 2^{k+1} L`
   have hlin' : a1 * R2 * Λ ≤ (2 * a1) * ((2 : ℝ) ^ k) * L * Λ := by
     have : a1 * R2 * Λ = (2 * a1) * ((2 : ℝ) ^ k) * L * Λ := by
-      simp [hR2, pow_succ, two_mul, mul_left_comm, mul_assoc]
+      simp [hR2, pow_succ, mul_comm, mul_left_comm, mul_assoc]
     exact le_of_eq this
   -- Gain `2^{-k}` on the constant by `α / 2^k ≥ 2`
   have hfrac_ge : 2 ≤ α / ((2 : ℝ) ^ k) := by
@@ -143,7 +141,7 @@ lemma monotone_telescope_dyadic
       have : (2 : ℝ) ^ (k + 1) ≤ α := h2
       have : ((2 : ℝ) ^ k) * 2 ≤ α := by simpa [pow_succ, mul_comm] using this
       simpa [mul_comm] using this
-    have : 2 ≤ α / ((2 : ℝ) ^ k) := (le_div_iff₀ (by exact hpos)).mpr hmul
+    have : 2 ≤ α / ((2 : ℝ) ^ k) := (le_div_iff₀ hpos).mpr hmul
     simpa using this
   have hconst : a2 * Λ ≤ (α * |a2|) * (1 / ((2 : ℝ) ^ k)) * Λ := by
     -- `a2 Λ ≤ |a2| Λ ≤ (α / 2^k) |a2| Λ` and `α / 2^k ≥ 2 ≥ 1`
@@ -208,8 +206,14 @@ theorem kxi_whitney_carleson_of_rvm (α c : ℝ) : KxiBound α c := by
   let Kξ := (64 * α ^ 4) * ((1 : ℝ) / 7 + (1 : ℝ) / 15) * (max c 0)
   refine ⟨Kξ, ?_, And.intro rfl rfl⟩
   have hα4 : 0 ≤ α ^ 4 := by
-    have h2 : 0 ≤ α ^ 2 := by exact sq_nonneg α
-    simpa [pow_two] using mul_nonneg h2 h2
+    have hsq : 0 ≤ (α ^ 2) ^ 2 := by exact sq_nonneg (α ^ 2)
+    have hpow : (α ^ 2) ^ 2 = α ^ (2 * 2) := by
+      have := (pow_mul α 2 2)
+      -- this: α ^ (2*2) = (α ^ 2) ^ 2
+      simpa using this.symm
+    have h' : 0 ≤ α ^ (2 * 2) := by simpa [hpow] using hsq
+    have hmul : (2 : ℕ) * 2 = 4 := by decide
+    simpa [hmul] using h'
   have hcoef : 0 ≤ 64 * α ^ 4 := by
     have : 0 ≤ (64 : ℝ) := by norm_num
     exact mul_nonneg this hα4
@@ -248,7 +252,12 @@ theorem annulus_counts_of_VK
       hΛ hL
       (by
         intro R hLR hRα
-        simpa [L] using (hwin (T := T) (R := R) hT (by rfl) hLR hRα))
+        -- expand the window hypotheses to match hwin's expected form
+        have h1 : whitneyLength c T ≤ R := by simpa [L]
+          using hLR
+        have h2 : R ≤ α * whitneyLength c T := by simpa [L]
+          using hRα
+        simpa using (hwin (T := T) (R := R) hT h1 h2))
       (k := k) hk
   -- Unfold `annulusCount` and constants
   simpa [annulusCount, L, Λ, mul_left_comm, mul_assoc, two_mul, mul_add, add_comm, add_left_comm, add_assoc]
@@ -277,8 +286,13 @@ theorem kxi_whitney_carleson_of_annular_counts
   let Kξ := ((α ^ 4) / 2) * (a1 / 7 + a2 / 15) * (max c 0)
   refine ⟨Kξ, ?hKξ_nonneg, And.intro rfl rfl⟩
   have hα : 0 ≤ α ^ 4 := by
-    have h2 : 0 ≤ α ^ 2 := by exact sq_nonneg α
-    simpa [pow_two] using mul_nonneg h2 h2
+    have hsq : 0 ≤ (α ^ 2) ^ 2 := by exact sq_nonneg (α ^ 2)
+    have hpow : (α ^ 2) ^ 2 = α ^ (2 * 2) := by
+      have := (pow_mul α 2 2)
+      simpa using this.symm
+    have h' : 0 ≤ α ^ (2 * 2) := by simpa [hpow] using hsq
+    have hmul : (2 : ℕ) * 2 = 4 := by decide
+    simpa [hmul] using h'
   have hsum : 0 ≤ (a1 / 7 + a2 / 15) := by
     have h1 : 0 ≤ a1 / 7 := by
       have : 0 < (7 : ℝ) := by norm_num

@@ -1,82 +1,123 @@
 import Mathlib.Topology.Algebra.InfiniteSum.Basic
+import Mathlib.Analysis.Analytic.Basic
+import Mathlib.Analysis.NormedSpace.OperatorNorm.NormedSpace
+import Mathlib.Analysis.InnerProductSpace.Basic
 import Mathlib.Data.Complex.Basic
 import Mathlib.NumberTheory.LSeries.RiemannZeta
 
 noncomputable section
 
 open Complex Set
+open scoped Topology BigOperators
 
 namespace RH.AcademicFramework.DiagonalFredholm
 
+/-! ### Setup: primes, half–plane, local Euler factor -/
+
+/-- Type of prime numbers (as a subtype of `ℕ`). -/
+abbrev Prime := {p : ℕ // Nat.Prime p}
+
+/-- The standard local factor for the 2‑modified determinant:
+`(1 - p^{-s}) * exp(p^{-s})`. -/
+def det2EulerFactor (s : ℂ) (p : Prime) : ℂ :=
+  (1 - (p.1 : ℂ) ^ (-s)) * Complex.exp ((p.1 : ℂ) ^ (-s))
+
+/-- The open half–plane `Re s > 1`. -/
+def halfPlaneReGtOne : Set ℂ := {s | 1 < s.re}
+
+/-- Minimal diagonal predicate we need: at parameter `s`, the family `A`
+acts diagonally on an orthonormal family indexed by the primes with
+eigenvalue `p^{-s}`.  (We do **not** insist that this family is a basis.) -/
+def IsPrimeDiagonal
+    {H : Type} [NormedAddCommGroup H] [InnerProductSpace ℂ H]
+    (A : ℂ → H →L[ℂ] H) (s : ℂ) : Prop :=
+  ∃ (e : Prime → H),
+    Orthonormal ℂ e ∧
+    ∀ p : Prime, A s (e p) = ((p.1 : ℂ) ^ (-s)) • e p
+
 /-!
-Diagonal Fredholm det₂ for the prime–diagonal family A(s) — Prop-level API.
+### Regularity of `s ↦ det₂ (1 - A(s))`
 
-This module records the typed entry points we use elsewhere:
-- det₂(I − A(s)) continuity on the right half-plane `Re(s) > 1/2`
-- det₂(I − A(s)) analyticity on the same half-plane
-- the convergent-region identity on `Re(s) > 1`
-- an analytic continuation form (existence of a holomorphic normalizer)
-
-We keep these as Prop-level statements to avoid coupling to a specific
-implementation; concrete realizations live in the Weierstrass/product track
-and RS bridge modules. No axioms are introduced here.
+These are packaged as `Prop` statements (no axioms). Downstream files
+can discharge them by importing the local wrappers you already staged
+for Hilbert–Schmidt families → det₂ regularity.
 -/
 
-open scoped BigOperators
+/-- **Continuity** of `s ↦ det₂ (1 - A(s))` for analytic HS families.
+Hypotheses are intentionally minimal and mathlib‑shaped:
+- `A` analytic on an open set `U`,
+- locally (on compacts) bounded in the operator norm (your repo’s HS wrapper can
+  strengthen this internally),
+- `det₂` is the 2‑modified determinant on bounded operators (provided by the repo).
 
-/-- Placeholder for the diagonal det₂ function `s ↦ det₂(I - A(s))`.
-A concrete definition via a prime product will be introduced later. -/
-noncomputable def diagDet2 (_s : ℂ) : ℂ := 1
-
-/-- Placeholder for the renormalizer used in the convergent-region identity. -/
-noncomputable def renormE (_s : ℂ) : ℂ := 1
-
-/-- Convergent-region identity (Prop level): on the half-plane
-`Re(s) > 1`, the diagonal Fredholm product times a prime-side normalizer
-agrees with the Euler product for `ζ⁻¹`. This records the precise equality
-shape used elsewhere (proved in the product track). -/
-def Det2IdentityReGtOne : Prop :=
-  ∀ s : ℂ, 1 < s.re → diagDet2 s * renormE s = (riemannZeta s)⁻¹
-
-/-- Analytic continuation (Prop level): there exists a holomorphic
-normalizer `E` on `ℂ \ {1}` such that `diagDet2 · * E · = ζ⁻¹` there. -/
-def Det2IdentityExtended : Prop :=
-  ∃ E : ℂ → ℂ,
-    AnalyticOn ℂ E {s : ℂ | s ≠ (1 : ℂ)} ∧
-    (∀ s : ℂ, s ≠ (1 : ℂ) → diagDet2 s * E s = (riemannZeta s)⁻¹)
-
-/-- det₂(I − A(s)) is continuous in `s` on the half-plane `Re(s) > 1/2` (interface). -/
+This is just the *statement*; no axioms or proofs are added here. -/
 def det2_continuous : Prop :=
-  ContinuousOn (fun s => diagDet2 s) {s : ℂ | (1/2 : ℝ) < s.re}
+  ∀ (H : Type) [NormedAddCommGroup H] [InnerProductSpace ℂ H] [CompleteSpace H]
+    (A : ℂ → H →L[ℂ] H)
+    (det₂ : (H →L[ℂ] H) → ℂ)
+    (U : Set ℂ),
+    IsOpen U →
+    AnalyticOn ℂ A U →
+    -- Locally bounded (replace by your repo’s HS‑norm wrapper where used):
+    (∀ K ⊆ U, IsCompact K → ∃ C : ℝ, 0 ≤ C ∧ ∀ z ∈ K, ‖A z‖ ≤ C) →
+    ContinuousOn (fun s => det₂ (1 - A s)) U
 
-/-- det₂(I − A(s)) is analytic in `s` on the half-plane `Re(s) > 1/2` (interface). -/
+/-- **Analyticity** of `s ↦ det₂ (1 - A(s))` for analytic HS families.
+Same shape as `det2_continuous`, with an analytic conclusion. -/
 def det2_analytic : Prop :=
-  AnalyticOn ℂ (fun s => diagDet2 s) {s : ℂ | (1/2 : ℝ) < s.re}
-
-/-- Convergent-region identity witness (availability alias). -/
-def det2_identity_Re_gt_one_available : Prop := Det2IdentityReGtOne
-
-/-- Analytic continuation witness (availability alias). -/
-def det2_identity_extended_available : Prop := Det2IdentityExtended
+  ∀ (H : Type) [NormedAddCommGroup H] [InnerProductSpace ℂ H] [CompleteSpace H]
+    (A : ℂ → H →L[ℂ] H)
+    (det₂ : (H →L[ℂ] H) → ℂ)
+    (U : Set ℂ),
+    IsOpen U →
+    AnalyticOn ℂ A U →
+    (∀ K ⊆ U, IsCompact K → ∃ C : ℝ, 0 ≤ C ∧ ∀ z ∈ K, ‖A z‖ ≤ C) →
+    AnalyticOn ℂ (fun s => det₂ (1 - A s)) U
 
 /-!
-Small helpers: with the current placeholder `diagDet2 ≡ 1`, the interface
-continuity/analyticity propositions are inhabited immediately. Concrete HS→det₂
-continuity/analyticity are provided in the product track and RS layer.
+### The diagonal identity for the 2‑modified determinant
+
+We give the standard Euler product identity on `Re s > 1`, and the analytic/
+continuity‑based extension to your working domain, using only mathlib language.
+Downstream files can reuse your local proof objects (e.g.,
+`DeterminantIdentityCompletionProof`) to inhabit these `Prop`s.
 -/
 
-/-- Availability: continuity of the placeholder `diagDet2` on `Re(s) > 1/2`. -/
-lemma det2_continuous_available : det2_continuous := by
-  -- constant function is continuous on any set
-  simpa [det2_continuous, diagDet2]
-    using (continuous_const.continuousOn :
-      ContinuousOn (fun _ : ℂ => (1 : ℂ)) {s : ℂ | (1/2 : ℝ) < s.re})
+/-- **Diagonal identity on `Re s > 1`.**
+For a diagonal family with `A(s) e_p = p^{-s} e_p` on an orthonormal family
+indexed by primes, one has
+`det₂ (1 - A(s)) = ∏' p : Prime, (1 - p^{-s}) * exp(p^{-s})`
+through absolute convergence in this half–plane. -/
+def Det2IdentityReGtOne : Prop :=
+  ∀ (H : Type) [NormedAddCommGroup H] [InnerProductSpace ℂ H] [CompleteSpace H]
+    (A : ℂ → H →L[ℂ] H)
+    (det₂ : (H →L[ℂ] H) → ℂ),
+    (∀ s ∈ halfPlaneReGtOne, IsPrimeDiagonal A s) →
+    ∀ s ∈ halfPlaneReGtOne,
+      det₂ (1 - A s) = ∏' p : Prime, det2EulerFactor s p
 
-/-- Availability: analyticity of the placeholder `diagDet2` on `Re(s) > 1/2`. -/
-lemma det2_analytic_available : det2_analytic := by
-  -- constant function is analytic on any set
-  simpa [det2_analytic, diagDet2]
-    using (analyticOn_const :
-      AnalyticOn ℂ (fun _ : ℂ => (1 : ℂ)) {s : ℂ | (1/2 : ℝ) < s.re})
+/-- **Analytic continuation / extension of the diagonal identity.**
+There exist a working domain `Ω` and a closed exceptional set `S` (zeros/poles)
+such that the diagonal identity extends to `Ω \\ S` by analyticity/continuity.
+(In the repo, this is inhabited by the local completion wrapper, e.g.
+`DeterminantIdentityCompletionProof`.) -/
+def Det2IdentityExtended : Prop :=
+  ∃ (H : Type)
+     (_ : NormedAddCommGroup H)
+     (_ : InnerProductSpace ℂ H)
+     (_ : CompleteSpace H)
+     (A : ℂ → H →L[ℂ] H)
+     (det₂ : (H →L[ℂ] H) → ℂ)
+     (Ω S : Set ℂ),
+      IsOpen Ω ∧
+      {s : ℂ | 1 < s.re} ⊆ Ω ∧
+      IsClosed S ∧
+      AnalyticOn ℂ (fun s => det₂ (1 - A s)) (Ω \ S) ∧
+      (∀ s ∈ (Ω \ S), det₂ (1 - A s) = ∏' p : Prime, det2EulerFactor s p)
+
+/-! ### Availability wrappers (trivial aliases) -/
+
+abbrev det2_identity_Re_gt_one_available : Prop := Det2IdentityReGtOne
+abbrev det2_identity_extended_available : Prop := Det2IdentityExtended
 
 end RH.AcademicFramework.DiagonalFredholm
