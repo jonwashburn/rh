@@ -26,15 +26,7 @@ the modern `HasProd`/`Multipliable`-based infinite product lemmas from
 `ProductLemmas` without pulling in extra typeclass assumptions.
 -/
 
-/-– Convergent-region identity using field notation `s.re`. -/
-def convergent_halfplane_identity : Prop :=
-  ∀ s : ℂ, 1 < s.re → diagDet2 s * renormE s = (riemannZeta s)⁻¹
-
-/-- This is exactly `Det2IdentityReGtOne`. -/
-lemma convergent_halfplane_identity_iff :
-    convergent_halfplane_identity ↔ Det2IdentityReGtOne := Iff.rfl
-
-/-– Extended identity: analytic off the pole at `s = 1`. -/
+/-- Extended identity: analytic off the pole at `s = 1`. -/
 def extended_identity_off_pole : Prop := Det2IdentityExtended
 
 /-- Convenience wrapper to use the modern product API (`tprod_mul`).
