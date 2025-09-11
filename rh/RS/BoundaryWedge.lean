@@ -5,7 +5,7 @@ import rh.academic_framework.CompletedXi
 import rh.Cert.KxiWhitney
 import rh.Cert.KxiPPlus
 
-# Boundary wedge assembly (Agent G)
+/-! # Boundary wedge assembly (Agent G)
 
 Glue layer: consume the statement-level interfaces from the plateau/CR–Green
 route and the Kξ adapter to derive (P+) from a finite ζ-side box constant, and
@@ -20,7 +20,7 @@ This file purposefully stays at the interface level:
   is consumed elsewhere and not re-proved here).
 
 No numerics are used here.
-
+-/
 noncomputable section
 
 open Complex Set RH.AcademicFramework.CompletedXi
