@@ -134,6 +134,27 @@ Whitney boxes, then (P+) holds for `F`.
 def PPlusFromCarleson_exists (F : ℂ → ℂ) : Prop :=
   (∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ) → PPlus F
 
+/-!
+Poisson transport wiring: from a statement-level boundary wedge `(P+)` production
+and a half–plane transport predicate for the concrete pinch field
+`F(z) := (2 : ℂ) * J_pinch det2 O z`, obtain interior nonnegativity on `Ω`.
+
+This lemma composes existing interfaces without adding analytic content. It is
+the companion to a separate proof of `(P+)` from a concrete Carleson budget.
+-/
+theorem hPoisson_nonneg_on_Ω_from_Carleson
+    (O : ℂ → ℂ)
+    (hTrans : RH.RS.HasHalfPlanePoissonTransport
+      (fun z => (2 : ℂ) * RH.RS.J_pinch RH.RS.det2 O z))
+    (hP : PPlusFromCarleson_exists
+      (fun z => (2 : ℂ) * RH.RS.J_pinch RH.RS.det2 O z))
+    (hKxi : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ)
+    : ∀ z ∈ RH.RS.Ω, 0 ≤ ((2 : ℂ) * RH.RS.J_pinch RH.RS.det2 O z).re := by
+  -- Boundary (P+) for the concrete pinch field from the Carleson existence
+  have hPPlus : PPlus (fun z => (2 : ℂ) * RH.RS.J_pinch RH.RS.det2 O z) := hP hKxi
+  -- Poisson transport to the interior via the RS interface
+  exact hTrans hPPlus
+
 end
 
 end RH.Cert
