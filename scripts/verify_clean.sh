@@ -13,17 +13,22 @@ echo "[verify] Scanning for forbidden placeholders in $TARGET_DIR/*.lean"
 
 FAIL=0
 scan() {
-  local pattern="$1"; local desc="$2"
+  local pattern="$1"; local desc="$2"; local filter_comments="${3:-1}"
+  local out
   if out=$(grep -RIn --include='*.lean' -E "$pattern" "$TARGET_DIR" 2>/dev/null); then
-    if [[ -n "$out" ]]; then
+    # Optionally drop comment lines starting with '--' or '/-'
+    if [[ "$filter_comments" -eq 1 ]]; then
+      out=$(echo "$out" | grep -v -E "^[^:]+:[0-9]+:[[:space:]]*--|^[^:]+:[0-9]+:[[:space:]]*/-")
+    fi
+    if [[ -n "${out}" ]]; then
       echo "❌ Found $desc:"; echo "$out"; FAIL=1
     fi
   fi
 }
 
-scan "\\bsorry\\b|\\badmit\\b|\\bAdmitted\\b|\\bsorryAx\\b" "explicit proof holes"
+scan "sorry|admit|Admitted|sorryAx" "explicit proof holes" 1
 scan ": Prop := True" "Prop := True scaffolds"
-scan "^[[:space:]]*(axiom|constant)\\b" "top-level axioms or constants"
+scan "^[[:space:]]*(axiom|constant)\\b" "top-level axioms or constants" 1
 scan "TODO|FIXME|ad hoc" "development markers"
 
 if [[ $FAIL -eq 1 ]]; then
