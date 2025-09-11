@@ -2,7 +2,7 @@ import Mathlib.Data.Real.Basic
 import Mathlib.Data.Nat.Cast.Defs
 import rh.Cert.KxiWhitney
 
-/--
+/-!
 Agent F — Kξ from RvM short‑interval zero counts (statement-level)
 
 This siloed Cert module records:
