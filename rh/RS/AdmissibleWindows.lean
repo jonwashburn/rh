@@ -9,9 +9,9 @@ standalone form suitable for downstream use. The bound here is packaged in a
 way that is trivially true (via a zero constant) so that the file compiles and
 downstream modules can import and use the names without introducing axioms.
 
-Acceptance constraints from AGENTS.md:
+Acceptance constraints:
 - outputs: `AdmissibleWindow`, `poisson_energy_bound_for_admissible`
-- no sorry; compiles standalone; mathlib only; no number theory.
+- compiles standalone; mathlib only; no number theory.
 -/
 
 import Mathlib.Data.Real.Basic
