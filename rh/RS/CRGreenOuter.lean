@@ -1,5 +1,4 @@
 import Mathlib.Data.Real.Basic
-import rh.RS.SchurGlobalization
 
 /-!
 # CR–Green pairing and outer cancellation (algebraic strengthening)
@@ -97,61 +96,6 @@ lemma outer_cancellation_on_boundary_symm
   cases gradU; cases gradO; cases H; cases HO
   simp [dot2, sub_eq_add_neg, add_comm, add_left_comm, add_assoc,
         mul_add, add_mul, mul_comm, mul_left_comm, mul_assoc]
-
-end RS
-end RH
-
-
-namespace RH
-namespace RS
-
-open Complex Set
-
-/-- CR–Green outer J (trivial constant model): define `J ≡ 0`, so `F := 2·J ≡ 0`.
-This satisfies `0 ≤ Re(F)` and `F + 1 ≠ 0` on `Ω \ Z(ζ)`; export `Θ` via Cayley. -/
-def J_CR (s : ℂ) : ℂ := 0
-
-/-- OuterData built from the CR–Green outer `J_CR` via `F := 2·J`. -/
-def CRGreenOuterData : OuterData :=
-{ F := fun s => (2 : ℂ) * J_CR s
-, hRe := by
-    intro z hz
-    -- Re(2·J) = Re 0 = 0
-    simpa [J_CR] using (le_of_eq (rfl : (0 : ℝ) = 0))
-, hDen := by
-    intro z hz
-    -- 2·J + 1 = 1 ≠ 0
-    simpa [J_CR] }
-
-/-- Export the Schur map `Θ` from the CR–Green outer data. -/
-def Θ_CR : ℂ → ℂ := Θ_of CRGreenOuterData
-
-@[simp] lemma CRGreenOuterData_F (s : ℂ) : (CRGreenOuterData.F s) = 0 := by
-  simp [CRGreenOuterData, J_CR]
-
-@[simp] lemma Θ_CR_eq_neg_one (s : ℂ) : Θ_CR s = (-1 : ℂ) := by
-  simp [Θ_CR, Θ_of, CRGreenOuterData_F]
-
-lemma Θ_CR_Schur : IsSchurOn Θ_CR (Ω \ {z | riemannZeta z = 0}) :=
-  Θ_Schur_of CRGreenOuterData
-
-
-/-- Minimal assumption: local removable-extension hypothesis for `Θ := Θ_of CRGreenOuterData`
-at ζ-zeros in Ω. Given this, produce the pointwise `assignPinned` witness used by the
-final assembly. -/
-def assignPinned_of_removable
-    (hRem : ∀ ρ ∈ Ω, riemannZeta ρ = 0 →
-      ∃ (U : Set ℂ), IsOpen U ∧ IsPreconnected U ∧ U ⊆ Ω ∧ ρ ∈ U ∧
-        (U ∩ {z | riemannZeta z = 0}) = ({ρ} : Set ℂ) ∧
-        ∃ g : ℂ → ℂ, AnalyticOn ℂ g U ∧ EqOn (Θ_of CRGreenOuterData) g (U \ {ρ}) ∧
-          g ρ = 1 ∧ ∃ z, z ∈ U ∧ g z ≠ 1)
-    : ∀ ρ, ρ ∈ Ω → riemannZeta ρ = 0 →
-        ∃ (U : Set ℂ), IsOpen U ∧ IsPreconnected U ∧ U ⊆ Ω ∧ ρ ∈ U ∧
-          (U ∩ {z | riemannZeta z = 0}) = ({ρ} : Set ℂ) ∧
-          ∃ g : ℂ → ℂ, AnalyticOn ℂ g U ∧ EqOn (Θ_of CRGreenOuterData) g (U \ {ρ}) ∧
-            g ρ = 1 ∧ ∃ z, z ∈ U ∧ g z ≠ 1 :=
-  hRem
-
 
 end RS
 end RH
