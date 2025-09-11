@@ -1,5 +1,5 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17055989.svg)](https://doi.org/10.5281/zenodo.17055989)
-[![CI](https://github.com/jonwashburn/riemann-hypothesis/actions/workflows/ci.yml/badge.svg)](https://github.com/jonwashburn/riemann-hypothesis/actions/workflows/ci.yml)
+[![CI](https://github.com/jonwashburn/rh/actions/workflows/ci.yml/badge.svg)](https://github.com/jonwashburn/rh/actions/workflows/ci.yml)
 ![Lean](https://img.shields.io/badge/Lean-4.12.0-blue)
 ![axioms 0](https://img.shields.io/badge/axioms-0-brightgreen)
 ![sorries 0](https://img.shields.io/badge/sorries-0-brightgreen)
@@ -9,8 +9,8 @@
 
 Commands:
 ```bash
-git clone https://github.com/jonwashburn/riemann-hypothesis
-cd riemann-hypothesis
+git clone https://github.com/jonwashburn/rh
+cd rh
 git checkout v1.0.1-annals
 lake update && lake build
 bash scripts/verify.sh

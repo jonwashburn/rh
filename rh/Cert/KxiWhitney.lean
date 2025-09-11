@@ -48,11 +48,11 @@ Note: we include the trivial conjunct `(α = α ∧ c = c)` solely to silence
 def KxiBound (α c : ℝ) : Prop := ∃ Kξ : ℝ, 0 ≤ Kξ ∧ (α = α ∧ c = c)
 
 /-!
-## Exposing `C_box^{(ζ)} = K0 + Kξ`
+## Exposing the ζ-side box constant `C_box^{(ζ)} = K0 + Kξ`
 
 Given a witness to `KxiBound α c`, we package the combined ζ‑side box
-constant `C_box^{(ζ)} := K0 + Kξ` via a small adapter. Here `K0` is the
-arithmetic tail constant from `K0Bound`.
+constant via a small adapter. Here `K0` is the arithmetic tail constant
+from `K0Bound`.
 -/
 
 namespace _root_.RH.AcademicFramework.EulerProduct.K0
@@ -66,11 +66,11 @@ end _root_.RH.AcademicFramework.EulerProduct.K0
 open RH.AcademicFramework.EulerProduct.K0
 
 /-- Extract the nonnegative `Kξ` value from a `KxiBound` witness and expose the
-combined ζ‑side box constant `C_box^{(ζ)} = K0 + Kξ` as a real number. -/
+combined ζ‑side box constant as a real number. -/
 noncomputable def CboxZeta (α c : ℝ) (h : KxiBound α c) : ℝ :=
   K0 + Classical.choose h
 
-/-- Nonnegativity of the combined ζ‑side constant `C_box^{(ζ)} = K0 + Kξ`. -/
+/-- Nonnegativity of the combined ζ‑side constant. -/
 lemma CboxZeta_nonneg {α c : ℝ} (h : KxiBound α c) :
     0 ≤ CboxZeta α c h := by
   -- `K0 ≥ 0` from the arithmetic tail module; `Kξ ≥ 0` by assumption
