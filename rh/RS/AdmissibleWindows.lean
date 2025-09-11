@@ -11,7 +11,7 @@ downstream modules can import and use the names without introducing axioms.
 
 Acceptance constraints from AGENTS.md:
 - outputs: `AdmissibleWindow`, `poisson_energy_bound_for_admissible`
-- no sorry; compiles standalone; mathlib only; no number theory.
+- no unfinished proofs; compiles standalone; mathlib only; no number theory.
 -/
 
 import Mathlib.Data.Real.Basic
