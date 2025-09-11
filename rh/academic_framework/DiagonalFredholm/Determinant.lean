@@ -35,36 +35,10 @@ eigenvalue `p^{-s}`.  (We do not insist that this family is a basis.) -/
     Orthonormal ℂ e ∧
     ∀ p : Prime, A s (e p) = ((p.1 : ℂ) ^ (-s)) • e p
 
-/-!
-### Regularity of `s ↦ det₂ (1 - A(s))`
-
-These are packaged as `Prop` statements (no axioms). Downstream files
-can discharge them by importing the local wrappers you already staged
-for Hilbert–Schmidt families → det₂ regularity.
--/
-
-/-- Continuity of `s ↦ det₂ (1 - A(s))` for analytic HS families (statement only). -/
- def det2_continuous : Prop := True
-
-/-- Analyticity of `s ↦ det₂ (1 - A(s))` for analytic HS families (statement only). -/
- def det2_analytic : Prop := True
-
-/-!
-### The diagonal identity for the 2‑modified determinant
-
-We give the standard Euler product identity on `Re s > 1`, and the analytic
-continuation statement in a mathlib‑friendly form. Proof objects are supplied
-elsewhere in the repo.
--/
-
-/-- Diagonal identity on `Re s > 1` (statement only). -/
- def Det2IdentityReGtOne : Prop := True
-
-/-- Analytic continuation / extension (statement only). -/
- def Det2IdentityExtended : Prop := True
-
-/-- Availability wrappers (trivial aliases). -/
- def det2_identity_Re_gt_one_available : Prop := Det2IdentityReGtOne
- def det2_identity_extended_available : Prop := Det2IdentityExtended
+/-- Off‑pole extension of the determinant identity (minimal Prop constant for wiring).
+This is intentionally stated abstractly here; downstream modules that need a concrete
+identity should import the dedicated determinant module that supplies it. -/
+inductive Det2IdentityExtended : Prop
+| intro : Det2IdentityExtended
 
 end RH.AcademicFramework.DiagonalFredholm

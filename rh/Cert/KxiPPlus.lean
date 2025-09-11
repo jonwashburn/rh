@@ -54,8 +54,8 @@ structure FunctionalEquationStripFactors where
   hB : 0 ≤ B
   carleson : ConcreteHalfPlaneCarleson B
 
-/-- Certificate-ready flag: kept as `True` for interface satisfaction. -/
-def CertificateReady : Prop := True
+/-- Certificate-ready flag: meaningful readiness via existence of FE-strip factors. -/
+def CertificateReady : Prop := Nonempty FunctionalEquationStripFactors
 
 /-- Existence form (concrete): any factors witness yields `∃ Kξ, ConcreteHalfPlaneCarleson Kξ`. -/
 theorem exists_KxiBound_if_factors
@@ -100,16 +100,13 @@ theorem factors_witness_from_FGammaPrime
   refine And.intro hC0 ?_
   intro W; simp [mkWhitneyBoxEnergy]
 
-/-/ Unconditional Kξ witness (with fallback): prefer the Prop-level
-GammaBounds bridge if available; otherwise use a coarse uniform-derivative
-bound to keep the build green. -/
-def kxiWitness_nonempty : Nonempty FunctionalEquationStripFactors :=
-  by
-    classical
-    -- Use the constructive Prop-level bound at σ0 = 3/5, wired through the bridge.
-    have hprop : RH.AcademicFramework.GammaBounds.BoundedFGammaPrimeOnStrip ((3 : ℝ) / 5) :=
-      RH.AcademicFramework.GammaBounds.boundedFGammaPrimeOnStrip_of (by norm_num) (by norm_num)
-    exact factors_witness_from_FGammaPrime (σ0 := (3 : ℝ) / 5) hprop
+/-- Packed readiness witness from the Archimedean strip bound. -/
+theorem kxiWitness_nonempty : Nonempty FunctionalEquationStripFactors := by
+  classical
+  -- Use the constructive Prop-level bound at σ0 = 3/5, wired through the bridge.
+  have hprop : RH.AcademicFramework.GammaBounds.BoundedFGammaPrimeOnStrip ((3 : ℝ) / 5) :=
+    RH.AcademicFramework.GammaBounds.boundedFGammaPrimeOnStrip_of (by norm_num) (by norm_num)
+  exact factors_witness_from_FGammaPrime (σ0 := (3 : ℝ) / 5) hprop
 
 /-!
 Statement-only wedge from Carleson (no axioms).

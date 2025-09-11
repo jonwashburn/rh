@@ -28,15 +28,13 @@ track is ready (modulo the `CertificateReady` flag exposed by `rh/Cert`). -/
   exact hfac
 
 /-- Unconditional readiness: combine arithmetic-tail availability with the
-analytic factors witness and the trivial certificate flag. -/
+analytic factors witness and the certificate readiness (now the same witness). -/
  theorem Ready_unconditional : Ready := by
   refine Ready_of_factors ?hK0 ?hFac ?hCert
-  · -- arithmetic tail availability from proved lemma
-    exact RH.Cert.K0Available_proved
-  · -- analytic factors witness from KxiPPlus (preferred bridge)
-    exact RH.Cert.kxiWitness_nonempty
-  · -- certificate flag is `True`
-    exact (by trivial : RH.Cert.CertificateReady)
+  · exact RH.Cert.K0Available_proved
+  · exact RH.Cert.kxiWitness_nonempty
+  · -- `CertificateReady` is `Nonempty FunctionalEquationStripFactors`
+    exact (RH.Cert.kxiWitness_nonempty : RH.Cert.CertificateReady)
 
 /-- From a functional-equation closed-strip factors witness, we get
 `KxiAvailable`. -/

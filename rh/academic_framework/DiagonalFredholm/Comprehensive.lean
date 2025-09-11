@@ -13,9 +13,6 @@ noncomputable section
 
 open Complex Set
 
-/-- Availability placeholder confirming DF scaffold is wired (interface). -/
-def comprehensive_scaffold : Prop := True
-
 /-!
 Field-notation on predicates and modern infinite-product bridges
 ===============================================================

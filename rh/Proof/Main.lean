@@ -25,9 +25,6 @@ set_option diagnostics true
 
 namespace RH.Proof
 
-/-- Entry point availability placeholder for the final assembly theorem (interface). -/
-def main_outline_available : Prop := True
-
 /-/ Proof-layer alias for certificate readiness. -/
 def PipelineReady : Prop := RH.AcademicFramework.Certificate.Ready
 
