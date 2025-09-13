@@ -142,6 +142,30 @@ we package it under the milestone name for downstream callers. -/
 theorem outer_limit_locally_uniform : OuterHalfPlane.ofModulus_det2_over_xi_ext :=
   OuterHalfPlane.ofModulus_det2_over_xi_ext_proved
 
+/--
+A.2 (Montel–Hurwitz limit to Ω) — alternate route (keeps the default witness).
+
+Goal: Build an outer function `O` on Ω with boundary modulus `|det₂/ξ_ext|` a.e.,
+as the `ε ↓ 0` locally‑uniform limit of the A.1 outer family on the shifted
+half‑planes `Ω(ε) = {s : Re s > 1/2 + ε}`, with phase pinned at a fixed
+basepoint `s★` with `Re s★ > 3/4`. Use Montel (normal families) to extract a
+limit, Hurwitz to keep zero‑freeness, pass the boundary modulus via the Poisson
+limit, and package as `OuterHalfPlane.ofModulus_det2_over_xi_ext`.
+
+Narrative (hooks available in `riemann-blockers-2.txt`):
+- A.1 family: `A1_outer_family_det2_over_xi_ext`
+- Normality/Montel: `montel_of_locallyBounded`, `extract_locally_uniform_limit_toΩ`
+- Hurwitz: `hurwitz_zeroFree_onΩ`
+- Poisson/boundary passage: `pass_boundary_modulus_to_limit`
+- Packaging: `ofModulus_det2_over_xi_ext_mk`
+
+This alternate theorem currently aliases the proven existence, so callers can
+depend on the name now and later swap in the full argument with no churn.
+-/
+theorem outer_limit_locally_uniform_alt :
+    OuterHalfPlane.ofModulus_det2_over_xi_ext := by
+  simpa using outer_limit_locally_uniform
+
 /-! ### A.3 specialization (u := log |det₂/ξ_ext|)
 
 We record the boundary datum used in the outer construction and provide a

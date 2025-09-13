@@ -146,5 +146,3 @@ theorem Outer_on_halfplane_from_boundary_modulus
 
 end RS
 end RH
-
-
