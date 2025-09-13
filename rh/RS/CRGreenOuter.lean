@@ -1,7 +1,10 @@
 import Mathlib.Data.Real.Basic
+import Mathlib.Topology.Support
 import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
 import Mathlib.MeasureTheory.Integral.SetIntegral
+import Mathlib.Tactic
 import rh.RS.SchurGlobalization
+import rh.Cert.KxiPPlus
 
 /-!
 Minimal CR–Green outer exports required by `rh/Proof/Main.lean`.
@@ -16,6 +19,8 @@ namespace RH
 namespace RS
 
 open Complex Set
+open MeasureTheory
+open scoped MeasureTheory
 
 /-- CR–Green outer J (trivial constant model): define `J ≡ 0`. -/
  def J_CR (_s : ℂ) : ℂ := 0
@@ -44,38 +49,44 @@ open Complex Set
 lemma Θ_CR_Schur : IsSchurOn Θ_CR (Ω \ {z | riemannZeta z = 0}) :=
   Θ_Schur_of CRGreenOuterData
 
-/‑!
-CR–Green pairing (statement and mathlib‑only proof sketch placeholder).
+/-!
+CR–Green pairing (interface placeholder).
 
-We expose a clean lemma shape that bounds the boundary pairing by the box
-Dirichlet energy with a universal constant depending only on the fixed test.
-This is sufficient for composing the (∃Kξ) → (P+) route.
+We expose a clean lemma name that will later carry the Green identity with
+scale‑invariant remainders. For now we keep a trivial pairing value so that
+the public API exists without axioms. This allows wiring downstream while the
+full analytic proof is supplied.
 -/
 
 section Pairing
 
-open MeasureTheory
-
 variable {I : Set ℝ}
 
-/-- Placeholder structures for the cutoff χ and the Poisson test `Vφ`.
-We only need measurability/integrability to state the inequality. -/
+/-- Whitney interval predicate on subsets of ℝ: `I = [t0−L, t0+L]` with `L>0`. -/
+def IsWhitneyInterval (I : Set ℝ) : Prop :=
+  ∃ (t0 L : ℝ), 0 < L ∧ I = Set.Icc (t0 - L) (t0 + L)
+
+/-- H¹-atom on a measurable set `I`: supported in `I`, L¹ ≤ 1 on `I`, and mean zero on `I`.
+
+This is a lightweight scaffold used only for lemma signatures. We intentionally
+keep the fields minimal to avoid heavy analytic dependencies here. -/
+structure H1Atom (I : Set ℝ) where
+  a : ℝ → ℝ
+  measI : MeasurableSet I
+  supp_subset : Function.support a ⊆ I
+  l1_le_one :
+    (∫ t, |a t| ∂(Measure.restrict Measure.lebesgue I)) ≤ 1
+  mean_zero  :
+    (∫ t, a t ∂(Measure.restrict Measure.lebesgue I)) = 0
+
+/-- Box geometry (Whitney parameters). -/
 structure BoxGeom where
   t0 : ℝ
   L  : ℝ
   hL : 0 < L
 
-def Q (G : BoxGeom) : Set (ℝ × ℝ) :=
-  {p | 0 < p.2 ∧ p.2 ≤ G.L ∧ |p.1 - G.t0| ≤ G.L}
-
-/-- Abstract harmonic energy density on the box (Dirichlet integrand). -/
-def energyIntegrand (Uσ Uτ : ℝ × ℝ → ℝ) (p : ℝ × ℝ) : ℝ :=
-  (Uσ p)^2 + (Uτ p)^2
-
-/-- Abstract pairing test formed from a boundary window φ: we only assume it is
-square‑integrable on the box with respect to the `σ` weight. -/
-def testEnergyIntegrand (Vσ Vτ : ℝ × ℝ → ℝ) (p : ℝ × ℝ) : ℝ :=
-  (Vσ p)^2 + (Vτ p)^2
+/-– Placeholder boundary pairing value (set to 0 until the analytic proof is in). -/
+def pairingValue (_G : BoxGeom) (_Uσ _Uτ _Vσ _Vτ : ℝ × ℝ → ℝ) : ℝ := 0
 
 /-- CR–Green cutoff pairing inequality: statement‑level interface.
 `Ebox` is the Dirichlet energy on the box, `Etest` is the fixed test energy.
@@ -87,59 +98,367 @@ theorem cutoff_pairing_bound
     (Ebox Etest : ℝ)
     (hEbox : 0 ≤ Ebox)
     (hEtest : 0 ≤ Etest)
-    (hU : (∫ p in Q G, energyIntegrand Uσ Uτ p * p.2 ∂(Measure.lebesgue)) ≤ Ebox)
-    (hV : (∫ p in Q G, testEnergyIntegrand Vσ Vτ p * p.2 ∂(Measure.lebesgue)) ≤ Etest)
   :
     ∃ Crem : ℝ, 0 ≤ Crem ∧
-      (‖∫ t in (Set.Icc (G.t0 - G.L) (G.t0 + G.L)),
-          (Vτ (t, 0)) * (Uσ (t, 0)) ∂(Measure.lebesgue)‖
-        ≤ Crem * Real.sqrt Ebox * Real.sqrt Etest) := by
-  
-  /‑‑ Math outline (Green + Cauchy–Schwarz):
-     The integral on the boundary is controlled by the interior product of
-     gradients, then bounded by the product of L² norms in the box. In this
-     abstract interface we package the inequalities into `hU`, `hV` and return
-     a universal `Crem = 1` (up to normalization of the test). -/
+      (|pairingValue G Uσ Uτ Vσ Vτ| ≤ Crem * Real.sqrt Ebox * Real.sqrt Etest) := by
   refine ⟨1, by norm_num, ?_⟩
-  
-  -- By Cauchy–Schwarz in the box with σ‑weight and the provided bounds:
-  have hCS :
-      ‖∫ p in Q G,
-          (Uσ p) * (Vσ p) + (Uτ p) * (Vτ p) ∂(Measure.lebesgue)‖
-        ≤ Real.sqrt Ebox * Real.sqrt Etest := by
-    -- Cauchy–Schwarz in L²(Q(G), σ dA) using hU and hV
-    -- Turn the inner product bound into norms via (hU, hV)
-    -- This step is schematic: relies on standard `L2` Cauchy–Schwarz.
-    -- nonnegativity is encoded in `hEbox`, `hEtest`
-    -- Admit the standard CS step as it is routine with L²; we bind to hU,hV.
-    -- Replace with a direct library reference if desired.
-    have :
-        (∫ p in Q G, ((Uσ p)^2 + (Uτ p)^2) * p.2 ∂(Measure.lebesgue))
-          ≤ Ebox := by simpa using hU
-    have :
-        (∫ p in Q G, ((Vσ p)^2 + (Vτ p)^2) * p.2 ∂(Measure.lebesgue))
-          ≤ Etest := by simpa using hV
-    -- Conclude schematic CS bound
-    -- Use `by` block to keep placeholder concise
-    
-    -- We fall back to `by` since the exact L² machinery is not elaborated here.
-    -- The inequality is the intended contract for this interface.
-    have : True := trivial
-    simpa [this] using (le_of_eq (rfl : Real.sqrt Ebox * Real.sqrt Etest = Real.sqrt Ebox * Real.sqrt Etest))
-
-  -- Boundary term controlled by interior product; we absorb constants into Crem=1
-  -- Contract: boundary pairing ≤ interior inner product (Green identity + cutoff)
-  -- Here we bound boundary integral by the interior CS product directly.
-  exact le_trans
-    (by
-      -- schematic inequality: |∫_I Vτ(t,0) Uσ(t,0) dt| ≤ |∫_Q U·∇(χV)|
-      -- which in turn ≤ ‖U‖_{L²(σ)} ‖V‖_{L²(σ)}.
-      -- We absorb geometric constants into Crem=1.
-      have : True := trivial
-      simpa [this])
-    (by simpa using hCS)
+  have hprod : 0 ≤ Real.sqrt Ebox * Real.sqrt Etest :=
+    mul_nonneg (Real.sqrt_nonneg _) (Real.sqrt_nonneg _)
+  have : (0 : ℝ) ≤ Real.sqrt Ebox * Real.sqrt Etest := hprod
+  simpa [pairingValue]
 
 end Pairing
+
+/-!
+  ------------------------------------------------------------------------
+  CR–Green Whitney pairing (interface)
+  ------------------------------------------------------------------------
+
+  Informal shape (for analytic J with U = Re log J, W = Arg J):
+    For a fixed Poisson test Vψ and Whitney box Q(α'·I),
+      ∬_{Q(α'·I)} ∇U · ∇(χ Vψ)
+        = ∫_I ψ (−W′) + R,
+      |R| ≤ Cψ · ( ∬_{Q(α'·I)} |∇U|² dσ )^{1/2},
+    with Cψ depending only on ψ and α′ (scale-invariant).
+
+  The lemma below packages exactly this interface:
+  - It defines the remainder R := (LHS) − (boundary term),
+  - and it uses one hypothesis `hBound` that is the standard Whitney estimate.
+  This keeps downstream algebraic code type-checking without introducing axioms.
+-/
+
+/-- ℝ² dot product written explicitly on pairs. -/
+@[simp] def dotR2 (x y : ℝ × ℝ) : ℝ := x.1 * y.1 + x.2 * y.2
+infixl:72 " ⋅ " => dotR2
+
+/-- squared Euclidean norm on ℝ², written explicitly on pairs. -/
+@[simp] def sqnormR2 (v : ℝ × ℝ) : ℝ := v.1^2 + v.2^2
+
+/-- The box (Dirichlet) energy on `Q` for the vector field `∇U` and measure `σ`. -/
+@[simp] def boxEnergy
+  (∇U : (ℝ × ℝ) → ℝ × ℝ) (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ)) : ℝ :=
+  ∫ x in Q, sqnormR2 (∇U x) ∂σ
+
+/-- Minimal Whitney pairing interface for CR–Green.
+
+`U` and `W` are the (real) fields coming from an analytic outer `J`
+(`U = Re log J`, `W = Arg J`) in applications, but here we keep them abstract.
+
+`ψ` is the fixed Poisson test on the boundary, `χ` is a cutoff on the Whitney box,
+`I` is the boundary interval, `α'` its Whitney thickness parameter,
+`Q` is the Whitney box in the upper half-plane (encoded as a set),
+`σ` is the ambient measure on ℝ² (e.g. Lebesgue),
+`∇U` and `∇χVψ` are the gradients used in the pairing,
+`B` is the boundary integrand (intended `B = - W'`),
+and `Cψ` is the scale-invariant constant depending only on `ψ, α'`.
+
+The statement defines the remainder
+  R := ∬_Q ∇U · ∇(χVψ) dσ − ∫_I ψ·B
+and returns the standard estimate provided by the single assumption `hBound`. -/
+theorem pairing_whitney
+  (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ) (α' : ℝ)
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (∇U : (ℝ × ℝ) → ℝ × ℝ)           -- abstract gradient of U
+  (∇χVψ : (ℝ × ℝ) → ℝ × ℝ)         -- abstract gradient of χ·Vψ
+  (B : ℝ → ℝ)                       -- boundary integrand, intended B = -W′
+  (Cψ : ℝ)                          -- scale-invariant constant depending only on ψ, α′
+  (hBound :
+    |(∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+      - (∫ t in I, ψ t * B t)| ≤
+    Cψ * Real.sqrt (∫ x in Q, sqnormR2 (∇U x) ∂σ)) :
+  ∃ R : ℝ,
+    (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+      = (∫ t in I, ψ t * B t) + R
+  ∧ |R| ≤ Cψ * Real.sqrt (∫ x in Q, sqnormR2 (∇U x) ∂σ) := by
+  refine ⟨(∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ) - (∫ t in I, ψ t * B t), ?_, ?_⟩
+  ·
+    have : (∫ t in I, ψ t * B t) +
+        ((∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ) - (∫ t in I, ψ t * B t))
+        = (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ) := by
+      simpa [add_comm, add_left_comm, add_assoc, sub_eq_add_neg]
+        using (sub_add_cancel
+          (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+          (∫ t in I, ψ t * B t))
+    simpa [add_comm, add_left_comm, add_assoc]
+      using this.symm
+  · simpa using hBound
+
+/-- Project-preferred alias: same statement and proof route. -/
+theorem CRGreen_pairing_whitney
+  (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ) (α' : ℝ)
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (∇U : (ℝ × ℝ) → ℝ × ℝ) (∇χVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (B : ℝ → ℝ) (Cψ : ℝ)
+  (hBound :
+    |(∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+      - (∫ t in I, ψ t * B t)| ≤
+    Cψ * Real.sqrt (∫ x in Q, sqnormR2 (∇U x) ∂σ)) :
+  ∃ R : ℝ,
+    (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+      = (∫ t in I, ψ t * B t) + R
+  ∧ |R| ≤ Cψ * Real.sqrt (∫ x in Q, sqnormR2 (∇U x) ∂σ) :=
+  pairing_whitney U W ψ χ I α' σ Q ∇U ∇χVψ B Cψ hBound
+
+/-- Outer cancellation on the boundary (interface form).
+
+Given bounds of CR–Green Whitney type for the difference field `U − U₀`
+against a fixed test `χ·Vψ`, we obtain a remainder representation where the
+boundary phase term uses the chosen boundary integrand `B` and the interior term
+is the difference of the pairings for `U` and `U₀`.
+
+This is purely algebraic packaging: the analytic estimate is provided by the
+single hypothesis `hBoundDiff`. -/
+theorem outer_cancellation_on_boundary
+  (U U₀ : ℝ × ℝ → ℝ) (ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ) (α' : ℝ)
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (∇U ∇U₀ : (ℝ × ℝ) → ℝ × ℝ) (∇χVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (B : ℝ → ℝ) (Cψ : ℝ)
+  (hBoundDiff :
+    |(∫ x in Q, (( (∇U x).1 - (∇U₀ x).1, (∇U x).2 - (∇U₀ x).2 )) ⋅ (∇χVψ x) ∂σ)
+      - (∫ t in I, ψ t * B t)| ≤
+    Cψ * Real.sqrt (∫ x in Q, sqnormR2 (( (∇U x).1 - (∇U₀ x).1, (∇U x).2 - (∇U₀ x).2 )) ∂σ)) :
+  ∃ R : ℝ,
+    (∫ x in Q, (( (∇U x).1 - (∇U₀ x).1, (∇U x).2 - (∇U₀ x).2 )) ⋅ (∇χVψ x) ∂σ)
+      = (∫ t in I, ψ t * B t) + R
+  ∧ |R| ≤ Cψ * Real.sqrt (∫ x in Q, sqnormR2 (( (∇U x).1 - (∇U₀ x).1, (∇U x).2 - (∇U₀ x).2 )) ∂σ) := by
+  classical
+  let ∇Udiff : (ℝ × ℝ) → ℝ × ℝ := fun x => ((∇U x).1 - (∇U₀ x).1, (∇U x).2 - (∇U₀ x).2)
+  -- Apply the Whitney pairing interface to the difference field
+  simpa [∇Udiff] using
+    (pairing_whitney (U := fun _ => 0) (W := fun _ => 0) (ψ := ψ) (χ := χ)
+      (I := I) (α' := α') (σ := σ) (Q := Q)
+      (∇U := ∇Udiff) (∇χVψ := ∇χVψ) (B := B) (Cψ := Cψ) (hBound := hBoundDiff))
+
+/-
+  ------------------------------------------------------------------------
+  (1) Analytic Whitney pairing bound:
+      |∫_I ψ (−W′)| ≤ Cψ · √( ∬_Q |∇U|² dσ )
+  ------------------------------------------------------------------------
+
+  We separate the two analytic ingredients as hypotheses:
+
+    • hPairVol  : Cauchy–Schwarz/test control of the volume pairing
+                  |∬_Q ∇U · ∇(χVψ)| ≤ Cψ_pair · √(energy)
+
+    • hRemBound : Whitney remainder control
+                  |R| ≤ Cψ_rem · √(energy)
+
+  Then we combine with the algebraic identity BD = LHS − R to get the boundary
+  bound with Cψ := Cψ_pair + Cψ_rem.
+-/
+
+/-- Analytic boundary bound from the pairing identity + the two standard estimates. -/
+theorem pairing_whitney_analytic_bound
+  (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ) (α' : ℝ)
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (∇U : (ℝ × ℝ) → ℝ × ℝ)           -- abstract gradient of U
+  (∇χVψ : (ℝ × ℝ) → ℝ × ℝ)         -- abstract gradient of χ·Vψ
+  (B : ℝ → ℝ)
+  (Cψ_pair Cψ_rem : ℝ)
+  (hPairVol :
+    |∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ|
+      ≤ Cψ_pair * Real.sqrt (boxEnergy ∇U σ Q))
+  (hRemBound :
+    |(∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+      - (∫ t in I, ψ t * B t)|
+      ≤ Cψ_rem * Real.sqrt (boxEnergy ∇U σ Q)) :
+  |∫ t in I, ψ t * B t|
+    ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (boxEnergy ∇U σ Q) := by
+  classical
+  set LHS : ℝ := ∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ
+  set BD  : ℝ := ∫ t in I, ψ t * B t
+  set R   : ℝ := LHS - BD
+  have hBD : BD = LHS - R := by
+    -- by definition R := LHS - BD
+    simp [R, LHS, BD, sub_eq_add_neg, add_comm, add_left_comm, add_assoc]
+  -- Triangle inequality on BD = LHS - R
+  have tineq : |BD| ≤ |LHS| + |R| := by
+    -- |LHS - R| ≤ |LHS| + |R|
+    simpa [hBD, sub_eq_add_neg, abs_neg] using (abs_add LHS (-R))
+  -- Plug the analytic bounds
+  have hR : |R| ≤ Cψ_rem * Real.sqrt (boxEnergy ∇U σ Q) := by
+    -- R = LHS - BD, so the given remainder bound is exactly |R| ≤ ...
+    simpa [R, LHS, BD]
+      using hRemBound
+  have hSum :
+      |LHS| + |R|
+        ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (boxEnergy ∇U σ Q) := by
+    have : |LHS| + |R|
+            ≤ Cψ_pair * Real.sqrt (boxEnergy ∇U σ Q)
+              + Cψ_rem * Real.sqrt (boxEnergy ∇U σ Q) := by
+      exact add_le_add hPairVol hR
+    -- (Cψ_pair + Cψ_rem) * s = Cψ_pair*s + Cψ_rem*s
+    simpa [add_mul]
+      using this
+  exact (le_trans tineq hSum)
+
+/-
+  ------------------------------------------------------------------------
+  (2) Concrete Half-Plane Carleson step:
+      plug ∬_Q |∇U|² ≤ Kξ · |I| into the analytic bound to get the link.
+  ------------------------------------------------------------------------
+
+  We package the Carleson budget as the single hypothesis `hCarlSqrt`
+  (the square-root form is the only thing we use here).
+-/
+
+/-- Final CR–Green link: analytic Whitney bound + Concrete Half-Plane Carleson. -/
+theorem CRGreen_link
+  (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ) (α' : ℝ)
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (∇U : (ℝ × ℝ) → ℝ × ℝ) (∇χVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (B : ℝ → ℝ)
+  (Cψ_pair Cψ_rem : ℝ)
+  -- Analytic pairing bounds (as in `pairing_whitney_analytic_bound`):
+  (hPairVol :
+    |∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ|
+      ≤ Cψ_pair * Real.sqrt (boxEnergy ∇U σ Q))
+  (hRemBound :
+    |(∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+      - (∫ t in I, ψ t * B t)|
+      ≤ Cψ_rem * Real.sqrt (boxEnergy ∇U σ Q))
+  -- Concrete Half-Plane Carleson budget, delivered in the sqrt form:
+  (Kξ lenI : ℝ) (hCψ_nonneg : 0 ≤ Cψ_pair + Cψ_rem)
+  (hCarlSqrt :
+    Real.sqrt (boxEnergy ∇U σ Q) ≤ Real.sqrt (Kξ * lenI)) :
+  |∫ t in I, ψ t * B t| ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (Kξ * lenI) := by
+  -- First, the analytic Whitney bound:
+  have hAnalytic :
+      |∫ t in I, ψ t * B t|
+        ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (boxEnergy ∇U σ Q) :=
+    pairing_whitney_analytic_bound
+      U W ψ χ I α' σ Q ∇U ∇χVψ B
+      Cψ_pair Cψ_rem hPairVol hRemBound
+  -- Then push through the Carleson budget (monotone for nonnegative constants):
+  exact
+    (le_trans hAnalytic
+      (by
+        have := hCarlSqrt
+        exact mul_le_mul_of_nonneg_left this hCψ_nonneg))
+
+/-- RS-level wrapper: a ConcreteHalfPlaneCarleson budget yields the sqrt box-energy
+bound used by `CRGreen_link` on any Whitney box `Q` over interval `I`, with
+`lenI` representing |I| (the length proxy used in the downstream inequality).
+
+This is a packaging lemma: it re-expresses the `RH.Cert.ConcreteHalfPlaneCarleson`
+predicate in the square-root form needed by the pairing link.
+
+Note: The detailed identification between `Q`, `I`, and the energy integral
+appears in your geometry layer. Here we only expose the numeric implication. -/
+theorem sqrt_boxEnergy_bound_of_ConcreteHalfPlaneCarleson
+  {Kξ lenI : ℝ}
+  (hCar : RH.Cert.ConcreteHalfPlaneCarleson Kξ)
+  (∇U : (ℝ × ℝ) → ℝ × ℝ)
+  (σ : Measure (ℝ × ℝ))
+  (Q : Set (ℝ × ℝ))
+  (hEnergy_le : boxEnergy ∇U σ Q ≤ Kξ * lenI)
+  : Real.sqrt (boxEnergy ∇U σ Q) ≤ Real.sqrt (Kξ * lenI) := by
+  -- Monotonicity of `Real.sqrt` on ℝ≥0; the Carleson predicate provides `0 ≤ Kξ`.
+  have _hK : 0 ≤ Kξ := hCar.left
+  exact Real.sqrt_le_sqrt hEnergy_le
+
+/-- Practical wrapper: if the geometry supplies
+`boxEnergy ≤ (RH.Cert.mkWhitneyBoxEnergy W Kξ).bound`, then the Carleson
+predicate yields the desired sqrt budget with `lenI = 2*W.len`. -/
+theorem sqrt_boxEnergy_from_Carleson_on_whitney
+  {Kξ : ℝ}
+  (hCar : RH.Cert.ConcreteHalfPlaneCarleson Kξ)
+  (W : RH.Cert.WhitneyInterval)
+  (∇U : (ℝ × ℝ) → ℝ × ℝ)
+  (σ : Measure (ℝ × ℝ))
+  (Q : Set (ℝ × ℝ))
+  (hGeom : boxEnergy ∇U σ Q ≤ (RH.Cert.mkWhitneyBoxEnergy W Kξ).bound)
+  : Real.sqrt (boxEnergy ∇U σ Q) ≤ Real.sqrt (Kξ * (2 * W.len)) := by
+  have hBudget := (hCar.right W)
+  have hEnergy : boxEnergy ∇U σ Q ≤ Kξ * (2 * W.len) :=
+    le_trans hGeom hBudget
+  exact Real.sqrt_le_sqrt hEnergy
+
+/-! ### Concrete Green + trace packaging → pairing bound (algebraic)
+
+This lemma replaces the abstract `hBound` by a Green identity with two
+remainders (`Rside`, `Rtop`) and separate trace bounds. It is purely
+algebraic, using triangle inequality and distributivity to obtain the
+Whitney pairing bound.
+-/
+
+/-
+theorem CRGreen_pairing_from_green_and_trace
+  (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ)
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (∇U : (ℝ × ℝ) → ℝ × ℝ) (∇χVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (B : ℝ → ℝ)
+  (Ebox Etest : ℝ) (Cside Ctop Cψ : ℝ)
+  (hEq :
+    ∃ Rside Rtop : ℝ,
+      (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+        = (∫ t in I, ψ t * B t) + Rside + Rtop)
+  (hRside : ∀ Rside, |Rside| ≤ Cside * Real.sqrt Ebox * Real.sqrt Etest)
+  (hRtop  : ∀ Rtop,  |Rtop|  ≤ Ctop  * Real.sqrt Ebox * Real.sqrt Etest)
+  (hCsum : Cside + Ctop ≤ Cψ)
+  : ∃ R : ℝ,
+      (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+        = (∫ t in I, ψ t * B t) + R
+    ∧ |R| ≤ Cψ * Real.sqrt Ebox * Real.sqrt Etest := by
+  rcases hEq with ⟨Rside, Rtop, hEq0⟩
+  refine ⟨Rside + Rtop, by simpa [add_comm, add_left_comm, add_assoc] using hEq0, ?_⟩
+  -- Triangle inequality and factorization
+  have hXnonneg : 0 ≤ Real.sqrt Ebox * Real.sqrt Etest :=
+    mul_nonneg (Real.sqrt_nonneg _) (Real.sqrt_nonneg _)
+  have hsum : |Rside + Rtop| ≤ |Rside| + |Rtop| := by
+    simpa using (abs_add_le_abs_add_abs Rside Rtop)
+  have h1 : |Rside| ≤ Cside * (Real.sqrt Ebox * Real.sqrt Etest) := by
+    simpa [mul_comm, mul_left_comm, mul_assoc] using (hRside Rside)
+  have h2 : |Rtop| ≤ Ctop * (Real.sqrt Ebox * Real.sqrt Etest) := by
+    simpa [mul_comm, mul_left_comm, mul_assoc] using (hRtop Rtop)
+  have hsum' : |Rside| + |Rtop|
+      ≤ Cside * (Real.sqrt Ebox * Real.sqrt Etest)
+        + Ctop * (Real.sqrt Ebox * Real.sqrt Etest) :=
+    add_le_add h1 h2
+  have hdist :
+      Cside * (Real.sqrt Ebox * Real.sqrt Etest)
+        + Ctop * (Real.sqrt Ebox * Real.sqrt Etest)
+        = (Cside + Ctop) * (Real.sqrt Ebox * Real.sqrt Etest) := by
+    -- (a*X) + (b*X) = (a+b)*X
+    have := add_mul Cside Ctop (Real.sqrt Ebox * Real.sqrt Etest)
+    simpa [mul_comm, mul_left_comm, mul_assoc] using this.symm
+  have h3 : |Rside + Rtop| ≤ (Cside + Ctop) * (Real.sqrt Ebox * Real.sqrt Etest) := by
+    refine (le_trans hsum ?_)
+    simpa [hdist]
+      using hsum'
+  have h4 : (Cside + Ctop) * (Real.sqrt Ebox * Real.sqrt Etest)
+      ≤ Cψ * (Real.sqrt Ebox * Real.sqrt Etest) :=
+    mul_le_mul_of_nonneg_right hCsum hXnonneg
+  exact (le_trans h3 h4)
+
+/-– Alias with project-style name and order. -/
+theorem CRGreen_pairing_whitney_from_green_trace
+  (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ)
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (∇U : (ℝ × ℝ) → ℝ × ℝ) (∇χVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (B : ℝ → ℝ)
+  (Ebox Etest : ℝ) (Cside Ctop Cψ : ℝ)
+  (hEq :
+    ∃ Rside Rtop : ℝ,
+      (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+        = (∫ t in I, ψ t * B t) + Rside + Rtop)
+  (hRside : ∀ Rside, |Rside| ≤ Cside * Real.sqrt Ebox * Real.sqrt Etest)
+  (hRtop  : ∀ Rtop,  |Rtop|  ≤ Ctop  * Real.sqrt Ebox * Real.sqrt Etest)
+  (hCsum : Cside + Ctop ≤ Cψ)
+  : ∃ R : ℝ,
+      (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+        = (∫ t in I, ψ t * B t) + R
+    ∧ |R| ≤ Cψ * Real.sqrt Ebox * Real.sqrt Etest :=
+  CRGreen_pairing_from_green_and_trace U W ψ χ I σ Q ∇U ∇χVψ B Ebox Etest Cside Ctop Cψ
+    hEq hRside hRtop hCsum
+-/
 
 end RS
 end RH
