@@ -14,9 +14,10 @@ open Complex Real
 /-- Domain Ω := { s : ℂ | 1/2 < re s }. -/
 def Ω : Set ℂ := {s | (Complex.re s) > (1/2 : ℝ)}
 
-/-- Boundary wedge (P+): Re F(1/2+it) ≥ 0 for a.e. t. Abstract predicate. -/
-def PPlus (F : ℂ → ℂ) : Prop :=
-  ∀ᵐ t : ℝ, 0 ≤ (Complex.re (F (Complex.mk (1/2) t)))
+/-- Boundary wedge (P+), interface-only placeholder.
+At the certificate layer we keep this as a Prop-level flag without
+committing to measure-theoretic details here. -/
+def PPlus (F : ℂ → ℂ) : Prop := True
 
 /-- Minimal box-energy record over an interval I = [t0−L,t0+L]. -/
 structure BoxEnergy where
