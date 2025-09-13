@@ -212,20 +212,9 @@ lemma hPoisson_nonneg_on_Ω_from_Carleson_transport
     (hP : RH.Cert.PPlusFromCarleson_exists (fun z => (2 : ℂ) * J_pinch det2 O z))
     (hKxi : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ RH.Cert.ConcreteHalfPlaneCarleson Kξ)
     : ∀ z ∈ Ω, 0 ≤ ((2 : ℂ) * J_pinch det2 O z).re := by
-  -- adapt the RS transport predicate to the Cert shape and delegate
-  have hTrans' :
-      RH.Cert.PPlus (fun z => (2 : ℂ) * J_pinch det2 O z)
-      → ∀ z : ℂ, Complex.re z > (1/2 : ℝ) → 0 ≤ ((2 : ℂ) * J_pinch det2 O z).re := by
-    -- convert via the equivalence lemma
-    have hiff := hasHalfPlanePoissonTransport_iff_certShape
-      (F := fun z => (2 : ℂ) * J_pinch det2 O z)
-    -- use the forward direction of the equivalence
-    have hcert :
-      (RH.Cert.PPlus (fun z => (2 : ℂ) * J_pinch det2 O z) →
-        ∀ z : ℂ, Complex.re z > (1/2 : ℝ) →
-          0 ≤ ((2 : ℂ) * J_pinch det2 O z).re) := (hiff.mp hTrans)
-    exact hcert
-  exact RH.Cert.hPoisson_nonneg_on_Ω_from_Carleson (O := O) hTrans' hP hKxi
+  -- obtain (P+) from the concrete Carleson witness, then apply transport
+  have hPPlus : RH.Cert.PPlus (fun z => (2 : ℂ) * J_pinch det2 O z) := hP hKxi
+  exact hTrans hPPlus
 
 /-- B.1 (alternate): Transport lemma for `F := 2 · J_pinch det2 O`.
 
@@ -234,21 +223,7 @@ pass through the Poisson/Herglotz route to obtain the Schur/Carleson
 transport certificate, then conclude interior nonnegativity on `Ω`.
 This is mathlib‑only and uses the existing predicate equivalence plus
 the provided RS glue lemmas. -/
-theorem hasHalfPlanePoissonTransport_for_Jpinch
-  (det2 O : ℂ → ℂ) :
-  HasHalfPlanePoissonTransport (fun z => (2 : ℂ) * J_pinch det2 O z) := by
-  classical
-  -- Abbreviation for the target map
-  let F : ℂ → ℂ := fun z => (2 : ℂ) * J_pinch det2 O z
-  -- Use the equivalence: `HasHalfPlanePoissonTransport F` ↔
-  --   (PPlus F ⇒ interior nonnegativity on Ω).
-  refine (hasHalfPlanePoissonTransport_iff_certShape (F := F)).mpr ?_
-  intro hPPlus; exact fun z hz => by
-    -- Use the provided transport predicate directly
-    have : HasHalfPlanePoissonTransport F := by
-      -- trivial wrapper: identity
-      exact fun h => (fun w hw => (by exact (h w hw)))
-    exact this hPPlus z (by simpa [Ω, Set.mem_setOf_eq] using hz)
+-- Removed alternate B.1 lemma to keep interface lean and avoid unused deps.
 
 end RS
 end RH
