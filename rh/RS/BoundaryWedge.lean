@@ -1,5 +1,7 @@
 import Mathlib.Data.Complex.Basic
 import rh.RS.SchurGlobalization
+import rh.RS.H1BMOWindows
+import rh.RS.CRGreenOuter
 import rh.RS.Cayley
 import rh.academic_framework.CompletedXi
 import rh.Cert.KxiWhitney
@@ -47,6 +49,34 @@ theorem ae_of_localWedge_on_Whitney
     (hKxi : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ)
     (hLoc : localWedge_from_WhitneyCarleson F hKxi) : RH.Cert.PPlus F :=
   hLoc
+
+/-- Schematic constructor: build the local Whitney wedge witness from
+the interface‑level pairing and uniform test‑energy lemmas. This wires the
+dependencies so callers can target this lemma when the analytic proof lands.
+
+Inputs (schematic):
+- `α, ψ`: fixed aperture and window template (for test energy)
+- `pairing`: a reference to the CR–Green cutoff pairing interface
+- `testE`: a reference to the uniform Poisson test‑energy bound
+- `hPPlus`: the desired local wedge `(P+)` conclusion, provided here as an
+  explicit hypothesis to keep the constructor proof-free until the pairing
+  proof is supplied.
+
+Output: the `localWedge_from_WhitneyCarleson` witness, definitionally `(P+)`.
+
+Note: this lemma does not yet derive `(P+)` from the inputs; it packages the
+interfaces and marks the dependency point for the forthcoming analytic proof.
+-/
+theorem localWedge_from_pairing_and_uniformTest
+    (α : ℝ) (ψ : ℝ → ℝ)
+    (F : ℂ → ℂ)
+    (hKxi : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ)
+    (pairing := cutoff_pairing_bound)
+    (testE := RS.uniform_test_energy α ψ)
+    (hPPlus : RH.Cert.PPlus F)
+    : localWedge_from_WhitneyCarleson F hKxi :=
+  -- For now, the local wedge is definitionally `(P+)`, so we pass through `hPPlus`.
+  hPPlus
 
 
 /-- Assemble (P+) from a finite ζ‑side box constant.
@@ -99,6 +129,40 @@ theorem schur_off_zeros_of_PPlus
     IsSchurOn (fun z => (F z - 1) / (F z + 1)) S := by
   -- Delegate to the general Cayley/Schur helper
   exact SchurOnRectangles F S hRe
+
+/-- Wiring adapter: use `CRGreen_link` together with a concrete Carleson budget,
+plus the local geometric energy inequality, to produce the boundary pairing bound
+with the square-root Carleson budget on the right.
+
+This exposes the two analytic inputs `hPairVol` and `hRemBound` that must be
+provided by the CR–Green analysis (volume/test Cauchy–Schwarz and Whitney
+remainder control). -/
+theorem local_pairing_bound_from_Carleson_budget
+  {Kξ lenI : ℝ}
+  (hCar : ConcreteHalfPlaneCarleson Kξ)
+  (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ) (α' : ℝ)
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (∇U : (ℝ × ℝ) → ℝ × ℝ) (∇χVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (B : ℝ → ℝ)
+  (Cψ_pair Cψ_rem : ℝ)
+  (hPairVol :
+    |∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ|
+      ≤ Cψ_pair * Real.sqrt (RS.boxEnergy ∇U σ Q))
+  (hRemBound :
+    |(∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+      - (∫ t in I, ψ t * B t)|
+      ≤ Cψ_rem * Real.sqrt (RS.boxEnergy ∇U σ Q))
+  (hCψ_nonneg : 0 ≤ Cψ_pair + Cψ_rem)
+  (hEnergy_le : RS.boxEnergy ∇U σ Q ≤ Kξ * lenI)
+  : |∫ t in I, ψ t * B t| ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (Kξ * lenI) := by
+  -- Obtain the sqrt budget from the numeric Carleson inequality
+  have hCarlSqrt :
+      Real.sqrt (RS.boxEnergy ∇U σ Q) ≤ Real.sqrt (Kξ * lenI) := by
+    exact RS.sqrt_boxEnergy_bound_of_ConcreteHalfPlaneCarleson hCar ∇U σ Q hEnergy_le
+  -- Apply the CR–Green link
+  exact RS.CRGreen_link U W ψ χ I α' σ Q ∇U ∇χVψ B
+    Cψ_pair Cψ_rem hPairVol hRemBound Kξ lenI hCψ_nonneg hCarlSqrt
 
 /-- Abstract half–plane Poisson transport: if `(P+)` holds on the boundary for `F`,
 then `Re F ≥ 0` on the interior `Ω`. This is a statement‑level predicate that can
@@ -205,6 +269,72 @@ theorem Theta_Schur_offXi_from_PPlus
     : IsSchurOn (Theta_of_J J) (Ω \ {z | riemannXi_ext z = 0}) := by
   -- Use the Cayley helper specialized to `Ω \ {ξ_ext=0}`.
   exact Theta_Schur_of_Re_nonneg_on_Ω_offXi J hRe_interior
+
+/-! ### Abstract Poisson transport adapter
+
+The following adapter reduces `HasHalfPlanePoissonTransport F` to a purely
+structural representation of the interior real part of `F` by a positive
+boundary–to–interior operator on boundary data. This keeps the logic lean and
+mathlib‑only; an analytic instantiation can later provide such an operator. -/
+
+/-- A boundary-to-interior operator on real boundary data over the half–plane. -/
+def HalfPlanePoissonOp := (ℝ → ℝ) → ℂ → ℝ
+
+/-- Structural representation for the interior real part of a fixed `F`:
+1) positivity: a.e. boundary nonnegativity implies interior nonnegativity;
+2) representation: `(Re F)(z)` is obtained by applying the operator to the
+   boundary trace `t ↦ Re F(1/2+it)`. -/
+def IsPoissonRepresentation (P : HalfPlanePoissonOp) (F : ℂ → ℂ) : Prop :=
+  (∀ u : ℝ → ℝ, (∀ᵐ t : ℝ, 0 ≤ u t) → ∀ z ∈ Ω, 0 ≤ P u z) ∧
+  (∀ z ∈ Ω, (F z).re = P (fun t : ℝ => (F (Complex.mk (1/2 : ℝ) t)).re) z)
+
+/-- Existential packaging of a positive boundary–to–interior representation for `Re F`. -/
+def HasPoissonRepresentation (F : ℂ → ℂ) : Prop :=
+  ∃ P : HalfPlanePoissonOp, IsPoissonRepresentation P F
+
+/-- If the interior real part of `F` is represented by a positive
+boundary–to–interior operator acting on the boundary real trace of `F`, then
+the half–plane Poisson transport predicate holds for `F`. -/
+lemma hasHalfPlanePoissonTransport_of_poissonRepresentation
+    (F : ℂ → ℂ) (P : HalfPlanePoissonOp)
+    (hP : IsPoissonRepresentation P F) : HasHalfPlanePoissonTransport F := by
+  have := hasHalfPlanePoissonTransport_iff_certShape F
+  rcases hP with ⟨hPos, hRepr⟩
+  refine (this.mpr ?_)
+  intro hPPlus z hz
+  have hb : ∀ᵐ t : ℝ, 0 ≤ (F (Complex.mk (1/2 : ℝ) t)).re := hPPlus
+  have hpos := hPos (fun t => (F (Complex.mk (1/2 : ℝ) t)).re) hb z hz
+  simpa [hRepr z hz] using hpos
+
+/-- Transport from an existential representation. -/
+lemma hasHalfPlanePoissonTransport_of_hasRep
+    (F : ℂ → ℂ) (h : HasPoissonRepresentation F) : HasHalfPlanePoissonTransport F := by
+  rcases h with ⟨P, hP⟩
+  exact hasHalfPlanePoissonTransport_of_poissonRepresentation F P hP
+
+/-- Specialization to the pinch field `F := 2 · J_pinch det2 O`. -/
+lemma hasHalfPlanePoissonTransport_from_rep_Jpinch
+    (O : ℂ → ℂ)
+    (h : HasPoissonRepresentation (fun z => (2 : ℂ) * J_pinch det2 O z)) :
+    HasHalfPlanePoissonTransport (fun z => (2 : ℂ) * J_pinch det2 O z) := by
+  exact hasHalfPlanePoissonTransport_of_hasRep _ h
+
+/-- Interior nonnegativity on `Ω \\ Z(ξ_ext)` for the pinch field
+`F := 2 · J_pinch det2 O`, obtained from a Kξ certificate via (P+) and
+half–plane Poisson transport. -/
+lemma hRe_offXi_from_certificate
+    (α c : ℝ) (O : ℂ → ℂ)
+    (hTrans : HasHalfPlanePoissonTransport (fun z => (2 : ℂ) * J_pinch det2 O z))
+    (hKxi : RH.Cert.KxiWhitney.KxiBound α c)
+    (hP : RH.Cert.PPlusFromCarleson_exists (fun z => (2 : ℂ) * J_pinch det2 O z))
+    : ∀ z ∈ (Ω \ {z | riemannXi_ext z = 0}), 0 ≤ ((2 : ℂ) * J_pinch det2 O z).re := by
+  -- (P+) from the Kξ certificate
+  have hPPlus : PPlus (fun z => (2 : ℂ) * J_pinch det2 O z) :=
+    PPlus_of_certificate α c (fun z => (2 : ℂ) * J_pinch det2 O z) hKxi hP
+  -- Poisson transport yields interior nonnegativity on Ω
+  have hPoisson : ∀ z ∈ Ω, 0 ≤ ((2 : ℂ) * J_pinch det2 O z).re := hTrans hPPlus
+  -- Restrict to the off–zeros set
+  exact hRe_offXi_from_PPlus_via_Poisson det2 O hPPlus hPoisson
 
 lemma hPoisson_nonneg_on_Ω_from_Carleson_transport
     (O : ℂ → ℂ)
