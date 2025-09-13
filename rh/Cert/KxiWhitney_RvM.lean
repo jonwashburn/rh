@@ -106,11 +106,11 @@ value `Kξ = 0`.
 Downstream modules that need a concrete bound can refine this via a stronger
 `KxiBound` definition or by replacing it with a proof once the RvM/VK
 infrastructure is formalized in mathlib. -/
-theorem kxi_whitney_carleson_of_rvm (α c : ℝ) : KxiBound α c := by
+theorem kxi_whitney_carleson_of_rvm (α c : ℝ) : RH.Cert.KxiWhitney.KxiBound α c := by
   -- Use the concrete Carleson budget existence to witness the Prop-level bound
   rcases kxi_whitney_carleson (α := α) (c := c) with ⟨Kξ, hKξ0, hCar⟩
   -- KxiBound expects existence of a nonnegative constant and a trivial parameter witness
-  exact ⟨Kξ, hKξ0, And.intro rfl rfl⟩
+  exact ⟨Kξ, And.intro hKξ0 (And.intro rfl rfl)⟩
 
 end
 end KxiWhitneyRvM
