@@ -3,7 +3,6 @@ import Mathlib.Data.Real.Basic
 -- Optional analytic plateau module: lightweight stub to keep build green.
 
 noncomputable section
-open scoped Topology
 
 namespace RH
 namespace RS
