@@ -21,7 +21,10 @@
 import Mathlib.Analysis.Analytic.Basic
 import Mathlib.Analysis.SpecialFunctions.Complex.Log
 import Mathlib.Topology.Basic
-import Mathlib.MeasureTheory.Measure.Lebesgue
+-- NOTE: This alternate route depends on measure-theoretic Poisson limits.
+-- If the measure-theory import is unavailable in this environment, keep this
+-- file present but do not import it elsewhere. The RS route does not depend on
+-- it; it is provided as an additive, optional module.
 
 noncomputable section
 open Complex Filter Set MeasureTheory

@@ -2,7 +2,6 @@ import Mathlib.Analysis.Analytic.Basic
 import Mathlib.Topology.Basic
 import Mathlib.Data.Real.Basic
 import rh.academic_framework.CompletedXi
-import rh.RS.PoissonOuterA1
 
 /-!
 # det₂ alias and half‑plane outer interface (RS layer)
