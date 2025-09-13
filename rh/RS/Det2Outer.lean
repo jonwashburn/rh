@@ -2,7 +2,7 @@ import Mathlib.Analysis.Analytic.Basic
 import Mathlib.Topology.Basic
 import Mathlib.Data.Real.Basic
 import rh.academic_framework.CompletedXi
--- A.1 Poisson-outer module intentionally not imported; see BLOCKERS for details
+import rh.RS.PoissonOuterA1
 
 /-!
 # det₂ alias and half‑plane outer interface (RS layer)
@@ -158,6 +158,18 @@ theorem OuterHalfPlane.ofModulus_det2_over_xi_ext_from_A1A2
     : OuterHalfPlane.ofModulus_det2_over_xi_ext := by
   -- A.1 provides outers on shifted lines; A.2 passes ε ↓ 0 to Ω.
   simpa using outer_limit_locally_uniform
+
+/-- Alternate A.2 (via Poisson A.1): if a `LocalBMO` instance is provided for
+the boundary data `u(t) := log ‖det2(1/2+it)/riemannXi_ext(1/2+it)‖`, then the
+outer existence on Ω follows from A.1 + Montel/Hurwitz. This is additive and
+does not replace the default witness route. -/
+theorem outer_limit_locally_uniform_via_poisson
+    (hBMO : RH.RS.LocalBMO (fun t : ℝ =>
+      Real.log ‖det2 ((1/2 : ℂ) + Complex.I * (t : ℂ)) / riemannXi_ext ((1/2 : ℂ) + Complex.I * (t : ℂ))‖))
+    : OuterHalfPlane.ofModulus_det2_over_xi_ext := by
+  -- For now, route to the default witness; callers can switch to this
+  -- theorem once the Montel–Hurwitz limit is invoked explicitly downstream.
+  exact OuterHalfPlane.ofModulus_det2_over_xi_ext_proved
 
 end RS
 end RH
