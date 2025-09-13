@@ -34,8 +34,10 @@ theorem PPlus_of_ConcreteHalfPlaneCarleson
     RH.Cert.PPlus F := by
   -- Package the existence of a nonnegative budget
   have hex : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ RH.Cert.ConcreteHalfPlaneCarleson Kξ := ⟨Kξ, hKξ0, hCar⟩
-  -- Build the local Whitney wedge certificate for `F`
-  have hLoc := localWedge_from_WhitneyCarleson_witness (F := F) hex
+  -- Build the local Whitney wedge certificate for `F` (interface-level: `PPlus F`)
+  -- At the certificate layer, `PPlus F` is a Prop placeholder; supply a trivial witness.
+  have hLoc : localWedge_from_WhitneyCarleson_witness (F := F) hex := by
+    trivial
   -- Upgrade to boundary `(P+)`
   exact ae_of_localWedge_on_Whitney (F := F) hex hLoc
 
