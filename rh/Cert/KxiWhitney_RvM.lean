@@ -107,9 +107,9 @@ Downstream modules that need a concrete bound can refine this via a stronger
 `KxiBound` definition or by replacing it with a proof once the RvM/VK
 infrastructure is formalized in mathlib. -/
 theorem kxi_whitney_carleson_of_rvm (α c : ℝ) : KxiBound α c := by
-  -- Use the concrete Carleson budget with Kξ := 0 to produce a `KxiBound` witness
-  rcases kxi_whitney_carleson (α := α) (c := c) with ⟨Kξ, hKξ0, _hCar⟩
-  exact ⟨Kξ, hKξ0, And.intro rfl rfl⟩
+  -- Use the concrete Carleson budget existence to witness the Prop-level bound
+  rcases kxi_whitney_carleson (α := α) (c := c) with ⟨Kξ, hKξ0, hCar⟩
+  exact ⟨Kξ, hKξ0, hCar⟩
 
 end
 end KxiWhitneyRvM

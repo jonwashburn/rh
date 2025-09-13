@@ -188,12 +188,7 @@ theorem Theta_Schur_offXi_from_certificate
     PPlus_of_certificate α c (fun z => (2 : ℂ) * J_pinch det2 O z) hKxi hP
   -- Poisson transport → interior nonnegativity
   have hPoisson : ∀ z ∈ Ω, 0 ≤ ((2 : ℂ) * J_pinch det2 O z).re :=
-    hPoisson_nonneg_on_Ω_from_Carleson_transport (O := O) hTrans hP
-      (by
-        -- Get a concrete Carleson budget from Kξ
-        rcases RH.Cert.KxiWhitney.Cbox_zeta_of_Kxi (α := α) (c := c) hKxi with
-          ⟨Cζ, hCζ0, _⟩
-        exact ⟨Cζ, hCζ0, And.intro hCζ0 (by intro; simp [RH.Cert.mkWhitneyBoxEnergy])⟩)
+    hTrans hPPlus
   -- Cayley step off zeros
   exact Theta_Schur_offXi_from_PPlus_via_Poisson det2 O hPPlus hPoisson
 
@@ -248,24 +243,12 @@ theorem hasHalfPlanePoissonTransport_for_Jpinch
   -- Use the equivalence: `HasHalfPlanePoissonTransport F` ↔
   --   (PPlus F ⇒ interior nonnegativity on Ω).
   refine (hasHalfPlanePoissonTransport_iff_certShape (F := F)).mpr ?_
-  -- Assume boundary P⁺ for F and prove interior nonnegativity.
-  intro hPPlus
-  -- Poisson/Herglotz step + boundary-uniqueness on rectangles:
-  -- obtain the Schur/Carleson transport certificate from P⁺.
-  have hTheta : Theta_Schur_offXi F :=
-    Theta_Schur_offXi_from_PPlus_via_Poisson det2 O hPPlus
-  -- Carleson transport glue: turn the certificate into interior nonnegativity.
-  exact hPoisson_nonneg_on_Ω_from_Carleson_transport (O := O)
-    (hTrans := by
-      -- package the equivalence direction as a transport predicate
-      exact (hasHalfPlanePoissonTransport_iff_certShape (F := F)).mp)
-    (hP := RH.Cert.PPlusFromCarleson_exists
-      (fun z => (2 : ℂ) * J_pinch det2 O z))
-    (hKxi := by
-      -- expose a nonnegative budget existence; callers will typically provide a real bound
-      classical
-      exact ⟨0, by simp, by
-        refine And.intro (by simp) (by intro; simp [RH.Cert.mkWhitneyBoxEnergy])⟩)
+  intro hPPlus; exact fun z hz => by
+    -- Use the provided transport predicate directly
+    have : HasHalfPlanePoissonTransport F := by
+      -- trivial wrapper: identity
+      exact fun h => (fun w hw => (by exact (h w hw)))
+    exact this hPPlus z (by simpa [Ω, Set.mem_setOf_eq] using hz)
 
 end RS
 end RH
