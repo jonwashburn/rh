@@ -13,6 +13,7 @@ import rh.RS.PinchCertificate
 import rh.RS.XiExtBridge
 import rh.RS.SchurGlobalization
 import rh.RS.CRGreenOuter
+import rh.RS.PPlusFromCarleson
 -- CompletedXi import deferred until formalization lands
 import Mathlib.NumberTheory.LSeries.RiemannZeta
 import Mathlib.Tactic
@@ -466,6 +467,39 @@ theorem RiemannHypothesis_mathlib_from_CR_outer_ext
 
 -- (legacy wrapper removed)
 end RH.Proof.Final
+
+/-- End-to-end certificate route (integration check): from
+1) outer existence on Ω with boundary modulus `|det₂/ξ_ext|`,
+2) a half–plane Poisson transport predicate for `F := 2·J_pinch det2 O`,
+3) a Kξ certificate `KxiBound α c`, and
+4) pinned u‑trick data at each `ξ_ext` zero,
+conclude `RiemannHypothesis` by invoking the certificate pipeline.
+
+This theorem wires the existing RS/Cert lemmas without introducing new
+assumptions beyond the route inputs. -/
+theorem RiemannHypothesis_from_certificate_route
+  (α c : ℝ)
+  (hOuterExist : RH.RS.OuterHalfPlane.ofModulus_det2_over_xi_ext)
+  (hTrans : RH.RS.HasHalfPlanePoissonTransport
+    (fun z => (2 : ℂ) * (RH.RS.J_pinch RH.RS.det2 (RH.RS.OuterHalfPlane.choose_outer hOuterExist) z)))
+  (hKxi : RH.Cert.KxiWhitney.KxiBound α c)
+  (hPinned : ∀ ρ, ρ ∈ RH.RS.Ω → riemannXi_ext ρ = 0 →
+      ∃ (U : Set ℂ), IsOpen U ∧ IsPreconnected U ∧ U ⊆ RH.RS.Ω ∧ ρ ∈ U ∧
+        (U ∩ {z | riemannXi_ext z = 0}) = ({ρ} : Set ℂ) ∧
+        ∃ (Θ_analytic_off_rho : AnalyticOn ℂ (RH.RS.Θ_pinch_of RH.RS.det2 (RH.RS.OuterHalfPlane.choose_outer hOuterExist)) (U \ {ρ}))
+          (u : ℂ → ℂ)
+          (hEq : Set.EqOn (RH.RS.Θ_pinch_of RH.RS.det2 (RH.RS.OuterHalfPlane.choose_outer hOuterExist)) (fun z => (1 - u z) / (1 + u z)) (U \ {ρ}))
+          (hu0 : Filter.Tendsto u (nhdsWithin ρ (U \ {ρ})) (nhds (0 : ℂ)))
+          (z_nontrivial : ∃ z, z ∈ U ∧ z ≠ ρ ∧ (RH.RS.Θ_pinch_of RH.RS.det2 (RH.RS.OuterHalfPlane.choose_outer hOuterExist)) z ≠ 1),
+          True)
+  : RiemannHypothesis := by
+  -- Produce (P+) existence-level implication for F := 2·J_pinch det2 O
+  let F : ℂ → ℂ := fun z => (2 : ℂ) * (RH.RS.J_pinch RH.RS.det2 (RH.RS.OuterHalfPlane.choose_outer hOuterExist) z)
+  have hP : RH.Cert.PPlusFromCarleson_exists F := RH.RS.PPlusFromCarleson_exists_proved (F := F)
+  -- Invoke the assembled certificate-to-RH wrapper
+  exact RH.Proof.Final.RH_from_certificate_poisson_and_pinned
+    (α := α) (c := c) (hOuterExist := hOuterExist) (hTrans := hTrans)
+    (hKxi := hKxi) (hP := hP) (hPinned := hPinned)
 
 namespace RH.Proof.Final
 

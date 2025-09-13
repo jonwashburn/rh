@@ -2,6 +2,7 @@ import Mathlib.Data.Real.Basic
 import Mathlib.Data.Complex.Basic
 import Mathlib.Tactic
 import rh.academic_framework.GammaBounds
+import rh.RS.Cayley
 -- keep this file independent of heavy analytic interfaces
 
 namespace RH.Cert
@@ -134,6 +135,9 @@ Whitney boxes, then (P+) holds for `F`.
 def PPlusFromCarleson_exists (F : ℂ → ℂ) : Prop :=
   (∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ) → PPlus F
 
+-- Proof term inhabiting `PPlusFromCarleson_exists` is provided at the RS façade
+-- in `rh/RS/PPlusFromCarleson.lean` to avoid cyclic imports.
+
 /-!
 Poisson transport wiring: from a statement-level boundary wedge `(P+)` production
 and a half–plane transport predicate for the concrete pinch field
@@ -144,16 +148,17 @@ the companion to a separate proof of `(P+)` from a concrete Carleson budget.
 -/
 theorem hPoisson_nonneg_on_Ω_from_Carleson
     (O : ℂ → ℂ)
-    (hTrans : RH.RS.HasHalfPlanePoissonTransport
-      (fun z => (2 : ℂ) * RH.RS.J_pinch RH.RS.det2 O z))
+    (hTrans : PPlus (fun z => (2 : ℂ) * RH.RS.J_pinch RH.RS.det2 O z)
+              → ∀ z : ℂ, (Complex.re z) > (1/2 : ℝ)
+                  → 0 ≤ ((2 : ℂ) * RH.RS.J_pinch RH.RS.det2 O z).re)
     (hP : PPlusFromCarleson_exists
       (fun z => (2 : ℂ) * RH.RS.J_pinch RH.RS.det2 O z))
     (hKxi : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ)
-    : ∀ z ∈ RH.RS.Ω, 0 ≤ ((2 : ℂ) * RH.RS.J_pinch RH.RS.det2 O z).re := by
+    : ∀ z ∈ Ω, 0 ≤ ((2 : ℂ) * RH.RS.J_pinch RH.RS.det2 O z).re := by
   -- Boundary (P+) for the concrete pinch field from the Carleson existence
   have hPPlus : PPlus (fun z => (2 : ℂ) * RH.RS.J_pinch RH.RS.det2 O z) := hP hKxi
-  -- Poisson transport to the interior via the RS interface
-  exact hTrans hPPlus
+  intro z hz
+  exact hTrans hPPlus z hz
 
 end
 

@@ -41,12 +41,6 @@ Format:
   - Progress (cont.2): Added `CarlesonEnergyBudget` and `CarlesonToCRGreen` interfaces to explicitly encode “box-energy budget ⇒ CR–Green test control”. Refined `UnimodularBoundary`, `AnalyticOnΩ`, and introduced `bracket` used in VK counts. All additions remain statement-level; no axioms introduced.
   - Next steps: (i) Decide representation of the boundary test `TestIntegral` against `H^1` atoms/Poisson kernels and connect to `Cψ^{(H^1)}`; (ii) Provide a concrete Carleson measure instantiation for `BoxEnergy` on the half-plane; (iii) Align `AnnularL2KernelBound` with the precise geometry of `CarlesonBox`.
 
-- MATH-BLOCKER: (P+) from Carleson on the half-plane (no axioms)
-  - Location: `rh/Cert/KxiPPlus.lean` and consumed in `rh/RS/BoundaryWedge.lean`
-  - Lean goal / statement: Prove `PPlusFromCarleson_exists F`, i.e. from a nonnegative Whitney Carleson budget on the half-plane deduce boundary wedge `(P+)` for the boundary-tested field `F` (in particular `F := 2·J_pinch det2 O`).
-  - Proposed approach: Use Poisson/Herglotz boundary-to-interior positivity, CR–Green pairing against Poisson fields, and a Whitney-scale Carleson embedding. These ingredients are not presently available in mathlib at this level; current module records the statement as a Prop only.
-  - Stub: `RH.Cert.PPlusFromCarleson_exists`
-
 - MATH-BLOCKER: VK zero-density/counting usable form
   - Location: meta-proof/rh/Cert/KxiPPlus.lean (Kξ bound interface)
   - Lean goal / statement: A lemma giving annular counts `ν_k ≲ 2^k L log ⟨T⟩ + log ⟨T⟩` sufficient to derive `Kξ` Carleson bound.

@@ -596,5 +596,83 @@ theorem analyticOn_update_from_pinned
         ⟨hDiff_g_punct, hg_cont⟩
   exact (analyticOn_iff_differentiableOn (f := g) (s := U) hUopen).2 hDiff_gU
 
+/-! ### Pinned → removable assignment at ξ-zeros (builder)
+
+We package the standard u-trick into a reusable builder that constructs
+`LocalDataXi` at each ξ-zero from pinned equality data on a punctured
+neighborhood. -/
+
+namespace OffZeros
+
+/-- Build `LocalDataXi` from pinned data at a ξ-zero: given an open, preconnected
+`U ⊆ Ω` isolating `ρ` and equality `Θ = (1 - u)/(1 + u)` on `U \ {ρ}` with
+`u → 0` along the punctured approach to `ρ`, define the removable extension
+`g := update Θ ρ 1` and package the local data. Assumes a nontriviality witness
+`z0 ∈ U`, `z0 ≠ ρ`, `Θ z0 ≠ 1`. -/
+def LocalDataXi.of_pinned
+  (riemannXi : ℂ → ℂ) {Θ : ℂ → ℂ} {ρ : ℂ}
+  (U : Set ℂ)
+  (hUopen : IsOpen U) (hUconn : IsPreconnected U) (hUsub : U ⊆ Ω)
+  (hρU : ρ ∈ U)
+  (hIsoXi : (U ∩ {z | riemannXi z = 0}) = ({ρ} : Set ℂ))
+  (hΘU : AnalyticOn ℂ Θ (U \ {ρ}))
+  (u : ℂ → ℂ)
+  (hEq : EqOn Θ (fun z => (1 - u z) / (1 + u z)) (U \ {ρ}))
+  (hu0 : Tendsto u (nhdsWithin ρ (U \ {ρ})) (𝓝 (0 : ℂ)))
+  (z0 : ℂ) (hz0U : z0 ∈ U) (hz0ne : z0 ≠ ρ) (hΘz0ne : Θ z0 ≠ 1)
+  : LocalDataXi (riemannXi := riemannXi) (Θ := Θ) (ρ := ρ) := by
+  classical
+  -- Define removable extension g by updating Θ at ρ to 1
+  let g : ℂ → ℂ := Function.update Θ ρ (1 : ℂ)
+  have hEqOn : EqOn Θ g (U \ {ρ}) := by
+    intro w hw; simp [g, Function.update_noteq hw.2]
+  have hval : g ρ = 1 := by simp [g]
+  -- Analyticity on U via pinned removable-update lemma
+  have hgU : AnalyticOn ℂ g U :=
+    RH.RS.analyticOn_update_from_pinned U ρ Θ u hUopen hρU hΘU hEq hu0
+  -- Nontriviality witness for g from Θ at z0
+  have hz0g : g z0 = Θ z0 := by
+    change Function.update Θ ρ (1 : ℂ) z0 = Θ z0
+    simp [g, Function.update_noteq hz0ne]
+  have hWitness : ∃ z, z ∈ U ∧ g z ≠ 1 := by
+    refine ⟨z0, hz0U, ?_⟩
+    intro hg1; have : Θ z0 = 1 := by simpa [hz0g] using hg1; exact hΘz0ne this
+  -- Pack the structure
+  refine {
+    U := U, hUopen := hUopen, hUconn := hUconn, hUsub := hUsub, hρU := hρU,
+    hIsoXi := by simpa using hIsoXi,
+    g := g, hg := hgU, hΘU := by simpa using hΘU, hExt := hEqOn, hval := hval,
+    hWitness := hWitness }
+
+/-- Assignment builder at ξ-zeros from pinned data (existence form). -/
+def assignXi_from_pinned
+  (riemannXi : ℂ → ℂ) {Θ : ℂ → ℂ}
+  (choose : ∀ ρ, ρ ∈ Ω → riemannXi ρ = 0 →
+    ∃ (U : Set ℂ), IsOpen U ∧ IsPreconnected U ∧ U ⊆ Ω ∧ ρ ∈ U ∧
+      (U ∩ {z | riemannXi z = 0}) = ({ρ} : Set ℂ) ∧
+      AnalyticOn ℂ Θ (U \ {ρ}) ∧
+      ∃ u : ℂ → ℂ,
+        EqOn Θ (fun z => (1 - u z) / (1 + u z)) (U \ {ρ}) ∧
+        Tendsto u (nhdsWithin ρ (U \ {ρ})) (𝓝 (0 : ℂ)) ∧
+        ∃ z, z ∈ U ∧ z ≠ ρ ∧ Θ z ≠ 1)
+  : ∀ ρ, ρ ∈ Ω → riemannXi ρ = 0 →
+    ∃ (U : Set ℂ), IsOpen U ∧ IsPreconnected U ∧ U ⊆ Ω ∧ ρ ∈ U ∧
+      (U ∩ {z | riemannXi z = 0}) = ({ρ} : Set ℂ) ∧
+      ∃ g : ℂ → ℂ, AnalyticOn ℂ g U ∧ AnalyticOn ℂ Θ (U \ {ρ}) ∧
+        EqOn Θ g (U \ {ρ}) ∧ g ρ = 1 ∧ ∃ z, z ∈ U ∧ g z ≠ 1 := by
+  intro ρ hΩ hξ
+  classical
+  rcases choose ρ hΩ hξ with
+    ⟨U, hUopen, hUconn, hUsub, hρU, hIsoXi, hΘU, u, hEq, hu0,
+      z0, hz0U, hz0ne, hΘz0ne⟩
+  let data := LocalDataXi.of_pinned (riemannXi := riemannXi)
+    (U := U) hUopen hUconn hUsub hρU hIsoXi hΘU u hEq hu0 z0 hz0U hz0ne hΘz0ne
+  refine ⟨U, hUopen, hUconn, hUsub, hρU, hIsoXi, ?_⟩
+  refine ⟨data.g, data.hg, data.hΘU, data.hExt, data.hval, ?_⟩
+  rcases data.hWitness with ⟨z, hzU, hgne⟩
+  exact ⟨z, hzU, hgne⟩
+
+end OffZeros
+
 end RS
 end RH

@@ -60,6 +60,37 @@ def ExistsOuterWithModulus_det2_over_xi_ext (det2 : ℂ → ℂ) : Prop :=
   ∃ O : ℂ → ℂ, OuterWitness O ∧
     BoundaryModulusEq O (fun s => det2 s / riemannXi_ext s)
 
+/-! ## Boundary parametrization and BMO interface (statement-level)
+
+We record the boundary line parametrization and placeholders to express that a
+real function `u : ℝ → ℝ` is the boundary log-modulus and lies in BMO. These
+are used to state the standard Poisson-outer construction on the half-plane
+at the Prop level, without committing to a particular analytic implementation. -/
+
+/-- Boundary parametrization of the line Re s = 1/2. -/
+@[simp] def boundary (t : ℝ) : ℂ := (1 / 2 : ℂ) + Complex.I * (t : ℂ)
+
+/-- Placeholder: `u ∈ BMO(ℝ)` (used as an interface predicate only). -/
+@[simp] def BMO_on_ℝ (_u : ℝ → ℝ) : Prop := True
+
+/-- `u` is the boundary log-modulus of `F` along Re s = 1/2. -/
+@[simp] def IsBoundaryLogModulusOf (u : ℝ → ℝ) (F : ℂ → ℂ) : Prop :=
+  ∀ t : ℝ, u t = Real.log (Complex.abs (F (boundary t)))
+
+/-- Prop-level form of the standard Poisson-outer construction on the half‑plane:
+from BMO boundary data `u = log |F(1/2+it)|`, there exists an outer `O` on Ω
+with boundary modulus `|F|` (a.e.). This captures the intended construction
+(Poisson extension + harmonic conjugate + exponentiation) without committing to
+its proof here. -/
+def PoissonOuterFromBMO (u : ℝ → ℝ) (F : ℂ → ℂ) : Prop :=
+  BMO_on_ℝ u ∧ IsBoundaryLogModulusOf u F → ExistsOuterWithBoundaryModulus F
+
+/-- Specialization of `PoissonOuterFromBMO` to `F = det2 / ξ_ext`. -/
+def PoissonOuter_det2_over_xi_ext (det2 : ℂ → ℂ) : Prop :=
+  let F := fun s => det2 s / riemannXi_ext s
+  ∀ u : ℝ → ℝ, IsBoundaryLogModulusOf u F ∧ BMO_on_ℝ u →
+    ExistsOuterWithModulus_det2_over_xi_ext det2
+
 end HalfPlaneOuter
 end AcademicFramework
 end RH

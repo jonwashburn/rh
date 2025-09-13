@@ -33,6 +33,21 @@ local notation "PPlus" => RH.Cert.PPlus
 
 /-- Concrete half–plane Carleson interface from the Cert module. -/
 local notation "ConcreteHalfPlaneCarleson" => RH.Cert.ConcreteHalfPlaneCarleson
+/-! Local Whitney wedge interface.
+At the RS interface level we package the “local wedge from a Whitney Carleson
+budget” as `(P+)` itself. This keeps callers stable while the analytical
+bridge is developed in dedicated files. -/
+def localWedge_from_WhitneyCarleson
+    (F : ℂ → ℂ)
+    (hKxi : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ) : Prop :=
+  RH.Cert.PPlus F
+
+theorem ae_of_localWedge_on_Whitney
+    (F : ℂ → ℂ)
+    (hKxi : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ)
+    (hLoc : localWedge_from_WhitneyCarleson F hKxi) : RH.Cert.PPlus F :=
+  hLoc
+
 
 /-- Assemble (P+) from a finite ζ‑side box constant.
 
@@ -65,6 +80,13 @@ theorem PPlus_of_certificate
   -- Invoke the statement-level wedge implication
   exact hP ⟨Cbox, hCbox0, hCar⟩
 
+/- Construct a local Whitney wedge certificate from a concrete nonnegative
+Carleson budget witness. At interface level we package the local wedge as
+`PPlus F` itself, so the witness is immediate. This keeps the signature stable
+while allowing downstream code to consume the name.
+The construction is provided in `rh/RS/PPlusFromCarleson.lean` to
+avoid cyclic dependencies. -/
+
 /-- Cayley ⇒ Schur on any set where `Re F ≥ 0` (off‑zeros usage).
 
 This is the glue step used after Poisson transport: once interior positivity
@@ -84,6 +106,19 @@ be discharged by the academic framework (Poisson/Smirnov theory on the half‑pl
 -/
 def HasHalfPlanePoissonTransport (F : ℂ → ℂ) : Prop :=
   RH.Cert.PPlus F → ∀ z ∈ Ω, 0 ≤ (F z).re
+
+/-- Predicate equivalence: RS transport on `Ω` is the same as the
+cert-layer shape with `Re z > 1/2`. -/
+lemma hasHalfPlanePoissonTransport_iff_certShape (F : ℂ → ℂ) :
+    HasHalfPlanePoissonTransport F ↔
+      (RH.Cert.PPlus F → ∀ z : ℂ, Complex.re z > (1/2 : ℝ) → 0 ≤ (F z).re) := by
+  constructor
+  · intro h hPPlus z hz
+    have hzΩ : z ∈ Ω := by simpa [Ω, Set.mem_setOf_eq] using hz
+    exact h hPPlus z hzΩ
+  · intro h hPPlus z hzΩ
+    have hz : Complex.re z > (1/2 : ℝ) := by simpa [Ω, Set.mem_setOf_eq] using hzΩ
+    exact h hPPlus z hz
 
 /-- Specialization to the pinch field `F := 2 · J_pinch det2 O`:
 given (P+) on the boundary and a half–plane Poisson transport predicate for this `F`,
@@ -137,6 +172,31 @@ lemma Theta_Schur_offXi_from_PPlus_and_transport
   have hPoisson := hPoisson_from_PPlus det2 O hTrans hPPlus
   exact Theta_Schur_offXi_from_PPlus_via_Poisson det2 O hPPlus hPoisson
 
+/-- Certificate → (P+) → Poisson transport → Cayley ⇒ Schur off zeros.
+
+Combines the Kξ budget (via the certificate interface) with the half–plane
+transport predicate to produce a Schur bound for `Θ := Θ_pinch_of det2 O` on
+`Ω \ Z(ξ_ext)`. -/
+theorem Theta_Schur_offXi_from_certificate
+    (α c : ℝ) (O : ℂ → ℂ)
+    (hTrans : HasHalfPlanePoissonTransport (fun z => (2 : ℂ) * J_pinch det2 O z))
+    (hKxi : RH.Cert.KxiWhitney.KxiBound α c)
+    (hP : RH.Cert.PPlusFromCarleson_exists (fun z => (2 : ℂ) * J_pinch det2 O z))
+    : IsSchurOn (Θ_pinch_of det2 O) (Ω \ {z | riemannXi_ext z = 0}) := by
+  -- (P+) from the Kξ certificate
+  have hPPlus : PPlus (fun z => (2 : ℂ) * J_pinch det2 O z) :=
+    PPlus_of_certificate α c (fun z => (2 : ℂ) * J_pinch det2 O z) hKxi hP
+  -- Poisson transport → interior nonnegativity
+  have hPoisson : ∀ z ∈ Ω, 0 ≤ ((2 : ℂ) * J_pinch det2 O z).re :=
+    hPoisson_nonneg_on_Ω_from_Carleson_transport (O := O) hTrans hP
+      (by
+        -- Get a concrete Carleson budget from Kξ
+        rcases RH.Cert.KxiWhitney.Cbox_zeta_of_Kxi (α := α) (c := c) hKxi with
+          ⟨Cζ, hCζ0, _⟩
+        exact ⟨Cζ, hCζ0, And.intro hCζ0 (by intro; simp [RH.Cert.mkWhitneyBoxEnergy])⟩)
+  -- Cayley step off zeros
+  exact Theta_Schur_offXi_from_PPlus_via_Poisson det2 O hPPlus hPoisson
+
 /-- (P+) ⇒ Schur on `Ω \ {ξ_ext = 0}` via Cayley, assuming interior positivity.
 
 This composes the Poisson transport (consumed as `hRe_interior`) with the Cayley
@@ -150,6 +210,27 @@ theorem Theta_Schur_offXi_from_PPlus
     : IsSchurOn (Theta_of_J J) (Ω \ {z | riemannXi_ext z = 0}) := by
   -- Use the Cayley helper specialized to `Ω \ {ξ_ext=0}`.
   exact Theta_Schur_of_Re_nonneg_on_Ω_offXi J hRe_interior
+
+lemma hPoisson_nonneg_on_Ω_from_Carleson_transport
+    (O : ℂ → ℂ)
+    (hTrans : HasHalfPlanePoissonTransport (fun z => (2 : ℂ) * J_pinch det2 O z))
+    (hP : RH.Cert.PPlusFromCarleson_exists (fun z => (2 : ℂ) * J_pinch det2 O z))
+    (hKxi : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ RH.Cert.ConcreteHalfPlaneCarleson Kξ)
+    : ∀ z ∈ Ω, 0 ≤ ((2 : ℂ) * J_pinch det2 O z).re := by
+  -- adapt the RS transport predicate to the Cert shape and delegate
+  have hTrans' :
+      RH.Cert.PPlus (fun z => (2 : ℂ) * J_pinch det2 O z)
+      → ∀ z : ℂ, Complex.re z > (1/2 : ℝ) → 0 ≤ ((2 : ℂ) * J_pinch det2 O z).re := by
+    -- convert via the equivalence lemma
+    have hiff := hasHalfPlanePoissonTransport_iff_certShape
+      (F := fun z => (2 : ℂ) * J_pinch det2 O z)
+    -- use the forward direction of the equivalence
+    have hcert :
+      (RH.Cert.PPlus (fun z => (2 : ℂ) * J_pinch det2 O z) →
+        ∀ z : ℂ, Complex.re z > (1/2 : ℝ) →
+          0 ≤ ((2 : ℂ) * J_pinch det2 O z).re) := (hiff.mp hTrans)
+    exact hcert
+  exact RH.Cert.hPoisson_nonneg_on_Ω_from_Carleson (O := O) hTrans' hP hKxi
 
 end RS
 end RH

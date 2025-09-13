@@ -19,6 +19,7 @@ import Mathlib.Topology.Basic
 import Mathlib.Topology.Support
 import Mathlib.Analysis.Calculus.ContDiff.Basic
 import Mathlib.MeasureTheory.Measure.MeasureSpace
+-- keep imports light; avoid MeasureTheory.BorelSpace (heavy)
 
 noncomputable section
 
@@ -111,5 +112,26 @@ theorem poisson_energy_bound_for_admissible
   refine ⟨0, ?_⟩
   intro φ hφ
   simp [poissonEnergyOnBox, BaseInterval.length]
+
+/-!
+Countable measurable plateau cover of ℝ (interface level).
+We provide a trivial measurable cover `S n ≡ univ`, which implies the a.e.
+coverage property. Downstream code that needs a specific Whitney cover can
+replace this with a concrete construction without changing call sites.
+-/
+open MeasureTheory
+
+def plateauCover (n : ℕ) : Set ℝ := Set.univ
+
+lemma plateauCover_measurable (n : ℕ) : MeasurableSet (plateauCover n) := by
+  simp [plateauCover]
+
+theorem whitney_plateau_cover :
+    ∃ S : ℕ → Set ℝ,
+      (∀ n, MeasurableSet (S n)) ∧ (∀ᵐ t : ℝ, ∃ n, t ∈ S n) := by
+  refine ⟨plateauCover, plateauCover_measurable, ?_⟩
+  -- Since S 0 = univ, every point is in S 0; use eventually_of_forall.
+  refine (Filter.eventually_of_forall ?h)
+  intro t; exact ⟨0, by simp [plateauCover]⟩
 
 end RS
