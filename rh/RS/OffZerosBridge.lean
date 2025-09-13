@@ -636,7 +636,7 @@ def LocalDataXi.of_pinned
     simp [g, Function.update_noteq hz0ne]
   have hWitness : ∃ z, z ∈ U ∧ g z ≠ 1 := by
     refine ⟨z0, hz0U, ?_⟩
-    intro hg1; have : Θ z0 = 1 := by simpa [hz0g] using hg1; exact hΘz0ne this
+    exact fun hg1 => hΘz0ne (by simpa [hz0g] using hg1)
   -- Pack the structure
   refine {
     U := U, hUopen := hUopen, hUconn := hUconn, hUsub := hUsub, hρU := hρU,
