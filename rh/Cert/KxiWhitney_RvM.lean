@@ -109,7 +109,8 @@ infrastructure is formalized in mathlib. -/
 theorem kxi_whitney_carleson_of_rvm (α c : ℝ) : KxiBound α c := by
   -- Use the concrete Carleson budget existence to witness the Prop-level bound
   rcases kxi_whitney_carleson (α := α) (c := c) with ⟨Kξ, hKξ0, hCar⟩
-  exact ⟨Kξ, hKξ0, hCar⟩
+  -- KxiBound expects existence of a nonnegative constant and a trivial parameter witness
+  exact ⟨Kξ, hKξ0, And.intro rfl rfl⟩
 
 end
 end KxiWhitneyRvM
