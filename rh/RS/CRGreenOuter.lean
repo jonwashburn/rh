@@ -3,6 +3,7 @@ import Mathlib.Topology.Support
 import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
 import Mathlib.MeasureTheory.Integral.SetIntegral
 import Mathlib.Tactic
+import Mathlib/Analysis/Calculus/Deriv.Basic
 import rh.RS.SchurGlobalization
 import rh.Cert.KxiPPlus
 
@@ -459,6 +460,93 @@ theorem CRGreen_pairing_whitney_from_green_trace
   CRGreen_pairing_from_green_and_trace U W ψ χ I σ Q ∇U ∇χVψ B Ebox Etest Cside Ctop Cψ
     hEq hRside hRtop hCsum
 -/
+
+end RS
+end RH
+
+/-
+Add-on: convenient test-energy alias, Whitney side/top remainder folding,
+and a clean boundary CR trace lemma.
+-/
+
+noncomputable section
+
+namespace RH
+namespace RS
+
+open Real Set MeasureTheory
+open scoped MeasureTheory
+
+/-- Convenience alias: treat the test field energy with the same integrand. -/
+@[simp] def testEnergy
+  (∇χVψ : (ℝ × ℝ) → ℝ × ℝ) (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ)) : ℝ :=
+  boxEnergy ∇χVψ σ Q
+
+/-- Fold two Whitney remainder controls into the one-sqrt remainder form used by `CRGreen_link`.
+
+Assumptions deliver the identity with two remainders and L²×L² bounds on each;
+we then obtain the bound on `|LHS − BD|` with constant `((Cside + Ctop) * √Etest)`.
+-/
+theorem hRemBound_from_side_top
+  (U : ℝ × ℝ → ℝ) (ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ)
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (∇U : (ℝ × ℝ) → ℝ × ℝ) (∇χVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (B : ℝ → ℝ)
+  (Etest Cside Ctop : ℝ)
+  (hEq :
+    ∃ Rside Rtop : ℝ,
+      (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+        = (∫ t in I, ψ t * B t) + Rside + Rtop)
+  (hRside :
+    ∀ Rside, |Rside| ≤ Cside * Real.sqrt (boxEnergy ∇U σ Q) * Real.sqrt Etest)
+  (hRtop  :
+    ∀ Rtop,  |Rtop|  ≤ Ctop  * Real.sqrt (boxEnergy ∇U σ Q) * Real.sqrt Etest)
+  :
+  |(∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+     - (∫ t in I, ψ t * B t)|
+    ≤ ((Cside + Ctop) * Real.sqrt Etest) * Real.sqrt (boxEnergy ∇U σ Q) := by
+  classical
+  rcases hEq with ⟨Rside, Rtop, hEq0⟩
+  have hR : (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+              - (∫ t in I, ψ t * B t)
+            = Rside + Rtop := by
+    simpa [sub_eq_iff_eq_add] using hEq0
+  have hsum : |Rside + Rtop| ≤ |Rside| + |Rtop| := by
+    simpa using (abs_add_le_abs_add_abs Rside Rtop)
+  have h1 :
+      |Rside| ≤ Cside * (Real.sqrt (boxEnergy ∇U σ Q) * Real.sqrt Etest) := by
+    simpa [mul_comm, mul_left_comm, mul_assoc] using (hRside Rside)
+  have h2 :
+      |Rtop| ≤ Ctop * (Real.sqrt (boxEnergy ∇U σ Q) * Real.sqrt Etest) := by
+    simpa [mul_comm, mul_left_comm, mul_assoc] using (hRtop Rtop)
+  have hsum' :
+      |Rside| + |Rtop|
+        ≤ (Cside + Ctop) * (Real.sqrt (boxEnergy ∇U σ Q) * Real.sqrt Etest) := by
+    simpa [add_mul, mul_comm, mul_left_comm, mul_assoc] using add_le_add h1 h2
+  have hfin :
+      |Rside + Rtop|
+        ≤ ((Cside + Ctop) * Real.sqrt Etest) * Real.sqrt (boxEnergy ∇U σ Q) := by
+    simpa [mul_comm, mul_left_comm, mul_assoc] using hsum'
+  simpa [hR]
+
+/-- Optional boundary CR trace swap: if on `I` we have `ψ·B =ᵐ ψ·(−W′)`, then
+the bottom-edge term equals `−∫_I ψ·W′`.
+
+This is a pure `ae` congruence of integrands over the restricted measure. -/
+theorem boundary_CR_trace_ae
+  (I : Set ℝ) (ψ W : ℝ → ℝ) (B : ℝ → ℝ)
+  (h_ae :
+    (fun t => ψ t * B t)
+      =ᵐ[Measure.restrict Measure.lebesgue I]
+    (fun t => ψ t * (-(deriv W t))))
+  :
+  (∫ t in I, ψ t * B t)
+    = - (∫ t in I, ψ t * (deriv W t)) := by
+  have : (∫ t in I, ψ t * B t)
+           = (∫ t in I, ψ t * (-(deriv W t))) := by
+    exact integral_congr_ae h_ae
+  simpa [this, integral_neg, mul_comm, mul_left_comm, mul_assoc]
 
 end RS
 end RH
