@@ -1,13 +1,14 @@
+import Mathlib.Data.Real.Basic
+
 -- Optional analytic plateau module: lightweight stub to keep build green.
 
 noncomputable section
 open scoped Topology
-open Real
 
 namespace RH
 namespace RS
 
-@[simp] def poissonKernel (b y : ℝ) : ℝ := 0
+@[simp] def poissonKernel (b y : ℝ) : ℝ := (0 : ℝ)
 
 lemma poissonKernel_nonneg (b : ℝ) (hb : 0 < b) (y : ℝ) : 0 ≤ poissonKernel b y := by
   simp [poissonKernel]
