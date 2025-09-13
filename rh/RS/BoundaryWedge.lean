@@ -216,7 +216,7 @@ lemma hPoisson_nonneg_on_Ω_from_Carleson_transport
   have hPPlus : RH.Cert.PPlus (fun z => (2 : ℂ) * J_pinch det2 O z) := hP hKxi
   exact hTrans hPPlus
 
-/-- B.1 (alternate): Transport lemma for `F := 2 · J_pinch det2 O`.
+/- B.1 (alternate): Transport lemma for `F := 2 · J_pinch det2 O`.
 
 From boundary `PPlus F` (a.e. nonnegativity of `Re F` on the boundary),
 pass through the Poisson/Herglotz route to obtain the Schur/Carleson
@@ -227,3 +227,4 @@ the provided RS glue lemmas. -/
 
 end RS
 end RH
+end
