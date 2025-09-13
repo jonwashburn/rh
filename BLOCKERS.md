@@ -147,3 +147,8 @@ Missing: interval sup bound ∫_I f ≤ |I|·sup_I f (finite interval, Lebesgue)
     then a Schur/Bessel-style row-sum estimate to keep dependence linear in `#A_k`.
 
 - Missing: centered balayage row-sum (Schur/Bessel) to keep linear ν_k.
+
+- MATH-BLOCKER: Local Whitney wedge → a.e. boundary wedge (P+)
+  - Location: `rh/RS/PPlusFromCarleson.lean`
+  - Lean goal / statement: From `∃ Kξ ≥ 0, ConcreteHalfPlaneCarleson Kξ` for `F`, build a proof term for `RH.Cert.PPlus F` (i.e. `∀ᵐ t, 0 ≤ Re F(1/2+it)`), supplying `RH.Cert.PPlusFromCarleson_exists F`.
+  - Proposed approach: Use CR–Green pairing and Poisson boundary trace to upgrade the local Whitney wedge to a.e. boundary nonnegativity; requires measure‑theoretic boundary trace/Poisson lemmas.
