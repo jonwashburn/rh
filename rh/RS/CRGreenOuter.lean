@@ -814,6 +814,103 @@ end RH
 
 
 /-! ------------------------------------------------------------------------
+    Scale-invariant interior remainder bound (attachment implementation)
+    ------------------------------------------------------------------------ -/
+
+namespace RH
+namespace RS
+
+open MeasureTheory
+open scoped MeasureTheory
+
+/-- The algebraic combination field appearing in the interior remainder. -/
+@[simp] def combField
+  (U Vψ : (ℝ × ℝ) → ℝ)
+  (gradU gradVψ : (ℝ × ℝ) → ℝ × ℝ) :
+  (ℝ × ℝ) → ℝ × ℝ :=
+  fun x =>
+    ( Vψ x * (gradU x).1 - U x * (gradVψ x).1
+    , Vψ x * (gradU x).2 - U x * (gradVψ x).2 )
+
+/-- Scale-invariant interior remainder bound (χ/test budgets; Cauchy–Schwarz).
+
+Inputs (all scale-stable):
+- `hRintDef`: definition of the interior remainder on `Q`.
+- `hCS`: Cauchy–Schwarz on σ|Q for the pairing ⟨∇χ, combField⟩.
+- `hChiL2`: L∞→L² budget for ∇χ on Q: ‖∇χ‖₂ ≤ (Cχ/L) √|Q|.
+- `hFieldL2`: L² budget for the combination field.
+-/ 
+theorem remainder_bound_from_cutoff_scale_invariant
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (U Vψ χ : (ℝ × ℝ) → ℝ)
+  (gradU gradVψ gradChi : (ℝ × ℝ) → ℝ × ℝ)
+  (Rint L Cχ C_U C_V : ℝ)
+  (hRintDef :
+    Rint
+      = ∫ x in Q, (gradChi x) ⋅ (combField U Vψ gradU gradVψ x) ∂σ)
+  (hCS :
+    |Rint|
+      ≤ Real.sqrt (boxEnergy gradChi σ Q)
+          * Real.sqrt (testEnergy (combField U Vψ gradU gradVψ) σ Q))
+  (hChiL2 :
+    Real.sqrt (boxEnergy gradChi σ Q)
+      ≤ (Cχ / L) * Real.sqrt (σ Q))
+  (hFieldL2 :
+    Real.sqrt (testEnergy (combField U Vψ gradU gradVψ) σ Q)
+      ≤ C_V * Real.sqrt (boxEnergy gradU σ Q)
+        + C_U * Real.sqrt (boxEnergy gradVψ σ Q)) :
+  |Rint|
+    ≤ (Cχ / L) * Real.sqrt (σ Q)
+        * ( C_V * Real.sqrt (boxEnergy gradU σ Q)
+          + C_U * Real.sqrt (boxEnergy gradVψ σ Q) ) := by
+  -- Start from Cauchy–Schwarz on σ|Q
+  have h1 := hCS
+  -- Insert the ∇χ L² budget on the left factor
+  have h2 :=
+    mul_le_mul_of_nonneg_right hChiL2 (by exact Real.sqrt_nonneg _)
+  -- Insert the combination-field L² budget on the right factor
+  have h3 :=
+    mul_le_mul_of_nonneg_left hFieldL2 (by exact Real.sqrt_nonneg _)
+  -- Combine the three one-line inequalities
+  have h12 :
+      |Rint| ≤ ((Cχ / L) * Real.sqrt (σ Q))
+                * Real.sqrt (testEnergy (combField U Vψ gradU gradVψ) σ Q) := by
+    exact le_trans h1 (by simpa [mul_comm, mul_left_comm, mul_assoc] using h2)
+  exact le_trans h12 (by simpa [mul_comm, mul_left_comm, mul_assoc] using h3)
+
+/-- Convenience corollary: same inequality with the same hypotheses, restated. -/
+theorem remainder_bound_from_cutoff_scale_invariant'
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (U Vψ χ : (ℝ × ℝ) → ℝ)
+  (gradU gradVψ gradChi : (ℝ × ℝ) → ℝ × ℝ)
+  (Rint L Cχ C_U C_V : ℝ)
+  (hRintDef :
+    Rint
+      = ∫ x in Q, (gradChi x) ⋅ (combField U Vψ gradU gradVψ x) ∂σ)
+  (hCS :
+    |Rint|
+      ≤ Real.sqrt (boxEnergy gradChi σ Q)
+          * Real.sqrt (testEnergy (combField U Vψ gradU gradVψ) σ Q))
+  (hChiL2 :
+    Real.sqrt (boxEnergy gradChi σ Q)
+      ≤ (Cχ / L) * Real.sqrt (σ Q))
+  (hFieldL2 :
+    Real.sqrt (testEnergy (combField U Vψ gradU gradVψ) σ Q)
+      ≤ C_V * Real.sqrt (boxEnergy gradU σ Q)
+        + C_U * Real.sqrt (boxEnergy gradVψ σ Q)) :
+  |Rint|
+    ≤ (Cχ / L) * Real.sqrt (σ Q)
+        * ( C_V * Real.sqrt (boxEnergy gradU σ Q)
+          + C_U * Real.sqrt (boxEnergy gradVψ σ Q) ) :=
+  remainder_bound_from_cutoff_scale_invariant σ Q U Vψ χ
+    gradU gradVψ gradChi Rint L Cχ C_U C_V
+    hRintDef hCS hChiL2 hFieldL2
+
+end RS
+end RH
+
+
+/-! ------------------------------------------------------------------------
     CR boundary trace (bottom edge) and strong rectangle identity (drop-in)
     Imported from crgreen-final.txt attachment
     ------------------------------------------------------------------------ -/
