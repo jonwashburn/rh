@@ -205,8 +205,8 @@ theorem outer_cancellation_on_boundary
         using (sub_add_cancel LHS BD)
     simpa [LHS, BD, add_comm, add_left_comm, add_assoc, sub_eq_add_neg] using this.symm
   · -- bound is exactly the hypothesis
-    simp [LHS, BD]
-      using hBoundDiff
+    have h := hBoundDiff
+    simpa [LHS, BD] using h
 
 
 
@@ -266,8 +266,8 @@ theorem pairing_whitney_analytic_bound
   -- Plug the analytic bounds
   have hR : |R| ≤ Cψ_rem * Real.sqrt (boxEnergy gradU σ Q) := by
     -- R = LHS - BD, so the given remainder bound is exactly |R| ≤ ...
-    simp [R, LHS, BD]
-      using hRemBound
+    have h := hRemBound
+    simpa [R, LHS, BD] using h
   have hSum :
       |LHS| + |R|
         ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (boxEnergy gradU σ Q) := by
@@ -276,8 +276,8 @@ theorem pairing_whitney_analytic_bound
               + Cψ_rem * Real.sqrt (boxEnergy gradU σ Q) := by
       exact add_le_add hPairVol hR
     -- (Cψ_pair + Cψ_rem) * s = Cψ_pair*s + Cψ_rem*s
-    simp [add_mul]
-      using this
+    have hsum := this
+    simpa [add_mul] using hsum
   exact (le_trans tineq hSum)
 
 
@@ -350,6 +350,32 @@ theorem boundary_integral_bound_transfer_ae
   |∫ t in I, ψ t * f t| ≤ M := by
   have hEq := boundary_integral_congr_ae (I := I) (ψ := ψ) (B := B) (f := f) h_ae
   exact boundary_integral_bound_transfer (I := I) (ψ := ψ) (B := B) (f := f) hEq hB
+
+/-- If a cutoff `χ` vanishes almost everywhere on the side and top boundary
+pieces (with respect to boundary measures `μ_side`, `μ_top`), then any linear
+boundary functionals of the form `∫ χ·F_side dμ_side` and `∫ χ·F_top dμ_top`
+vanish. This provides `Rside = 0` and `Rtop = 0` under these a.e. hypotheses. -/
+theorem side_top_zero_from_ae_zero
+  (μ_side μ_top : Measure (ℝ × ℝ))
+  (F_side F_top χ : (ℝ × ℝ) → ℝ)
+  (Rside Rtop : ℝ)
+  (hSideDef : Rside = ∫ x, (χ x) * (F_side x) ∂μ_side)
+  (hTopDef  : Rtop  = ∫ x, (χ x) * (F_top x)  ∂μ_top)
+  (hSideAE  : (fun x => χ x) =ᵐ[μ_side] 0)
+  (hTopAE   : (fun x => χ x) =ᵐ[μ_top] 0) :
+  Rside = 0 ∧ Rtop = 0 := by
+  have hSideZero : (∫ x, (χ x) * (F_side x) ∂μ_side) = 0 := by
+    -- a.e. zero integrand on μ_side
+    have hZero : (fun x => (χ x) * (F_side x)) =ᵐ[μ_side] (fun _ => (0 : ℝ)) := by
+      refine hSideAE.mono ?_
+      intro x hx; simpa [hx] -- χ x = 0 ⇒ χ x * F_side x = 0
+    simpa using (integral_congr_ae hZero)
+  have hTopZero : (∫ x, (χ x) * (F_top x) ∂μ_top) = 0 := by
+    have hZero : (fun x => (χ x) * (F_top x)) =ᵐ[μ_top] (fun _ => (0 : ℝ)) := by
+      refine hTopAE.mono ?_
+      intro x hx; simpa [hx]
+    simpa using (integral_congr_ae hZero)
+  exact And.intro (by simpa [hSideDef] using hSideZero) (by simpa [hTopDef] using hTopZero)
 
 /-- Rectangle Green+trace collapse: if a four-term decomposition holds
 with side and top terms explicitly provided, and these collapse (e.g. by χ vanishing
@@ -564,12 +590,13 @@ theorem remainder_bound_from_decomp_zero
   (hRint : |Rint| ≤ C * s) :
   |LHS - BD| ≤ C * s := by
   have hdiff : LHS - BD = Rint := by
-    have : (BD + (Rside + Rtop + Rint)) - BD = Rside + Rtop + Rint := by
+    have hsub : (BD + (Rside + Rtop + Rint)) - BD = Rside + Rtop + Rint := by
       simpa using add_sub_cancel BD (Rside + Rtop + Rint)
-    simp [hEq, add_comm, add_left_comm, add_assoc, hSideZero, hTopZero]
-      using this
-  simp [hdiff]
-    using hRint
+    have h1 : LHS - BD = Rside + Rtop + Rint := by
+      simpa [hEq, add_comm, add_left_comm, add_assoc] using hsub
+    simpa [hSideZero, hTopZero] using h1
+  have h := hRint
+  simpa [hdiff] using h
 
 /-- Specialized remainder bound on the concrete pairing and boundary integrals,
 assuming a rectangle IBP decomposition with vanishing side/top and an interior
@@ -596,8 +623,8 @@ theorem hRemBound_from_green_trace
       (hEq := by simpa [LHS, BD] using hEqDecomp)
       (hSideZero := hSideZero) (hTopZero := hTopZero)
       (hRint := hRintBound)
-  simp [LHS, BD]
-    using this
+  have h := this
+  simpa [LHS, BD] using h
 
 /-- Whitney analytic bound from Green+trace: combine a volume pairing bound
 and an interior remainder bound (with vanishing side/top) to obtain the usual
