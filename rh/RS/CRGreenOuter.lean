@@ -34,6 +34,7 @@ import Mathlib.MeasureTheory.Integral.SetIntegral
 import Mathlib.MeasureTheory.Integral.Bochner
 import Mathlib.Tactic
 import rh.RS.SchurGlobalization
+import rh.Cert.KxiPPlus
 
 
 noncomputable section
@@ -391,6 +392,41 @@ theorem rect_IBP_decomposition
   ∫ x in Q, sqnormR2 (gradChiVpsi x) ∂σ
 
 -- (Optional) L² pairing bounds can be supplied by callers as `hPairVol`.
+
+/-- RS-level wrapper: a ConcreteHalfPlaneCarleson budget yields the sqrt box-energy
+bound used by `CRGreen_link` on any Whitney box `Q` over interval `I`, with
+`lenI` representing |I| (the length proxy used in the downstream inequality).
+
+This is a packaging lemma: it re-expresses the `RH.Cert.ConcreteHalfPlaneCarleson`
+predicate in the square-root form needed by the pairing link. -/
+theorem sqrt_boxEnergy_bound_of_ConcreteHalfPlaneCarleson
+  {Kξ lenI : ℝ}
+  (hCar : RH.Cert.ConcreteHalfPlaneCarleson Kξ)
+  (gradU : (ℝ × ℝ) → ℝ × ℝ)
+  (σ : Measure (ℝ × ℝ))
+  (Q : Set (ℝ × ℝ))
+  (hEnergy_le : boxEnergy gradU σ Q ≤ Kξ * lenI)
+  : Real.sqrt (boxEnergy gradU σ Q) ≤ Real.sqrt (Kξ * lenI) := by
+  -- Monotonicity of `Real.sqrt` on ℝ≥0; the Carleson predicate provides `0 ≤ Kξ`.
+  have _hK : 0 ≤ Kξ := hCar.left
+  exact Real.sqrt_le_sqrt hEnergy_le
+
+/-- Practical wrapper: if the geometry supplies
+`boxEnergy ≤ (RH.Cert.mkWhitneyBoxEnergy W Kξ).bound`, then the Carleson
+predicate yields the desired sqrt budget with `lenI = 2*W.len`. -/
+theorem sqrt_boxEnergy_from_Carleson_on_whitney
+  {Kξ : ℝ}
+  (hCar : RH.Cert.ConcreteHalfPlaneCarleson Kξ)
+  (W : RH.Cert.WhitneyInterval)
+  (gradU : (ℝ × ℝ) → ℝ × ℝ)
+  (σ : Measure (ℝ × ℝ))
+  (Q : Set (ℝ × ℝ))
+  (hGeom : boxEnergy gradU σ Q ≤ (RH.Cert.mkWhitneyBoxEnergy W Kξ).bound)
+  : Real.sqrt (boxEnergy gradU σ Q) ≤ Real.sqrt (Kξ * (2 * W.len)) := by
+  have hBudget := (hCar.right W)
+  have hEnergy : boxEnergy gradU σ Q ≤ Kξ * (2 * W.len) :=
+    le_trans hGeom hBudget
+  exact Real.sqrt_le_sqrt hEnergy
 
 /-
   ------------------------------------------------------------------------
