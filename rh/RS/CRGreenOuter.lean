@@ -130,11 +130,13 @@ theorem pairing_whitney
   -- Package remainder and constant
   refine ⟨LHS - BD, Cpsi, ?eq, ?bound⟩
   · -- identity: LHS = BD + (LHS - BD)
-    have : BD + (LHS - BD) = LHS := by
+    have hsum : BD + (LHS - BD) = LHS := by
       simp [add_comm, add_left_comm, add_assoc, sub_eq_add_neg]
-        at *
-    simp [LHS, BD, add_comm, add_left_comm, add_assoc, sub_eq_add_neg] at this
-    simpa using this.symm
+        using (sub_add_cancel LHS BD)
+    exact
+      (by
+        have : (∫ t in I, ψ t * B t) + (LHS - (∫ t in I, ψ t * B t)) = LHS := hsum
+        simpa [LHS, BD, add_comm, add_left_comm, add_assoc, sub_eq_add_neg] using this.symm)
   · -- unconditional disjunction
     have hdisj : s = 0 ∨ |LHS - BD| ≤ Cpsi * s := by
       by_cases hs : s = 0
@@ -203,10 +205,12 @@ theorem outer_cancellation_on_boundary
     have : BD + (LHS - BD) = LHS := by
       simp [add_comm, add_left_comm, add_assoc, sub_eq_add_neg]
         using (sub_add_cancel LHS BD)
-    simpa [LHS, BD, add_comm, add_left_comm, add_assoc, sub_eq_add_neg] using this.symm
+    exact
+      (by
+        have : (∫ t in I, ψ t * B t) + (LHS - (∫ t in I, ψ t * B t)) = LHS := this
+        simpa [LHS, BD, add_comm, add_left_comm, add_assoc, sub_eq_add_neg] using this.symm)
   · -- bound is exactly the hypothesis
-    have h := hBoundDiff
-    simpa [LHS, BD] using h
+    exact (by simpa [LHS, BD] using hBoundDiff)
 
 
 
@@ -276,8 +280,7 @@ theorem pairing_whitney_analytic_bound
               + Cψ_rem * Real.sqrt (boxEnergy gradU σ Q) := by
       exact add_le_add hPairVol hR
     -- (Cψ_pair + Cψ_rem) * s = Cψ_pair*s + Cψ_rem*s
-    have hsum := this
-    simpa [add_mul] using hsum
+    simpa [add_mul] using this
   exact (le_trans tineq hSum)
 
 
@@ -594,9 +597,7 @@ theorem remainder_bound_from_decomp_zero
       simpa using add_sub_cancel BD (Rside + Rtop + Rint)
     have h1 : LHS - BD = Rside + Rtop + Rint := by
       simpa [hEq, add_comm, add_left_comm, add_assoc] using hsub
-    simpa [hSideZero, hTopZero] using h1
-  have h := hRint
-  simpa [hdiff] using h
+  simpa [hdiff] using hRint
 
 /-- Specialized remainder bound on the concrete pairing and boundary integrals,
 assuming a rectangle IBP decomposition with vanishing side/top and an interior
@@ -623,8 +624,7 @@ theorem hRemBound_from_green_trace
       (hEq := by simpa [LHS, BD] using hEqDecomp)
       (hSideZero := hSideZero) (hTopZero := hTopZero)
       (hRint := hRintBound)
-  have h := this
-  simpa [LHS, BD] using h
+  simpa [LHS, BD] using this
 
 /-- Whitney analytic bound from Green+trace: combine a volume pairing bound
 and an interior remainder bound (with vanishing side/top) to obtain the usual

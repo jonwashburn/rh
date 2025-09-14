@@ -25,7 +25,7 @@ No numerics are used here.
 -/
 noncomputable section
 
-open Complex Set RH.AcademicFramework.CompletedXi
+open Complex Set RH.AcademicFramework.CompletedXi MeasureTheory
 
 namespace RH
 namespace RS
@@ -201,6 +201,9 @@ theorem local_pairing_bound_from_IBP_and_Carleson
   have hAnalytic :
       |∫ t in I, ψ t * B t|
         ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (RS.boxEnergy ∇U σ Q) := by
+    -- If χ vanishes a.e. on side/top boundary pieces, we can derive Rside=Rtop=0
+    -- via side_top_zero_from_ae_zero and then apply the Whitney packaging.
+    -- Here we assume hSideZero, hTopZero are already available in inputs.
     exact RS.CRGreen_pairing_whitney_from_green_trace
       U W ψ χ I α' σ Q ∇U ∇χVψ B Cψ_pair Cψ_rem
       hPairVol Rside Rtop Rint hEqDecomp hSideZero hTopZero hRintBound
@@ -208,6 +211,48 @@ theorem local_pairing_bound_from_IBP_and_Carleson
   exact
     (le_trans hAnalytic
       (by exact mul_le_mul_of_nonneg_left hCarlSqrt hCψ_nonneg))
+
+/-- Wiring adapter (IBP + a.e. side/top vanish): from a Carleson budget and
+an IBP decomposition with side/top terms represented as boundary integrals
+weighted by a cutoff `χ` that vanishes a.e. on those boundary pieces, deduce
+the boundary pairing bound. -/
+theorem local_pairing_bound_from_IBP_aeZero_and_Carleson
+  {Kξ lenI : ℝ}
+  (hCar : ConcreteHalfPlaneCarleson Kξ)
+  (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ) (α' : ℝ)
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (∇U : (ℝ × ℝ) → ℝ × ℝ) (∇χVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (B : ℝ → ℝ)
+  (Cψ_pair Cψ_rem : ℝ)
+  -- Volume pairing bound (e.g. by L² Cauchy–Schwarz on σ|Q):
+  (hPairVol :
+    |∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ|
+      ≤ Cψ_pair * Real.sqrt (RS.boxEnergy ∇U σ Q))
+  -- Side/top boundary representations and a.e. vanish of χ on those pieces:
+  (μ_side μ_top : Measure (ℝ × ℝ))
+  (F_side F_top : (ℝ × ℝ) → ℝ)
+  (Rside Rtop Rint : ℝ)
+  (hSideDef : Rside = ∫ x, (χ x) * (F_side x) ∂μ_side)
+  (hTopDef  : Rtop  = ∫ x, (χ x) * (F_top x)  ∂μ_top)
+  (hSideAE  : (fun x => χ x) =ᵐ[μ_side] 0)
+  (hTopAE   : (fun x => χ x) =ᵐ[μ_top] 0)
+  -- IBP decomposition and interior remainder bound:
+  (hEqDecomp :
+    (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+      = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint)
+  (hRintBound : |Rint| ≤ Cψ_rem * Real.sqrt (RS.boxEnergy ∇U σ Q))
+  (hCψ_nonneg : 0 ≤ Cψ_pair + Cψ_rem)
+  (hEnergy_le : RS.boxEnergy ∇U σ Q ≤ Kξ * lenI)
+  : |∫ t in I, ψ t * B t| ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (Kξ * lenI) := by
+  classical
+  -- a.e. vanish ⇒ side/top integrals vanish
+  have hZero := RS.side_top_zero_from_ae_zero μ_side μ_top F_side F_top χ Rside Rtop hSideDef hTopDef hSideAE hTopAE
+  have hSideZero : Rside = 0 := hZero.1
+  have hTopZero  : Rtop  = 0 := hZero.2
+  -- Use the IBP adapter with explicit zeros
+  exact local_pairing_bound_from_IBP_and_Carleson hCar U W ψ χ I α' σ Q ∇U ∇χVψ B Cψ_pair Cψ_rem
+    hPairVol 0 0 Rint hEqDecomp (by simpa [hSideZero]) (by simpa [hTopZero]) hRintBound hCψ_nonneg hEnergy_le
 
 /-- Abstract half–plane Poisson transport: if `(P+)` holds on the boundary for `F`,
 then `Re F ≥ 0` on the interior `Ω`. This is a statement‑level predicate that can
