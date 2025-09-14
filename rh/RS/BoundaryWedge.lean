@@ -164,6 +164,51 @@ theorem local_pairing_bound_from_Carleson_budget
   exact RS.CRGreen_link U W ψ χ I α' σ Q ∇U ∇χVψ B
     Cψ_pair Cψ_rem hPairVol hRemBound Kξ lenI hCψ_nonneg hCarlSqrt
 
+
+/-- Wiring adapter (IBP route): combine the rectangle IBP decomposition
+with vanishing side/top and an interior remainder bound to obtain the
+Whitney analytic inequality, then thread the Carleson budget to get the
+final boundary pairing bound. -/
+theorem local_pairing_bound_from_IBP_and_Carleson
+  {Kξ lenI : ℝ}
+  (hCar : ConcreteHalfPlaneCarleson Kξ)
+  (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ) (α' : ℝ)
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (∇U : (ℝ × ℝ) → ℝ × ℝ) (∇χVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (B : ℝ → ℝ)
+  (Cψ_pair Cψ_rem : ℝ)
+  -- Volume pairing bound (e.g. by L² Cauchy–Schwarz on σ|Q):
+  (hPairVol :
+    |∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ|
+      ≤ Cψ_pair * Real.sqrt (RS.boxEnergy ∇U σ Q))
+  -- Rectangle IBP decomposition with vanishing side/top and an interior bound:
+  (Rside Rtop Rint : ℝ)
+  (hEqDecomp :
+    (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+      = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint)
+  (hSideZero : Rside = 0) (hTopZero : Rtop = 0)
+  (hRintBound : |Rint| ≤ Cψ_rem * Real.sqrt (RS.boxEnergy ∇U σ Q))
+  (hCψ_nonneg : 0 ≤ Cψ_pair + Cψ_rem)
+  (hEnergy_le : RS.boxEnergy ∇U σ Q ≤ Kξ * lenI)
+  : |∫ t in I, ψ t * B t| ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (Kξ * lenI) := by
+  classical
+  -- Sqrt-form Carleson budget
+  have hCarlSqrt :
+      Real.sqrt (RS.boxEnergy ∇U σ Q) ≤ Real.sqrt (Kξ * lenI) := by
+    exact RS.sqrt_boxEnergy_bound_of_ConcreteHalfPlaneCarleson hCar ∇U σ Q hEnergy_le
+  -- Whitney analytic bound from Green+trace decomposition inputs
+  have hAnalytic :
+      |∫ t in I, ψ t * B t|
+        ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (RS.boxEnergy ∇U σ Q) := by
+    exact RS.CRGreen_pairing_whitney_from_green_trace
+      U W ψ χ I α' σ Q ∇U ∇χVψ B Cψ_pair Cψ_rem
+      hPairVol Rside Rtop Rint hEqDecomp hSideZero hTopZero hRintBound
+  -- Push through the Carleson budget (monotonicity by nonnegativity)
+  exact
+    (le_trans hAnalytic
+      (by exact mul_le_mul_of_nonneg_left hCarlSqrt hCψ_nonneg))
+
 /-- Abstract half–plane Poisson transport: if `(P+)` holds on the boundary for `F`,
 then `Re F ≥ 0` on the interior `Ω`. This is a statement‑level predicate that can
 be discharged by the academic framework (Poisson/Smirnov theory on the half‑plane).
