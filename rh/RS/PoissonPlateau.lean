@@ -73,10 +73,14 @@ This witnesses a concrete positive `c0` value; the uniform convolution lower bou
 is established in the strengthened statement below. -/
 lemma psi_hasCompactSupport : HasCompactSupport psi := by
   classical
-  refine (hasCompactSupport_iff.mpr ?_)
-  refine ⟨Icc (-2 : ℝ) 2, isCompact_Icc, ?_⟩
-  intro x hx
-  simp [psi, hx]
+  -- support ψ ⊆ Icc (-2,2)
+  refine (HasCompactSupport.of_support_subset ?hsubset)
+  · exact isClosed_Icc.isCompact
+  · intro x hx
+    -- outside Icc(-2,2) the indicator vanishes
+    have : x ∉ Icc (-2 : ℝ) 2 := by
+      simpa using hx
+    simp [psi, Set.indicator_of_not_mem this]
 
 lemma psi_integral_one : ∫ x, psi x ∂(volume) = (1 : ℝ) := by
   classical
@@ -138,9 +142,16 @@ lemma poisson_plateau_c0 :
       have den_pos : 0 < (x - t)^2 + b^2 := by
         have : 0 < b^2 := sq_pos_iff.mpr hb'; exact add_pos_of_nonneg_of_pos (by exact sq_nonneg _) this
       have : (1 : ℝ) / (2 * b) ≤ b / ((x - t)^2 + b^2) := by
-        -- Using den_le
-        have : ((x - t)^2 + b^2) ≤ 2 * b^2 := den_le
-        exact (le_div_iff den_pos).mpr this
+        -- Using den_le with current mathlib style
+        have hbpos : 0 < b := hb
+        have hb2pos : 0 < 2 * b := by have : (0:ℝ) < 2 := by norm_num; exact mul_pos this hbpos
+        have hdenpos : 0 < (x - t)^2 + b^2 := den_pos
+        have hden_le : (x - t)^2 + b^2 ≤ 2 * b^2 := den_le
+        -- equivalently: 1/(2b) ≤ b/den  ↔  den ≤ 2 b^2 (since all positive)
+        have := (le_of_eq (by field_simp [one_div, pow_two, hb'.symm] :
+            ((1 : ℝ) / (2 * b) ≤ b / ((x - t)^2 + b^2)) ↔
+            ((x - t)^2 + b^2) ≤ 2 * b^2)).mpr hden_le
+        exact this
       have hpos : 0 ≤ (1 / Real.pi) := inv_nonneg.mpr (le_of_lt hpi)
       have : (1 / Real.pi) * (b / ((x - t)^2 + b^2)) ≥ (1 / Real.pi) * (1 / (2 * b)) :=
         mul_le_mul_of_nonneg_left this hpos
@@ -203,9 +214,10 @@ lemma poisson_plateau_c0 :
       have step2 :
           ∫ t in Icc x (x + b), poissonKernel b (x - t) ∂(volume)
           ≥ (1 / (2 * Real.pi * b)) * (volume (Icc x (x + b))).toReal := by
-        have : (∀ᵐ t ∂(Measure.restrict volume (Icc x (x + b))),
-                    poissonKernel b (x - t) ≥ (1 / (2 * Real.pi * b))) := by
-          refine (ae_all_iff.mpr ?_); intro t; refine eventually_of_forall ?_
+        have :
+            (∀ᵐ t ∂(Measure.restrict volume (Icc x (x + b))),
+              poissonKernel b (x - t) ≥ (1 / (2 * Real.pi * b))) := by
+          refine eventually_of_forall ?_; intro t
           intro ht
           have : |x - t| ≤ b := by
             have h01 : 0 ≤ t - x := sub_nonneg.mpr ht.1
@@ -289,9 +301,10 @@ lemma poisson_plateau_c0 :
       have step2 :
           ∫ t in Icc (x - b) x, poissonKernel b (x - t) ∂(volume)
           ≥ (1 / (2 * Real.pi * b)) * (volume (Icc (x - b) x)).toReal := by
-        have : (∀ᵐ t ∂(Measure.restrict volume (Icc (x - b) x)),
-                    poissonKernel b (x - t) ≥ (1 / (2 * Real.pi * b))) := by
-          refine (ae_all_iff.mpr ?_); intro t; refine eventually_of_forall ?_
+        have :
+            (∀ᵐ t ∂(Measure.restrict volume (Icc (x - b) x)),
+              poissonKernel b (x - t) ≥ (1 / (2 * Real.pi * b))) := by
+          refine eventually_of_forall ?_; intro t
           intro ht
           have : |x - t| ≤ b := by
             have h01 : 0 ≤ x - t := sub_nonneg.mpr ht.2

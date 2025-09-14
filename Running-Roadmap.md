@@ -82,6 +82,53 @@ External facts required (if missing in mathlib)
 
 ---
 
+### 1a) ζ→Θ/N Schur bridge and boundary nonvanishing (Re = 1)
+Status: next
+
+Goal
+- Assemble the analytic bridge ζ → Θ/N on `Ω := {Re > 1/2}` with:
+  - Θ Schur on `Ω \ Z(ξ_ext)` from Cayley(F) with `F := 2·J` and `Re F ≥ 0` (from P+ and Poisson transport),
+  - local removable extensions across each isolated `ξ_ext` zero with normalization `g(ρ)=1` and `g ≢ 1`.
+- Deduce `ζ(z) ≠ 0` for all `z` with `Re z = 1` via the Schur–pinch globalization.
+
+Acceptance
+- `rh/RS/SchurGlobalization.lean` exposes:
+  - `SchurOnRectangles` (Cayley ⇒ Schur under `0 ≤ Re F`),
+  - `GlobalizeAcrossRemovable` and `no_offcritical_zeros_from_schur` (pinch globalization),
+  - boundary wrappers `ZetaNoZerosOnRe1FromSchur_from_bridge` (bridge packaging).
+- `rh/RS/Cayley.lean` provides the Cayley packaging for `Θ := (2·J−1)/(2·J+1)` with `schur_of_herglotz` alias.
+- `rh/RS/Det2Outer.lean` provides the outer interface `OuterHalfPlane.ofModulus_det2_over_xi_ext` (statement-level is fine).
+
+Lean targets (exact names)
+```lean
+-- Cayley ⇒ Schur (alias form)
+lemma schur_of_herglotz {F : ℂ → ℂ} {S : Set ℂ}
+  (hRe : ∀ z ∈ S, 0 ≤ (F z).re) :
+  RH.RS.IsSchurOn (fun z => (F z - 1) / (F z + 1)) S
+
+-- Boundary bridge wrapper (already present)
+theorem ZetaNoZerosOnRe1FromSchur_from_bridge
+  (B : RH.RS.ZetaSchurBoundaryBridge) :
+  ∀ z, z.re = 1 → riemannZeta z ≠ 0
+```
+
+Decomposition
+- P+ via CR–Green + window energy (Whitney): `rh/RS/CRGreenOuter.lean`, `rh/RS/H1BMOWindows.lean`.
+- Poisson transport: `u ≥ 0` a.e. ⇒ interior `Re F ≥ 0`.
+- Cayley→Schur: `schur_of_herglotz`.
+- Removable step: local `g` across each isolated zero with `g(ρ)=1`.
+- Bridge packaging: `ZetaSchurBoundaryBridge` → boundary nonvanishing.
+
+Immediate next actions
+- Add the `schur_of_herglotz` alias in `rh/RS/Cayley.lean` (reuse `SchurOnRectangles`).
+- Keep `Det2Outer.lean` as interface provider (no axioms, statement-level existence ok).
+- Implement CR–Green pairing and outer cancellation with uniform constants (mathlib-only); if blocked, add a one-line blocker to `BLOCKERS.md`.
+
+Dependencies
+- Uses existing `SchurGlobalization` globalization lemmas and the outer interface.
+
+---
+
 ## 2) RS: Poisson plateau constant c0 > 0 (normalized kernel)
 Status: next
 

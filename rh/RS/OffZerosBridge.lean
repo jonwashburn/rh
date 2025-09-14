@@ -7,7 +7,6 @@ This matches the manuscript's active route and avoids baking in ζ nonvanishing 
 
 import Mathlib.Analysis.Complex.Basic
 import Mathlib.Analysis.Complex.RemovableSingularity
-import Mathlib.Topology.Algebra.UniformGroup
 import Mathlib.Analysis.SpecialFunctions.Exponential
 import Mathlib.Topology.Algebra.Field
 import Mathlib.Topology.MetricSpace.Basic
@@ -303,7 +302,8 @@ def assign_fromXiRemovable_exists {Θ : ℂ → ℂ}
   : AssignShape riemannZeta Θ :=
 by
   -- Turn existence data into a chooser, then into an Xi-assign, and bridge.
-  refine assign_fromXiRemovable (Θ := Θ) (hZerosEq := hZerosEq) ?assignXi
+  refine assign_fromXiRemovable (riemannXi := riemannXi) (riemannZeta := riemannZeta)
+    (Θ := Θ) (hZerosEq := hZerosEq) ?assignXi
   exact assignXi_from_exists (riemannXi := riemannXi) (Θ := Θ) existsRem
 
 /-- Cayley map. -/

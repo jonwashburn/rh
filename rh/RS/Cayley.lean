@@ -132,6 +132,16 @@ def PinchCertificateExt.of_interfaces
   : PinchCertificateExt :=
   PinchCertificateExt.of_pinch det2 (OuterHalfPlane.choose_outer hOuter) hRe hRem
 
+/-! ### Alias: Herglotz → Schur via Cayley (for roadmap and readability)
+
+This thin wrapper exposes the roadmap name `schur_of_herglotz`, delegating
+to `SchurOnRectangles`. -/
+
+lemma schur_of_herglotz {F : ℂ → ℂ} {S : Set ℂ}
+    (hRe : ∀ z ∈ S, 0 ≤ (F z).re) :
+    IsSchurOn (fun z => (F z - 1) / (F z + 1)) S :=
+  SchurOnRectangles (F := F) (R := S) hRe
+
 end
 
 end RS

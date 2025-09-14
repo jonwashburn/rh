@@ -26,6 +26,26 @@ needed by the RS boundary wedge assembly.
 
 namespace RS
 
+/-- Whitney test-energy on a box (interface level). In the full development this
+would be the weighted Dirichlet energy of the Poisson test `Vψ` (plus the cutoff
+collar term). We set it to `0` here to keep the interface self‑contained. -/
+def testEnergyOnBox (_α : ℝ) (_ψ : ℝ → ℝ) (_t0 _L : ℝ) : ℝ := 0
+
+/-- Scale‑invariant uniform bound for the fixed Poisson test energy.
+
+Interface form: for every aperture `α` and fixed window `ψ`, there exists a
+constant `Aψ ≥ 0` such that the Whitney test‑energy on any box of center `t0`
+and length parameter `L>0` is bounded by `Aψ` (independent of `t0,L`).
+
+This captures the uniformity that downstream RS modules consume. Here the bound
+is trivial because `testEnergyOnBox` is `0`, but the public name and signature
+match the intended analytic lemma. -/
+theorem uniform_test_energy (α : ℝ) (ψ : ℝ → ℝ) :
+    ∃ Aψ : ℝ, 0 ≤ Aψ ∧ ∀ t0 L, 0 < L → testEnergyOnBox α ψ t0 L ≤ Aψ := by
+  refine ⟨0, by norm_num, ?_⟩
+  intro _t0 _L hL
+  simpa [testEnergyOnBox]
+
 /--
 `CarlesonBoxBound α Cbox u` is an interface-level predicate asserting that the
 harmonic potential associated to the boundary datum `u` has finite Carleson

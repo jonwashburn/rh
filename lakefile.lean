@@ -16,7 +16,7 @@ package «riemann» where
   -- moreGlobalServerArgs := #["--worker-pool-size=8"]
 
 require mathlib from git
-  "https://github.com/leanprover-community/mathlib4.git" @ "v4.12.0"
+  "https://github.com/leanprover-community/mathlib4.git" @ "v4.13.0"
 
 -- Local dependency on no-mathlib-core removed since it was moved to archive
 

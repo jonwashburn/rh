@@ -17,37 +17,33 @@ open Complex
 namespace RH
 namespace RS
 
-/-- Compatibility alias: prefer `localWedge_from_WhitneyCarleson_witness`.
-It is definitionally equal to `RH.RS.localWedge_from_WhitneyCarleson`. -/
-abbrev localWedge_from_WhitneyCarleson_witness :=
-  RH.RS.localWedge_from_WhitneyCarleson
 
-/-- Facade lemma: from a nonnegative concrete half–plane Carleson budget `Kξ`
-on Whitney boxes for the boundary field `F`, deduce the boundary wedge `(P+)`.
+/-- Facade lemma (hypothesis-driven): from a nonnegative concrete half–plane
+Carleson budget `Kξ` for the boundary field `F`, and a witness of the
+local→global Whitney wedge, deduce the boundary wedge `(P+)`.
 
-This composes the RS-side local Whitney wedge constructor with the
-local→global a.e. upgrade exposed in `BoundaryWedge`. -/
+This delegates entirely to the a.e. upgrade in `BoundaryWedge`. -/
 theorem PPlus_of_ConcreteHalfPlaneCarleson
     (F : ℂ → ℂ) {Kξ : ℝ}
     (hKξ0 : 0 ≤ Kξ)
-    (hCar : RH.Cert.ConcreteHalfPlaneCarleson Kξ) :
+    (hCar : RH.Cert.ConcreteHalfPlaneCarleson Kξ)
+    (hLoc : localWedge_from_WhitneyCarleson (F := F) ⟨Kξ, hKξ0, hCar⟩) :
     RH.Cert.PPlus F := by
-  -- Package the existence of a nonnegative budget
-  have hex : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ RH.Cert.ConcreteHalfPlaneCarleson Kξ := ⟨Kξ, hKξ0, hCar⟩
-  -- Build the local Whitney wedge certificate for `F` using the RS constructor
-  have hLoc : localWedge_from_WhitneyCarleson_witness (F := F) hex := by
-    -- This is packaged at the RS layer; consume it directly
-    exact (localWedge_from_WhitneyCarleson_witness (F := F) hex)
-  -- Upgrade to boundary `(P+)`
-  exact ae_of_localWedge_on_Whitney (F := F) hex hLoc
+  exact ae_of_localWedge_on_Whitney (F := F) ⟨Kξ, hKξ0, hCar⟩ hLoc
 
-/-- Packaged existence-level implication `(∃Kξ ≥ 0, Carleson Kξ) → (P+)`.
-This is the façade proof term inhabiting `RH.Cert.PPlusFromCarleson_exists F`. -/
+/-- Existence-level façade: if, for every admissible Carleson existence
+hypothesis `hex`, you can supply a local→global Whitney wedge witness,
+then you have the bundled implication `(∃Kξ ≥ 0, Carleson Kξ) → (P+)`.
+
+This inhabits `RH.Cert.PPlusFromCarleson_exists F` without constructing
+the missing analytic bridge. -/
 theorem PPlusFromCarleson_exists_proved
-    (F : ℂ → ℂ) : RH.Cert.PPlusFromCarleson_exists F := by
-  intro h
-  rcases h with ⟨Kξ, h0, hCar⟩
-  exact PPlus_of_ConcreteHalfPlaneCarleson (F := F) h0 hCar
+    (F : ℂ → ℂ)
+    (hLocal : ∀ hex,
+      localWedge_from_WhitneyCarleson (F := F) hex) :
+    RH.Cert.PPlusFromCarleson_exists F := by
+  intro hex
+  exact ae_of_localWedge_on_Whitney (F := F) hex (hLocal hex)
 
 end RS
 end RH

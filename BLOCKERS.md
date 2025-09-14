@@ -80,6 +80,8 @@ Format:
     `RH.AcademicFramework.EPM.zeta_nonzero_re_eq_one` delegating to RS.
   - Stubs: none
 
+- MATH-BLOCKER: Half‑plane Poisson transport: (P+) ⇒ interior nonnegativity for F := (2:ℂ)·J_pinch det2 O (prove `HasHalfPlanePoissonTransport`); requires half‑plane Hardy/Smirnov boundary theory not currently in mathlib.
+
 - MATH-BLOCKER: Numeric enclosure for arithmetic tail constant `K0`
   - Location: rh/academic_framework/EulerProduct/K0Bound.lean
   - Lean goal / statement:
@@ -127,6 +129,15 @@ Format:
     box integral explicitly and pass sup over normalized boxes.
   - Stub: none (requires a small Carleson framework; keep externalized until available)
 
+- MATH-BLOCKER: Poisson approximate identity (a.e.) for normalized half‑plane kernel on ℝ
+  - Location: `rh/RS/PPlusFromCarleson.lean` (kernel facts section)
+  - Lean goal / statement:
+    `lemma poisson_approximate_identity_ae {f : ℝ → ℝ} (hf : LocIntegrable f Measure.lebesgue) :
+      ∀ᵐ x, Filter.Tendsto (fun b : ℝ => ∫ t, RH.RS.poissonKernel b (x - t) * f t ∂Measure.lebesgue)
+        (Filter.nhdsWithin 0 (Set.Ioi 0)) (Filter.nhds (f x))`
+  - Proposed approach: Use mathlib's approximate identity or convolution framework on ℝ with the normalized Poisson family `(1/π) * b / (x^2 + b^2)`. If not available, this needs a new development: standard harmonic analysis a.e. boundary convergence for Poisson smoothing.
+  - Stub: none yet
+
 - MATH-BLOCKER: Poisson square off-support on Whitney boxes (analytic integral)
   - Location: `rh/RS/CRGreenOuter.lean`
   - Lean goal / statement:
@@ -152,3 +163,20 @@ Missing: interval sup bound ∫_I f ≤ |I|·sup_I f (finite interval, Lebesgue)
   - Location: `rh/RS/PPlusFromCarleson.lean`
   - Lean goal / statement: From `∃ Kξ ≥ 0, ConcreteHalfPlaneCarleson Kξ` for `F`, build a proof term for `RH.Cert.PPlus F` (i.e. `∀ᵐ t, 0 ≤ Re F(1/2+it)`), supplying `RH.Cert.PPlusFromCarleson_exists F`.
   - Proposed approach: Use CR–Green pairing and Poisson boundary trace to upgrade the local Whitney wedge to a.e. boundary nonnegativity; requires measure‑theoretic boundary trace/Poisson lemmas.
+
+- MATH-BLOCKER: Whitney CR–Green cutoff identity with scale‑invariant remainders
+  - Location: `rh/RS/CRGreenOuter.lean`
+  - Lean goal / statement:
+    For harmonic `U` on the half‑plane with boundary conjugate `W`, a Whitney interval `I=[t0−L,t0+L]`, cutoff `χ` (χ≡1 on `Q(αI)`, supp χ⊆`Q(α′I)`, ‖∇χ‖∞≲1/L), and Poisson test `Vψ` (Poisson extension of an even mass‑1 window `ψL,t0`), prove
+    `∬_{Q(α′I)} ∇U · ∇(χ Vψ) = ∫_I ψ (−W′) + R_side + R_top` and
+    `|R_side| + |R_top| ≤ C(ψ,α′) · ( ∬_{Q(α′I)} |∇U|^2 σ )^{1/2}`
+    with `C(ψ,α′)` independent of `t0,L` (scale‑invariant).
+  - Proposed approach: Integration by parts/Green identity plus Cauchy–Schwarz; control side/top terms via the cutoff geometry and uniform test‑energy of `Vψ`.
+
+- MATH-BLOCKER: Boundary CR trace on bottom edge (distributional justification)
+  - Location: `rh/RS/CRGreenOuter.lean`
+  - Lean goal / statement:
+    On the bottom edge `{σ=0}` of a Whitney box, justify in distributions that `−∂σ U = ∂t W` and that the bottom-edge contribution in the Green identity equals the boundary term `∫_I ψ (−W′)` (with cutoff `χ≡1` on `Q(αI)`).
+  - Proposed approach: Use a half‑plane Cauchy–Riemann boundary trace lemma for `log J = U + iW` and pass to the limit under the cutoff; if absent in mathlib, record as a blocker and keep the interface lemma parametric in a trace hypothesis.
+
+- MATH-BLOCKER: CR–Green Whitney pairing for H¹ atoms from a half‑plane Carleson box budget (Whitney scale) — show: given `ConcreteHalfPlaneCarleson Kξ` for `U = Re log J`, any Whitney interval `I` and H¹‑atom `a` on `I` satisfy `|∫_I (Re F(1/2+it))·a(t) dt| ≤ C·Kξ·|I|` (uniform `C`), via a CR–Green identity with scale‑invariant remainders and Cauchy–Schwarz.
