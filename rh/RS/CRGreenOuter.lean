@@ -31,6 +31,8 @@
 
 import Mathlib.Data.Real.Basic
 import Mathlib.MeasureTheory.Integral.SetIntegral
+import Mathlib.MeasureTheory.Integral.Bochner
+import Mathlib.Tactic
 import rh.RS.SchurGlobalization
 
 
@@ -56,11 +58,11 @@ def CRGreenOuterData : OuterData :=
 , hRe := by
     intro _z _hz
     -- Re(2·J) = Re 0 = 0
-    simpa [J_CR] using (le_of_eq (rfl : (0 : ℝ) = 0))
+    simp [J_CR]
 , hDen := by
     intro _z _hz
     -- 2·J + 1 = 1 ≠ 0
-    simpa [J_CR] }
+    simp [J_CR] }
 
 
 /-- Export the Schur map `Θ` from the CR–Green outer data. -/
@@ -105,8 +107,8 @@ infixl:72 " ⋅ " => dotR2
 
 /-- Unconditional Whitney pairing export (façade). -/
 theorem pairing_whitney
-  (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
-  (I : Set ℝ) (alpha' : ℝ)
+  (_U : ℝ × ℝ → ℝ) (_W ψ : ℝ → ℝ) (_χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ) (_alpha' : ℝ)
   (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
   (gradU : (ℝ × ℝ) → ℝ × ℝ)           -- abstract gradient of U
   (gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ)         -- abstract gradient of χ·Vψ
@@ -123,22 +125,23 @@ theorem pairing_whitney
   set BD  : ℝ := ∫ t in I, ψ t * B t
   -- Energy and chosen constant
   set s : ℝ := Real.sqrt (boxEnergy gradU σ Q)
-  set Cpsi : ℝ := if s = 0 then 0 else |(LHS - BD)| / s
+  set Cpsi : ℝ := if s = 0 then 0 else |LHS - BD| / s
   -- Package remainder and constant
   refine ⟨LHS - BD, Cpsi, ?eq, ?bound⟩
   · -- identity: LHS = BD + (LHS - BD)
     have : BD + (LHS - BD) = LHS := by
-      simpa [add_comm, add_left_comm, add_assoc, sub_eq_add_neg]
-        using (sub_add_cancel LHS BD)
-    simpa [LHS, BD, add_comm, add_left_comm, add_assoc, sub_eq_add_neg] using this.symm
+      simp [add_comm, add_left_comm, add_assoc, sub_eq_add_neg]
+        at *
+    simp [LHS, BD, add_comm, add_left_comm, add_assoc, sub_eq_add_neg] at this
+    simpa using this.symm
   · -- unconditional disjunction
     have hdisj : s = 0 ∨ |LHS - BD| ≤ Cpsi * s := by
       by_cases hs : s = 0
       · exact Or.inl hs
-      · have hCψ : (if s = 0 then 0 else |(LHS - BD)| / s) = |(LHS - BD)| / s := by
+      · have hCψ : (if s = 0 then 0 else |LHS - BD| / s) = |LHS - BD| / s := by
           simp [hs]
         refine Or.inr ?_
-        have hEq : (|(LHS - BD)| / s) * s = |(LHS - BD)| := by
+        have hEq : (|LHS - BD| / s) * s = |LHS - BD| := by
           simp [div_eq_mul_inv, hs, mul_comm, mul_left_comm, mul_assoc]
         simpa [LHS, BD, s, Cpsi, hCψ] using (le_of_eq hEq.symm)
     simpa [s, Cpsi] using hdisj
@@ -146,8 +149,8 @@ theorem pairing_whitney
 
 /-- Project-preferred alias: same unconditional content, project name. -/
 theorem CRGreen_pairing_whitney
-  (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
-  (I : Set ℝ) (alpha' : ℝ)
+  (_U : ℝ × ℝ → ℝ) (_W ψ : ℝ → ℝ) (_χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ) (_alpha' : ℝ)
   (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
   (gradU : (ℝ × ℝ) → ℝ × ℝ) (gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ)
   (B : ℝ → ℝ) :
@@ -157,7 +160,52 @@ theorem CRGreen_pairing_whitney
   ∧
     (Real.sqrt (boxEnergy gradU σ Q) = 0 ∨
       |R| ≤ Cψ * Real.sqrt (boxEnergy gradU σ Q)) :=
-  pairing_whitney U W ψ χ I alpha' σ Q gradU gradChiVpsi B
+  pairing_whitney _U _W ψ _χ I _alpha' σ Q gradU gradChiVpsi B
+
+
+/-
+  ------------------------------------------------------------------------
+  Outer cancellation on the boundary (algebraic packaging)
+  ------------------------------------------------------------------------
+-/
+
+/-- Outer cancellation on the boundary (interface form).
+
+Given a Whitney-type analytic bound for the difference field `U − U₀`
+against a fixed test `χ·Vψ`, the pairing over `Q` can be written as the sum
+of the boundary term and a remainder `R` controlled by the same constant.
+
+This is purely algebraic packaging: the analytic estimate is provided by the
+single hypothesis `hBoundDiff`. -/
+theorem outer_cancellation_on_boundary
+  (_U _U₀ : ℝ × ℝ → ℝ) (ψ : ℝ → ℝ) (_χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ) (_alpha' : ℝ)
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (gradU gradU₀ : (ℝ × ℝ) → ℝ × ℝ) (gradChiVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (B : ℝ → ℝ) (Cψ : ℝ)
+  (hBoundDiff :
+    |(∫ x in Q, (( (gradU x).1 - (gradU₀ x).1, (gradU x).2 - (gradU₀ x).2)) ⋅ (gradChiVψ x) ∂σ)
+      - (∫ t in I, ψ t * B t)|
+      ≤ Cψ * Real.sqrt (boxEnergy (fun x => (( (gradU x).1 - (gradU₀ x).1, (gradU x).2 - (gradU₀ x).2))) σ Q)) :
+  ∃ R : ℝ,
+    (∫ x in Q, (( (gradU x).1 - (gradU₀ x).1, (gradU x).2 - (gradU₀ x).2)) ⋅ (gradChiVψ x) ∂σ)
+      = (∫ t in I, ψ t * B t) + R
+  ∧ |R|
+      ≤ Cψ * Real.sqrt (boxEnergy (fun x => (( (gradU x).1 - (gradU₀ x).1, (gradU x).2 - (gradU₀ x).2))) σ Q) := by
+  classical
+  -- Shorthand
+  set LHS : ℝ :=
+    ∫ x in Q, (( (gradU x).1 - (gradU₀ x).1, (gradU x).2 - (gradU₀ x).2)) ⋅ (gradChiVψ x) ∂σ
+  set BD  : ℝ := ∫ t in I, ψ t * B t
+  refine ⟨LHS - BD, ?eq, ?bd⟩
+  · -- identity: LHS = BD + (LHS - BD)
+    have : BD + (LHS - BD) = LHS := by
+      simpa [add_comm, add_left_comm, add_assoc, sub_eq_add_neg]
+        using (sub_add_cancel LHS BD)
+    simpa [LHS, BD, add_comm, add_left_comm, add_assoc, sub_eq_add_neg] using this.symm
+  · -- bound is exactly the hypothesis
+    simpa [LHS, BD]
+      using hBoundDiff
 
 
 
@@ -187,8 +235,8 @@ theorem CRGreen_pairing_whitney
 
 /-- Analytic boundary bound from the pairing identity + the two standard estimates. -/
 theorem pairing_whitney_analytic_bound
-  (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
-  (I : Set ℝ) (alpha' : ℝ)
+  (_U : ℝ × ℝ → ℝ) (_W ψ : ℝ → ℝ) (_χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ) (_alpha' : ℝ)
   (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
   (gradU : (ℝ × ℝ) → ℝ × ℝ)           -- abstract gradient of U
   (gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ)         -- abstract gradient of χ·Vψ
@@ -312,11 +360,11 @@ analytic details. -/
 theorem rect_IBP_decomposition
   (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
   (I : Set ℝ) (ψ : ℝ → ℝ) (B : ℝ → ℝ)
-  (U Vψ χ : ℝ × ℝ → ℝ)
+  (_U _Vψ _χ : ℝ × ℝ → ℝ)
   (gradU gradChiVψ : (ℝ × ℝ) → ℝ × ℝ)
   (Rside Rtop Rint : ℝ)
   -- Clean hypotheses placeholders for the analytic steps (not used in the proof):
-  (hFubini : True) (hIBP1D : True) (hChiBC : True) (hLapVψ : True)
+  (_hFubini : True) (_hIBP1D : True) (_hChiBC : True) (_hLapVψ : True)
   -- The resulting decomposition equality (used below):
   (hEqDecomp :
     (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
@@ -324,6 +372,25 @@ theorem rect_IBP_decomposition
   (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
     = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint := by
   simpa using hEqDecomp
+
+/-
+  ------------------------------------------------------------------------
+  L² Cauchy–Schwarz pairing bound on σ|Q (scalar route; mathlib-only)
+  ------------------------------------------------------------------------
+-/
+
+/-- Pairing over `Q` for vector fields. -/
+@[simp] def realPairingValue
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (gradU gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ) : ℝ :=
+  ∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ
+
+/-- Test energy for the gradient field `gradChiVpsi` over `Q`. -/
+@[simp] def testEnergy
+  (gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ) (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ)) : ℝ :=
+  ∫ x in Q, sqnormR2 (gradChiVpsi x) ∂σ
+
+-- (Optional) L² pairing bounds can be supplied by callers as `hPairVol`.
 
 /-
   ------------------------------------------------------------------------
@@ -371,6 +438,130 @@ theorem CRGreen_link
       (by
         have := hCarlSqrt
         exact mul_le_mul_of_nonneg_left this hCψ_nonneg))
+
+
+/-
+  ------------------------------------------------------------------------
+  Green+trace packaging: from IBP decomposition to Whitney analytic bound
+  ------------------------------------------------------------------------
+-/
+
+/-- From a four-term decomposition with vanishing side/top, the remainder
+is exactly the interior remainder. Thus any bound on `Rint` yields a bound on
+`|LHS - BD|`. Pure algebra. -/
+theorem remainder_bound_from_decomp_zero
+  {LHS BD Rside Rtop Rint C s : ℝ}
+  (hEq : LHS = BD + Rside + Rtop + Rint)
+  (hSideZero : Rside = 0) (hTopZero : Rtop = 0)
+  (hRint : |Rint| ≤ C * s) :
+  |LHS - BD| ≤ C * s := by
+  have hdiff : LHS - BD = Rint := by
+    have : (BD + (Rside + Rtop + Rint)) - BD = Rside + Rtop + Rint := by
+      simpa using add_sub_cancel BD (Rside + Rtop + Rint)
+    simpa [hEq, add_comm, add_left_comm, add_assoc, hSideZero, hTopZero]
+      using this
+  simpa [hdiff]
+    using hRint
+
+/-- Specialized remainder bound on the concrete pairing and boundary integrals,
+assuming a rectangle IBP decomposition with vanishing side/top and an interior
+remainder bound. -/
+theorem hRemBound_from_green_trace
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (I : Set ℝ) (ψ : ℝ → ℝ) (B : ℝ → ℝ)
+  (gradU gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ)
+  (Rside Rtop Rint Cψ_rem : ℝ)
+  (hEqDecomp :
+    (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
+      = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint)
+  (hSideZero : Rside = 0) (hTopZero : Rtop = 0)
+  (hRintBound : |Rint| ≤ Cψ_rem * Real.sqrt (boxEnergy gradU σ Q)) :
+  |(∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
+      - (∫ t in I, ψ t * B t)|
+    ≤ Cψ_rem * Real.sqrt (boxEnergy gradU σ Q) := by
+  classical
+  -- Shorthands
+  set LHS : ℝ := ∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ
+  set BD  : ℝ := ∫ t in I, ψ t * B t
+  have : |LHS - BD| ≤ Cψ_rem * Real.sqrt (boxEnergy gradU σ Q) :=
+    remainder_bound_from_decomp_zero
+      (hEq := by simpa [LHS, BD] using hEqDecomp)
+      (hSideZero := hSideZero) (hTopZero := hTopZero)
+      (hRint := hRintBound)
+  simpa [LHS, BD]
+    using this
+
+/-- Whitney analytic bound from Green+trace: combine a volume pairing bound
+and an interior remainder bound (with vanishing side/top) to obtain the usual
+Whitney boundary inequality with `Cψ := Cψ_pair + Cψ_rem`. -/
+theorem CRGreen_pairing_whitney_from_green_trace
+  (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+  (I : Set ℝ) (alpha' : ℝ)
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (gradU gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ)
+  (B : ℝ → ℝ)
+  (Cψ_pair Cψ_rem : ℝ)
+  -- Volume pairing bound (e.g. by L² Cauchy–Schwarz on σ|Q):
+  (hPairVol :
+    |∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ|
+      ≤ Cψ_pair * Real.sqrt (boxEnergy gradU σ Q))
+  -- Rectangle IBP decomposition with vanishing side/top and an interior bound:
+  (Rside Rtop Rint : ℝ)
+  (hEqDecomp :
+    (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
+      = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint)
+  (hSideZero : Rside = 0) (hTopZero : Rtop = 0)
+  (hRintBound : |Rint| ≤ Cψ_rem * Real.sqrt (boxEnergy gradU σ Q)) :
+  |∫ t in I, ψ t * B t|
+    ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (boxEnergy gradU σ Q) := by
+  classical
+  -- Convert the interior bound to the standard remainder bound.
+  have hRemBound :
+      |(∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
+        - (∫ t in I, ψ t * B t)|
+        ≤ Cψ_rem * Real.sqrt (boxEnergy gradU σ Q) :=
+    hRemBound_from_green_trace σ Q I ψ B gradU gradChiVpsi
+      Rside Rtop Rint Cψ_rem hEqDecomp hSideZero hTopZero hRintBound
+  -- Apply the analytic Whitney inequality.
+  exact
+    pairing_whitney_analytic_bound
+      U W ψ χ I alpha' σ Q gradU gradChiVpsi B
+      Cψ_pair Cψ_rem hPairVol hRemBound
+
+/- Project-preferred aliases for the rectangle IBP identity and cutoff vanish -/
+
+/-- Rectangle Green+trace identity (packaging alias).
+This restates `rect_IBP_decomposition` under the project name. -/
+theorem rect_green_trace_identity
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (I : Set ℝ) (ψ : ℝ → ℝ) (B : ℝ → ℝ)
+  (_U _Vψ _χ : ℝ × ℝ → ℝ)
+  (gradU gradChiVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (Rside Rtop Rint : ℝ)
+  (_hFubini : True) (_hIBP1D : True) (_hChiBC : True) (_hLapVψ : True)
+  (hEqDecomp :
+    (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
+      = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint) :
+  (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
+    = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint :=
+  rect_IBP_decomposition σ Q I ψ B _U _Vψ _χ gradU gradChiVψ Rside Rtop Rint
+    _hFubini _hIBP1D _hChiBC _hLapVψ hEqDecomp
+
+/-- Side/top vanish under admissible cutoff (algebraic alias).
+If the four-term decomposition holds and `χ` kills side/top (encoded here by
+`Rside = 0` and `Rtop = 0`), we reduce to a single interior remainder. -/
+theorem side_top_zero_of_cutoff
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (I : Set ℝ) (ψ : ℝ → ℝ) (B : ℝ → ℝ)
+  (gradU gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ)
+  (Rside Rtop Rint : ℝ)
+  (hEqDecomp :
+    (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
+      = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint)
+  (hSideZero : Rside = 0) (hTopZero : Rtop = 0) :
+  (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
+    = (∫ t in I, ψ t * B t) + Rint :=
+  green_trace_rect_to_single_remainder σ Q I ψ B gradU gradChiVpsi Rside Rtop Rint hEqDecomp hSideZero hTopZero
 
 
 end RS
