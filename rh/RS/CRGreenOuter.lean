@@ -200,11 +200,11 @@ theorem outer_cancellation_on_boundary
   refine ⟨LHS - BD, ?eq, ?bd⟩
   · -- identity: LHS = BD + (LHS - BD)
     have : BD + (LHS - BD) = LHS := by
-      simpa [add_comm, add_left_comm, add_assoc, sub_eq_add_neg]
+      simp [add_comm, add_left_comm, add_assoc, sub_eq_add_neg]
         using (sub_add_cancel LHS BD)
     simpa [LHS, BD, add_comm, add_left_comm, add_assoc, sub_eq_add_neg] using this.symm
   · -- bound is exactly the hypothesis
-    simpa [LHS, BD]
+    simp [LHS, BD]
       using hBoundDiff
 
 
@@ -265,7 +265,7 @@ theorem pairing_whitney_analytic_bound
   -- Plug the analytic bounds
   have hR : |R| ≤ Cψ_rem * Real.sqrt (boxEnergy gradU σ Q) := by
     -- R = LHS - BD, so the given remainder bound is exactly |R| ≤ ...
-    simpa [R, LHS, BD]
+    simp [R, LHS, BD]
       using hRemBound
   have hSum :
       |LHS| + |R|
@@ -275,7 +275,7 @@ theorem pairing_whitney_analytic_bound
               + Cψ_rem * Real.sqrt (boxEnergy gradU σ Q) := by
       exact add_le_add hPairVol hR
     -- (Cψ_pair + Cψ_rem) * s = Cψ_pair*s + Cψ_rem*s
-    simpa [add_mul]
+    simp [add_mul]
       using this
   exact (le_trans tineq hSum)
 
@@ -316,7 +316,7 @@ theorem single_remainder_bound_from_decomp
       have : (BD + (Rside + Rtop + Rint)) - BD = (Rside + Rtop + Rint) := by
         simpa using add_sub_cancel BD (Rside + Rtop + Rint)
       simpa [h1] using this
-    simpa [this, add_comm, add_left_comm, add_assoc]
+    simp [this, add_comm, add_left_comm, add_assoc]
   have : |LHS - BD| ≤ (Cside + Ctop) * s + Cint * s := by
     simpa [hR] using hsum_all
   simpa [add_mul, mul_add, add_comm, add_left_comm, add_assoc] using this
@@ -348,7 +348,7 @@ theorem green_trace_rect_to_single_remainder
     = (∫ t in I, ψ t * B t) + Rint := by
   have : (∫ t in I, ψ t * B t) + Rside + Rtop + Rint
            = (∫ t in I, ψ t * B t) + Rint := by
-    simpa [hSideZero, hTopZero, add_comm, add_left_comm, add_assoc]
+    simp [hSideZero, hTopZero, add_comm, add_left_comm, add_assoc]
   simpa [this] using hEqDecomp
 
 /-- Rectangle–IBP decomposition (packaging statement).
@@ -458,9 +458,9 @@ theorem remainder_bound_from_decomp_zero
   have hdiff : LHS - BD = Rint := by
     have : (BD + (Rside + Rtop + Rint)) - BD = Rside + Rtop + Rint := by
       simpa using add_sub_cancel BD (Rside + Rtop + Rint)
-    simpa [hEq, add_comm, add_left_comm, add_assoc, hSideZero, hTopZero]
+    simp [hEq, add_comm, add_left_comm, add_assoc, hSideZero, hTopZero]
       using this
-  simpa [hdiff]
+  simp [hdiff]
     using hRint
 
 /-- Specialized remainder bound on the concrete pairing and boundary integrals,
@@ -488,7 +488,7 @@ theorem hRemBound_from_green_trace
       (hEq := by simpa [LHS, BD] using hEqDecomp)
       (hSideZero := hSideZero) (hTopZero := hTopZero)
       (hRint := hRintBound)
-  simpa [LHS, BD]
+  simp [LHS, BD]
     using this
 
 /-- Whitney analytic bound from Green+trace: combine a volume pairing bound
