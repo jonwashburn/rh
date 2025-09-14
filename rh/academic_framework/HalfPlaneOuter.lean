@@ -2,6 +2,8 @@ import Mathlib.Analysis.Analytic.Basic
 import Mathlib.Data.Complex.Basic
 import Mathlib.Topology.Basic
 import rh.academic_framework.CompletedXi
+import Mathlib.MeasureTheory.Integral.Bochner
+import Mathlib.MeasureTheory.Measure.Lebesgue
 
 /-!
 # Half‑plane outers (interface)
@@ -90,6 +92,112 @@ def PoissonOuter_det2_over_xi_ext (det2 : ℂ → ℂ) : Prop :=
   let F := fun s => det2 s / riemannXi_ext s
   ∀ u : ℝ → ℝ, IsBoundaryLogModulusOf u F ∧ BMO_on_ℝ u →
     ExistsOuterWithModulus_det2_over_xi_ext det2
+
+end HalfPlaneOuter
+end AcademicFramework
+end RH
+
+
+/‑!
+# Half-plane Poisson transport (positive boundary → interior operator)
+
+We add a Poisson kernel `poissonKernel` on Ω, a transport operator `P`,
+positivity from a.e. boundary sign, a representation wrapper for `Re F`, and
+the transport corollary (with a pinch specialization).
+No axioms, no sorry.
+-/ 
+
+noncomputable section
+open scoped Real Topology
+open MeasureTheory Complex
+
+namespace RH
+namespace AcademicFramework
+namespace HalfPlaneOuter
+
+/‑‑ The Poisson kernel for the right half‑plane `Re z > 1/2`.
+Normalized so that `∫_ℝ poissonKernel z t dt = 1`. -/ 
+@[simp] def poissonKernel (z : ℂ) (t : ℝ) : ℝ :=
+  (1 / Real.pi) * ((z.re - (1/2 : ℝ)) / ((z.re - (1/2 : ℝ))^2 + (t - z.im)^2))
+
+lemma poissonKernel_nonneg {z : ℂ} (hz : (1/2 : ℝ) < z.re) (t : ℝ) :
+    0 ≤ poissonKernel z t := by
+  unfold poissonKernel
+  have hx : 0 < z.re - (1/2 : ℝ) := sub_pos.mpr hz
+  have hx0 : 0 ≤ z.re - (1/2 : ℝ) := le_of_lt hx
+  have denom_pos :
+      0 < (z.re - (1/2 : ℝ))^2 + (t - z.im)^2 := by
+    have hxpos : 0 < (z.re - (1/2 : ℝ))^2 := by
+      exact sq_pos_of_ne_zero _ (sub_ne_zero.mpr (ne_of_gt hz))
+    exact add_pos_of_pos_of_nonneg hxpos (sq_nonneg _)
+  have denom_nonneg :
+      0 ≤ (z.re - (1/2 : ℝ))^2 + (t - z.im)^2 := le_of_lt denom_pos
+  have div_nonneg' :
+      0 ≤ (z.re - (1/2 : ℝ)) /
+            ((z.re - (1/2 : ℝ))^2 + (t - z.im)^2) :=
+    div_nonneg hx0 denom_nonneg
+  have invpi_nonneg : 0 ≤ (1 / Real.pi) :=
+    one_div_nonneg.mpr (le_of_lt Real.pi_pos)
+  exact mul_nonneg invpi_nonneg div_nonneg'
+
+/‑‑ Poisson transport from boundary data `u` to the interior. -/ 
+@[simp] def P (u : ℝ → ℝ) (z : ℂ) : ℝ := ∫ t : ℝ, u t * poissonKernel z t
+
+/‑‑ Boundary nonnegativity predicate for `F` on `Re = 1/2`. -/ 
+def PPlus (F : ℂ → ℂ) : Prop :=
+  (0 ≤ᵐ[Measure.lebesgue] fun t : ℝ => (F (boundary t)).re)
+
+lemma P_nonneg_of_ae_nonneg
+    {u : ℝ → ℝ}
+    (hInt : ∀ {z : ℂ}, z ∈ Ω → Integrable (fun t : ℝ => u t * poissonKernel z t))
+    (hu_nonneg : 0 ≤ᵐ[Measure.lebesgue] fun t : ℝ => u t) :
+    ∀ ⦃z : ℂ⦄, z ∈ Ω → 0 ≤ P u z := by
+  intro z hz
+  have hker :
+      0 ≤ᵐ[Measure.lebesgue] fun t : ℝ => poissonKernel z t := by
+    refine Filter.eventually_of_forall (fun t => ?_)
+    exact poissonKernel_nonneg (by simpa using hz) t
+  have hprod :
+      0 ≤ᵐ[Measure.lebesgue] fun t : ℝ => u t * poissonKernel z t := by
+    refine (hu_nonneg.and hker).mono ?_
+    intro t ht; rcases ht with ⟨hu, hk⟩; exact mul_nonneg hu hk
+  have hI : Integrable (fun t : ℝ => u t * poissonKernel z t) := hInt hz
+  have := integral_nonneg_of_ae hI hprod
+  simpa [P] using this
+
+structure HasHalfPlanePoissonRepresentation (F : ℂ → ℂ) : Prop :=
+  (analytic : AnalyticOn ℂ F Ω)
+  (integrable :
+      ∀ z ∈ Ω, Integrable (fun t : ℝ => (F (boundary t)).re * poissonKernel z t))
+  (re_eq :
+      ∀ z ∈ Ω,
+        (F z).re = P (fun t : ℝ => (F (boundary t)).re) z)
+
+theorem HasHalfPlanePoissonTransport
+    {F : ℂ → ℂ}
+    (hRep : HasHalfPlanePoissonRepresentation F) :
+    PPlus F → ∀ ⦃z : ℂ⦄, z ∈ Ω → 0 ≤ (F z).re := by
+  intro hBoundary z hz
+  have hpos :=
+    P_nonneg_of_ae_nonneg
+      (u := fun t : ℝ => (F (boundary t)).re)
+      (hInt := by intro w hw; simpa using hRep.integrable w hw)
+      (hu_nonneg := hBoundary)
+      hz
+  simpa [hRep.re_eq z hz] using hpos
+
+open RH.AcademicFramework.CompletedXi
+
+@[simp] def F_pinch (det2 O : ℂ → ℂ) : ℂ → ℂ := fun z => (2 : ℂ) * J_pinch det2 O z
+
+theorem HasHalfPlanePoissonTransport_Jpinch
+    {det2 O : ℂ → ℂ}
+    (hRep :
+      HasHalfPlanePoissonRepresentation (F_pinch det2 O)) :
+    PPlus (F_pinch det2 O) →
+      ∀ ⦃z : ℂ⦄, z ∈ Ω → 0 ≤ ((F_pinch det2 O) z).re := by
+  intro hP z hz
+  exact HasHalfPlanePoissonTransport (F := F_pinch det2 O) hRep hP hz
 
 end HalfPlaneOuter
 end AcademicFramework
