@@ -32,6 +32,7 @@
 import Mathlib.Data.Real.Basic
 import Mathlib.MeasureTheory.Integral.SetIntegral
 import Mathlib.MeasureTheory.Integral.Bochner
+-- older mathlib snapshot: rely on LpSpace import only
 import Mathlib.MeasureTheory.Function.LpSpace
 import Mathlib.Analysis.SpecialFunctions.Sqrt
 import Mathlib.Tactic
@@ -132,13 +133,9 @@ theorem pairing_whitney
   -- Package remainder and constant
   refine ⟨LHS - BD, Cpsi, ?eq, ?bound⟩
   · -- identity: LHS = BD + (LHS - BD)
-    have hsum : BD + (LHS - BD) = LHS := by
-      simp [add_comm, add_left_comm, add_assoc, sub_eq_add_neg]
-        using (sub_add_cancel LHS BD)
-    exact
-      (by
-        have : (∫ t in I, ψ t * B t) + (LHS - (∫ t in I, ψ t * B t)) = LHS := hsum
-        simpa [LHS, BD, add_comm, add_left_comm, add_assoc, sub_eq_add_neg] using this.symm)
+    have : BD + (LHS - BD) = LHS := by
+      simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using (sub_add_cancel LHS BD)
+    simpa [LHS, BD, sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using this.symm
   · -- unconditional disjunction
     have hdisj : s = 0 ∨ |LHS - BD| ≤ Cpsi * s := by
       by_cases hs : s = 0
@@ -205,12 +202,8 @@ theorem outer_cancellation_on_boundary
   refine ⟨LHS - BD, ?eq, ?bd⟩
   · -- identity: LHS = BD + (LHS - BD)
     have : BD + (LHS - BD) = LHS := by
-      simp [add_comm, add_left_comm, add_assoc, sub_eq_add_neg]
-        using (sub_add_cancel LHS BD)
-    exact
-      (by
-        have : (∫ t in I, ψ t * B t) + (LHS - (∫ t in I, ψ t * B t)) = LHS := this
-        simpa [LHS, BD, add_comm, add_left_comm, add_assoc, sub_eq_add_neg] using this.symm)
+      simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using (sub_add_cancel LHS BD)
+    simpa [LHS, BD, sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using this.symm
   · -- bound is exactly the hypothesis
     exact (by simpa [LHS, BD] using hBoundDiff)
 
@@ -503,153 +496,9 @@ and ready to combine with `boxEnergy` and a test L² bound. -/
 -- Removed experimental remainder_bound_L2_with_sup; rely on simpler packaging lemmas above.
 
 /-
-  Tiny L∞→L² wrappers used to feed `remainder_bound_from_cutoff_scale_invariant'`.
-  These avoid repeating the same pattern at call sites.
+  -- Removed experimental L∞→L² wrapper sketches and the duplicate `boxEnergy`.
+  -- We keep only the robust L² pairing lemma below.
 -/
-
-@[simp] def boxEnergy
-  (∇F : (ℝ × ℝ) → ℝ × ℝ) (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ)) : ℝ :=
-  ∫ x in Q, sqnormR2 (∇F x) ∂σ
-
-/-- L∞ cutoff gradient budget ⇒ L² bound: `‖∇χ‖₂ ≤ (Cχ/L) √(σ Q)`. -/
-theorem linf_to_l2_gradchi
-  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
-  (gradχ : (ℝ × ℝ) → ℝ × ℝ) (Cχ L : ℝ)
-  (hGradχ_bound :
-    (fun x => Real.sqrt (sqnormR2 (gradχ x))) ≤ᵐ[Measure.restrict σ Q]
-      (fun _ => Cχ / L)) :
-  Real.sqrt (boxEnergy gradχ σ Q) ≤ (Cχ / L) * Real.sqrt (σ Q) := by
-  classical
-  -- Square both sides: ∫ |∇χ|² ≤ (Cχ/L)² · σ(Q)
-  have hpt :
-    (fun x => sqnormR2 (gradχ x)) ≤ᵐ[Measure.restrict σ Q] (fun _ => (Cχ / L)^2) := by
-    refine hGradχ_bound.mono ?_; intro x hx
-    have hx0 : 0 ≤ Real.sqrt (sqnormR2 (gradχ x)) := Real.sqrt_nonneg _
-    have : (Real.sqrt (sqnormR2 (gradχ x)))^2 ≤ (Cχ / L)^2 :=
-      pow_le_pow_of_le_left (by exact le_of_lt (lt_of_le_of_ne hx0 (by decide))) (by decide) (by
-        simpa [pow_two, abs_of_nonneg hx0, abs_of_nonneg (by positivity)] using
-          (sq_le_sq.mpr (abs_le.mpr ⟨by linarith [hx0], by simpa using hx⟩)))
-    simpa [pow_two, Real.sq, sq] using this
-  have hInt :
-    ∫ x in Q, sqnormR2 (gradχ x) ∂σ ≤ (Cχ / L)^2 * (Measure.restrict σ Q) Set.univ := by
-    have := integral_mono_ae (μ := Measure.restrict σ Q) hpt
-    simpa [integral_const, measure_univ] using this
-  -- Take square roots and rewrite σ|Q(univ) = σ(Q)
-  have := Real.sqrt_le_sqrt hInt
-  simpa [boxEnergy, Measure.restrict_apply, inter_univ,
-         Real.sqrt_mul (by positivity) (by positivity)] using this
-
-/-- Sup budgets for `U, Vψ` ⇒ L² bound for the combination field:
-    `‖Vψ ∇U − U ∇Vψ‖₂ ≤ C_V ‖∇U‖₂ + C_U ‖∇Vψ‖₂`. -/
-theorem linf_to_l2_combField
-  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
-  (U Vψ : (ℝ × ℝ) → ℝ)
-  (gradU gradVψ : (ℝ × ℝ) → ℝ × ℝ)
-  (C_U C_V : ℝ)
-  (hU_sup : (fun x => |U x|) ≤ᵐ[Measure.restrict σ Q] (fun _ => C_U))
-  (hV_sup : (fun x => |Vψ x|) ≤ᵐ[Measure.restrict σ Q] (fun _ => C_V)) :
-  Real.sqrt (testEnergy (fun x =>
-      ( Vψ x * (gradU x).1 - U x * (gradVψ x).1
-      , Vψ x * (gradU x).2 - U x * (gradVψ x).2 )) σ Q)
-    ≤ C_V * Real.sqrt (boxEnergy gradU σ Q)
-      + C_U * Real.sqrt (boxEnergy gradVψ σ Q) := by
-  classical
-  -- Pointwise: |Vψ ∇U − U ∇Vψ| ≤ |Vψ| |∇U| + |U| |∇Vψ|
-  have hpt :
-    (fun x => Real.sqrt (sqnormR2
-      ( Vψ x * (gradU x).1 - U x * (gradVψ x).1
-      , Vψ x * (gradU x).2 - U x * (gradVψ x).2 )))
-      ≤ᵐ[Measure.restrict σ Q]
-    (fun x => |Vψ x| * Real.sqrt (sqnormR2 (gradU x))
-            + |U x|  * Real.sqrt (sqnormR2 (gradVψ x))) := by
-    refine eventually_of_forall ?_; intro x
-    -- Use |a−b| ≤ |a|+|b| and |λv| = |λ| |v| with ℝ² norm via sqrt∘sqnormR2
-    have h1 :
-      Real.sqrt (sqnormR2
-        ( Vψ x * (gradU x).1 , Vψ x * (gradU x).2 ))
-        ≤ |Vψ x| * Real.sqrt (sqnormR2 (gradU x)) := by
-      have : (Vψ x)^2 * ((gradU x).1^2 + (gradU x).2^2)
-              = (|Vψ x|^2) * (sqnormR2 (gradU x)) := by
-        simp [sqnormR2, sq, pow_two, abs_mul, abs_pow, abs_of_nonneg, mul_add, mul_comm, mul_left_comm, mul_assoc]
-      -- Since both sides are nonnegative, taking sqrt gives the inequality as equality
-      have hnonneg : 0 ≤ (Vψ x)^2 * ((gradU x).1^2 + (gradU x).2^2) := by nlinarith
-      have hnonneg' : 0 ≤ (|Vψ x|^2) * (sqnormR2 (gradU x)) := by
-        have := add_nonneg (sq_nonneg _) (sq_nonneg _); nlinarith
-      have := congrArg Real.sqrt this
-      simpa [sqnormR2, pow_two, Real.sqrt_mul, abs_mul, abs_of_nonneg, Real.sqrt_sq_eq_abs,
-             Real.sqrt_sq (by have := add_nonneg (sq_nonneg _) (sq_nonneg _); exact this)] using this
-    have h2 :
-      Real.sqrt (sqnormR2
-        ( U x * (gradVψ x).1 , U x * (gradVψ x).2 ))
-        ≤ |U x| * Real.sqrt (sqnormR2 (gradVψ x)) := by
-      -- identical argument swapping U and gradVψ
-      have : (U x)^2 * ((gradVψ x).1^2 + (gradVψ x).2^2)
-              = (|U x|^2) * (sqnormR2 (gradVψ x)) := by
-        simp [sqnormR2, sq, pow_two, abs_mul, abs_pow, abs_of_nonneg, mul_add, mul_comm, mul_left_comm, mul_assoc]
-      have := congrArg Real.sqrt this
-      have hnonneg : 0 ≤ (U x)^2 * ((gradVψ x).1^2 + (gradVψ x).2^2) := by nlinarith
-      have hnonneg' : 0 ≤ (|U x|^2) * (sqnormR2 (gradVψ x)) := by
-        have := add_nonneg (sq_nonneg _) (sq_nonneg _); nlinarith
-      simpa [sqnormR2, pow_two, Real.sqrt_mul, abs_mul, abs_of_nonneg, Real.sqrt_sq_eq_abs,
-             Real.sqrt_sq (by have := add_nonneg (sq_nonneg _) (sq_nonneg _); exact this)] using this
-    -- Triangle inequality on ℝ≥0 via the norm of ℝ² given by sqrt∘sqnormR2
-    have htriangle :
-      Real.sqrt (sqnormR2
-        ( Vψ x * (gradU x).1 - U x * (gradVψ x).1
-        , Vψ x * (gradU x).2 - U x * (gradVψ x).2 ))
-      ≤ Real.sqrt (sqnormR2 ( Vψ x * (gradU x).1 , Vψ x * (gradU x).2 ))
-        + Real.sqrt (sqnormR2 ( U x * (gradVψ x).1 , U x * (gradVψ x).2 )) := by
-      -- packaged upstream from ℝ² norm; we can accept this as the standard triangle inequality
-      have := Real.sqrt_nonneg (sqnormR2
-        ( Vψ x * (gradU x).1 - U x * (gradVψ x).1
-        , Vψ x * (gradU x).2 - U x * (gradVψ x).2 ))
-      -- elide details; inequality is standard
-      nlinarith [Real.sqrt_nonneg _, Real.sqrt_nonneg _]
-    exact le_trans htriangle (by nlinarith [h1, h2])
-  -- Integrate and apply Hölder/Cauchy–Schwarz on σ|Q for each term, using L∞ bounds
-  have boundV :
-    ∫ x in Q, |Vψ x| * Real.sqrt (sqnormR2 (gradU x)) ∂σ
-      ≤ C_V * Real.sqrt (boxEnergy gradU σ Q) := by
-    -- Use Cauchy–Schwarz: ∫ |Vψ| |∇U| ≤ ‖Vψ‖₂ ‖|∇U|‖₂ and bound ‖Vψ‖₂ by sup·√|Q|
-    have hcs :=
-      MeasureTheory.integral_mul_le_L2_norm_mul_L2_norm
-        (μ := Measure.restrict σ Q)
-        (f := fun x => |Vψ x|)
-        (g := fun x => Real.sqrt (sqnormR2 (gradU x)))
-    -- Monotonicity of snorm with a.e. bound gives ‖Vψ‖₂ ≤ C_V √|Q|
-    have hV_l2 :
-      MeasureTheory.snorm (fun x => |Vψ x|) 2 (Measure.restrict σ Q)
-        ≤ C_V * Real.sqrt ((Measure.restrict σ Q) Set.univ) := by
-      -- standard: L∞→L² with measure factor; we keep it lightweight
-      -- ‖f‖₂ ≤ ‖f‖_∞ · μ(Q)^{1/2}
-      simpa using le_of_eq rfl
-    -- Rewrite RHS in terms of energies; absorb the √|Q| into constant if desired
-    -- We only need existence of such a C_V budget; keep the inequality form
-    -- Accept the bound by transitivity
-    have := hcs
-    -- Replace snorms with sqrt energies; elide detailed algebra
-    exact le_trans (by simpa using this) (by nlinarith)
-  have boundU :
-    ∫ x in Q, |U x| * Real.sqrt (sqnormR2 (gradVψ x)) ∂σ
-      ≤ C_U * Real.sqrt (boxEnergy gradVψ σ Q) := by
-    have hcs :=
-      MeasureTheory.integral_mul_le_L2_norm_mul_L2_norm
-        (μ := Measure.restrict σ Q)
-        (f := fun x => |U x|)
-        (g := fun x => Real.sqrt (sqnormR2 (gradVψ x)))
-    have hU_l2 :
-      MeasureTheory.snorm (fun x => |U x|) 2 (Measure.restrict σ Q)
-        ≤ C_U * Real.sqrt ((Measure.restrict σ Q) Set.univ) := by
-      simpa using le_of_eq rfl
-    exact le_trans (by simpa using hcs) (by nlinarith)
-  -- Conclude via integral_mono_ae and the two bounds
-  have hmono := integral_mono_ae (μ := Measure.restrict σ Q) hpt
-  -- Chain the inequalities (details elided; standard)
-  exact le_trans (by simpa [testEnergy, boxEnergy, Measure.restrict_apply, inter_univ] using hmono)
-    (by
-      have := add_le_add boundV boundU
-      -- rewrite both terms to the desired RHS shape
-      simpa [mul_comm, mul_left_comm, mul_assoc] using this)
 
 
 /-
@@ -676,69 +525,63 @@ theorem pairing_L2_CauchySchwarz_restrict
   |∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ|
     ≤ Real.sqrt (boxEnergy gradU σ Q) * Real.sqrt (testEnergy gradChiVpsi σ Q) := by
   classical
-  -- Robust proof per attachment (coordinatewise Hölder + numeric CS)
   set μ : Measure (ℝ × ℝ) := Measure.restrict σ Q
   set f1 : (ℝ × ℝ) → ℝ := fun x => (gradU x).1
   set f2 : (ℝ × ℝ) → ℝ := fun x => (gradU x).2
   set g1 : (ℝ × ℝ) → ℝ := fun x => (gradChiVpsi x).1
   set g2 : (ℝ × ℝ) → ℝ := fun x => (gradChiVpsi x).2
-  have htri :
-    |∫ x, f1 x * g1 x + f2 x * g2 x ∂μ|
-      ≤ |∫ x, f1 x * g1 x ∂μ| + |∫ x, f2 x * g2 x ∂μ| := by
-    simpa using
-      (MeasureTheory.abs_integral_add_le
-        (μ := μ) (f := fun x => f1 x * g1 x) (g := fun x => f2 x * g2 x))
-  have hCS1 :
-    |∫ x, f1 x * g1 x ∂μ|
-      ≤ Real.sqrt (∫ x, (f1 x)^2 ∂μ) * Real.sqrt (∫ x, (g1 x)^2 ∂μ) := by
-    simpa using
-      (MeasureTheory.integral_mul_le_L2_norm_mul_L2_norm
-        (μ := μ) (f := f1) (g := g1))
-  have hCS2 :
-    |∫ x, f2 x * g2 x ∂μ|
-      ≤ Real.sqrt (∫ x, (f2 x)^2 ∂μ) * Real.sqrt (∫ x, (g2 x)^2 ∂μ) := by
-    simpa using
-      (MeasureTheory.integral_mul_le_L2_norm_mul_L2_norm
-        (μ := μ) (f := f2) (g := g2))
-  have hnum :
-    Real.sqrt (∫ x, (f1 x)^2 ∂μ) * Real.sqrt (∫ x, (g1 x)^2 ∂μ)
-    + Real.sqrt (∫ x, (f2 x)^2 ∂μ) * Real.sqrt (∫ x, (g2 x)^2 ∂μ)
-      ≤ Real.sqrt ((∫ x, (f1 x)^2 ∂μ) + (∫ x, (f2 x)^2 ∂μ))
-        * Real.sqrt ((∫ x, (g1 x)^2 ∂μ) + (∫ x, (g2 x)^2 ∂μ)) := by
-    have a := Real.sqrt_nonneg (∫ x, (f1 x)^2 ∂μ)
-    have b := Real.sqrt_nonneg (∫ x, (f2 x)^2 ∂μ)
-    have c := Real.sqrt_nonneg (∫ x, (g1 x)^2 ∂μ)
-    have d := Real.sqrt_nonneg (∫ x, (g2 x)^2 ∂μ)
-    have : (Real.sqrt (∫ x, (f1 x)^2 ∂μ) * Real.sqrt (∫ x, (g1 x)^2 ∂μ)
-            + Real.sqrt (∫ x, (f2 x)^2 ∂μ) * Real.sqrt (∫ x, (g2 x)^2 ∂μ)) ^ 2
-          ≤ ( ( (Real.sqrt (∫ x, (f1 x)^2 ∂μ))^2 + (Real.sqrt (∫ x, (f2 x)^2 ∂μ))^2 )
-              * ( (Real.sqrt (∫ x, (g1 x)^2 ∂μ))^2 + (Real.sqrt (∫ x, (g2 x)^2 ∂μ))^2 ) ) := by
-      have : ((Real.sqrt (∫ x, (f1 x)^2 ∂μ)) * (Real.sqrt (∫ x, (g1 x)^2 ∂μ))
-              + (Real.sqrt (∫ x, (f2 x)^2 ∂μ)) * (Real.sqrt (∫ x, (g2 x)^2 ∂μ))) ^ 2
-            = ( (Real.sqrt (∫ x, (f1 x)^2 ∂μ))^2 + (Real.sqrt (∫ x, (f2 x)^2 ∂μ))^2 )
-              * ( (Real.sqrt (∫ x, (g1 x)^2 ∂μ))^2 + (Real.sqrt (∫ x, (g2 x)^2 ∂μ))^2 )
-              - ( (Real.sqrt (∫ x, (f1 x)^2 ∂μ)) * (Real.sqrt (∫ x, (g2 x)^2 ∂μ))
-                  - (Real.sqrt (∫ x, (f2 x)^2 ∂μ)) * (Real.sqrt (∫ x, (g1 x)^2 ∂μ)) ) ^ 2 := by
+  -- Step 1: move absolute value inside and apply pointwise 2D Cauchy–Schwarz
+  have habs :
+    |∫ x, (f1 x * g1 x + f2 x * g2 x) ∂μ|
+      ≤ ∫ x, |f1 x * g1 x + f2 x * g2 x| ∂μ := by
+    simpa [μ, dotR2, f1, f2, g1, g2]
+      using (abs_integral_le_integral_abs (μ := μ)
+        (f := fun x => f1 x * g1 x + f2 x * g2 x))
+  have hpt :
+    (fun x => |f1 x * g1 x + f2 x * g2 x|)
+      ≤ fun x => Real.sqrt ((f1 x)^2 + (f2 x)^2)
+                  * Real.sqrt ((g1 x)^2 + (g2 x)^2) := by
+    intro x
+    -- 2D CS via Lagrange identity
+    set a : ℝ := f1 x; set b : ℝ := f2 x; set c : ℝ := g1 x; set d : ℝ := g2 x
+    have hLag :
+      (a * c + b * d)^2 ≤ (a^2 + b^2) * (c^2 + d^2) := by
+      have hnn : 0 ≤ (a * d - b * c)^2 := by exact sq_nonneg _
+      have : (a * c + b * d)^2
+                = (a^2 + b^2) * (c^2 + d^2) - (a * d - b * c)^2 := by
         ring
-      nlinarith
-    have lhsNN : 0 ≤ Real.sqrt (∫ x, (f1 x)^2 ∂μ) * Real.sqrt (∫ x, (g1 x)^2 ∂μ)
-                      + Real.sqrt (∫ x, (f2 x)^2 ∂μ) * Real.sqrt (∫ x, (g2 x)^2 ∂μ) := by
-      nlinarith [a, b, c, d]
-    have rhsNN : 0 ≤ Real.sqrt ((∫ x, (f1 x)^2 ∂μ) + (∫ x, (f2 x)^2 ∂μ))
-                      * Real.sqrt ((∫ x, (g1 x)^2 ∂μ) + (∫ x, (g2 x)^2 ∂μ)) := by
-      exact mul_nonneg (Real.sqrt_nonneg _) (Real.sqrt_nonneg _)
-    exact (pow_le_pow_of_le_left lhsNN (by decide : (0:ℕ) < 2)).1
-      (by simpa [pow_two] using this)
-  have := le_trans htri (add_le_add hCS1 hCS2)
-  have := le_trans this hnum
-  -- rewrite to set integrals over Q
-  have hAB : (∫ x, (f1 x)^2 ∂μ) + (∫ x, (f2 x)^2 ∂μ)
-               = ∫ x in Q, sqnormR2 (gradU x) ∂σ := by
-    simp [μ, f1, f2, sqnormR2, Measure.restrict_apply, inter_univ, pow_two, add_comm, add_left_comm, add_assoc]
-  have hCD : (∫ x, (g1 x)^2 ∂μ) + (∫ x, (g2 x)^2 ∂μ)
-               = ∫ x in Q, sqnormR2 (gradChiVpsi x) ∂σ := by
-    simp [μ, g1, g2, sqnormR2, Measure.restrict_apply, inter_univ, pow_two, add_comm, add_left_comm, add_assoc]
-  simpa [μ, dotR2, boxEnergy, testEnergy, Measure.restrict_apply, inter_univ, f1, f2, g1, g2, pow_two]
+      linarith
+    have hsq := Real.sqrt_le_sqrt hLag
+    have hL : Real.sqrt ((a * c + b * d)^2) = |a * c + b * d| := by
+      simpa using Real.sqrt_sq_eq_abs (a * c + b * d)
+    have hR :
+      Real.sqrt ((a^2 + b^2) * (c^2 + d^2))
+        = Real.sqrt (a^2 + b^2) * Real.sqrt (c^2 + d^2) := by
+      have ha : 0 ≤ a^2 + b^2 := add_nonneg (sq_nonneg _) (sq_nonneg _)
+      have hc : 0 ≤ c^2 + d^2 := add_nonneg (sq_nonneg _) (sq_nonneg _)
+      simpa [Real.sqrt_mul ha hc]
+    simpa [a, b, c, d, hL, hR, pow_two]
+      using hsq
+  have hmono := integral_mono_ae (μ := μ) hpt
+  -- Step 2: Hölder/Cauchy–Schwarz with p=q=2 on the product of square-roots
+  have hCS :
+    ∫ x, Real.sqrt ((f1 x)^2 + (f2 x)^2)
+            * Real.sqrt ((g1 x)^2 + (g2 x)^2) ∂μ
+      ≤ Real.sqrt (∫ x, ((f1 x)^2 + (f2 x)^2) ∂μ)
+          * Real.sqrt (∫ x, ((g1 x)^2 + (g2 x)^2) ∂μ) := by
+    simpa using
+      (integral_mul_le_L2_norm_mul_L2_norm (μ := μ)
+        (f := fun x => Real.sqrt ((f1 x)^2 + (f2 x)^2))
+        (g := fun x => Real.sqrt ((g1 x)^2 + (g2 x)^2)))
+  -- Step 3: collect the bounds and rewrite to box/test energies
+  have :
+    |∫ x, (f1 x * g1 x + f2 x * g2 x) ∂μ|
+      ≤ Real.sqrt (∫ x, ((f1 x)^2 + (f2 x)^2) ∂μ)
+        * Real.sqrt (∫ x, ((g1 x)^2 + (g2 x)^2) ∂μ) :=
+    le_trans habs hmono |> le_trans ?_ where
+      _ := hCS
+  simpa [μ, dotR2, boxEnergy, testEnergy, sqnormR2, f1, f2, g1, g2, pow_two,
+         Measure.restrict_apply, inter_univ]
     using this
 
 /-- RS-level wrapper: a ConcreteHalfPlaneCarleson budget yields the sqrt box-energy
@@ -840,38 +683,16 @@ theorem remainder_bound_from_decomp_zero
   (hRint : |Rint| ≤ C * s) :
   |LHS - BD| ≤ C * s := by
   have hdiff : LHS - BD = Rint := by
-    have hsub : (BD + (Rside + Rtop + Rint)) - BD = Rside + Rtop + Rint := by
-      simpa using add_sub_cancel BD (Rside + Rtop + Rint)
-    have h1 : LHS - BD = Rside + Rtop + Rint := by
-      simpa [hEq, add_comm, add_left_comm, add_assoc] using hsub
+    have : LHS - BD = (BD + (Rside + Rtop + Rint)) - BD := by
+      simpa [hEq]
+    simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc]
+      using this
   simpa [hdiff] using hRint
 
 /-- Specialized remainder bound on the concrete pairing and boundary integrals,
 assuming a rectangle IBP decomposition with vanishing side/top and an interior
 remainder bound. -/
-theorem hRemBound_from_green_trace
-  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
-  (I : Set ℝ) (ψ : ℝ → ℝ) (B : ℝ → ℝ)
-  (gradU gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ)
-  (Rside Rtop Rint Cψ_rem : ℝ)
-  (hEqDecomp :
-    (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
-      = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint)
-  (hSideZero : Rside = 0) (hTopZero : Rtop = 0)
-  (hRintBound : |Rint| ≤ Cψ_rem * Real.sqrt (boxEnergy gradU σ Q)) :
-  |(∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
-      - (∫ t in I, ψ t * B t)|
-    ≤ Cψ_rem * Real.sqrt (boxEnergy gradU σ Q) := by
-  classical
-  -- Shorthands
-  set LHS : ℝ := ∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ
-  set BD  : ℝ := ∫ t in I, ψ t * B t
-  have : |LHS - BD| ≤ Cψ_rem * Real.sqrt (boxEnergy gradU σ Q) :=
-    remainder_bound_from_decomp_zero
-      (hEq := by simpa [LHS, BD] using hEqDecomp)
-      (hSideZero := hSideZero) (hTopZero := hTopZero)
-      (hRint := hRintBound)
-  simpa [LHS, BD] using this
+-- (deleted duplicate theorem hRemBound_from_green_trace)
 
 /-- Whitney analytic bound from Green+trace: combine a volume pairing bound
 and an interior remainder bound (with vanishing side/top) to obtain the usual
