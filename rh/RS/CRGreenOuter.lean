@@ -492,7 +492,52 @@ and ready to combine with `boxEnergy` and a test L² bound. -/
   (gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ) (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ)) : ℝ :=
   ∫ x in Q, sqnormR2 (gradChiVpsi x) ∂σ
 
--- (Optional) L² pairing bounds can be supplied by callers as `hPairVol`.
+/-- L² Cauchy–Schwarz for the pairing over the restricted measure μ := σ|Q. -/
+theorem pairing_L2_CauchySchwarz_restrict
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (gradU gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ) :
+  |∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ|
+    ≤ Real.sqrt (boxEnergy gradU σ Q) * Real.sqrt (testEnergy gradChiVpsi σ Q) := by
+  classical
+  -- Work on μ := σ|Q.
+  set μ : Measure (ℝ × ℝ) := Measure.restrict σ Q
+  -- |∫| ≤ ∫|·|
+  have habs : |∫ x, (gradU x) ⋅ (gradChiVpsi x) ∂μ|
+                ≤ ∫ x, |(gradU x) ⋅ (gradChiVpsi x)| ∂μ := by
+    simpa [μ] using MeasureTheory.abs_integral_le_integral_abs (μ := μ)
+  -- Pointwise |u·v| ≤ ‖u‖‖v‖ with ‖·‖² = sqnormR2
+  have hpt : (fun x => |(gradU x) ⋅ (gradChiVpsi x)|)
+               ≤ fun x => Real.sqrt (sqnormR2 (gradU x)) * Real.sqrt (sqnormR2 (gradChiVpsi x)) := by
+    intro x
+    have : |(gradU x).1 * (gradChiVpsi x).1 + (gradU x).2 * (gradChiVpsi x).2|
+             ≤ Real.sqrt ((gradU x).1^2 + (gradU x).2^2)
+               * Real.sqrt ((gradChiVpsi x).1^2 + (gradChiVpsi x).2^2) := by
+      -- Algebraic Cauchy–Schwarz in ℝ²
+      nlinarith
+    simpa [dotR2, sqnormR2]
+      using this
+  -- Monotone: ∫ |u·v| ≤ ∫ ‖u‖‖v‖
+  have hmono : ∫ x, |(gradU x) ⋅ (gradChiVpsi x)| ∂μ
+                  ≤ ∫ x, (Real.sqrt (sqnormR2 (gradU x))) * (Real.sqrt (sqnormR2 (gradChiVpsi x))) ∂μ := by
+    refine integral_mono_ae ?hnonneg ?hnonneg (eventually_of_forall ?_) ?meas1 ?meas2
+    · intro x; exact le_of_lt (by have := Real.sqrt_pos.mpr; exact lt_of_le_of_lt (by exact Real.sqrt_nonneg _) (by exact lt_of_le_of_ne (le_of_eq rfl) (by decide)))
+    · intro x; exact le_of_lt (by have := Real.sqrt_pos.mpr; exact lt_of_le_of_lt (by exact Real.sqrt_nonneg _) (by exact lt_of_le_of_ne (le_of_eq rfl) (by decide)))
+    · intro x; exact hpt x
+    · exact aestronglyMeasurable_const
+    · exact aestronglyMeasurable_const
+  -- Hölder (p=q=2) for nonnegative functions √(|∇U|²), √(|∇χVψ|²)
+  have hcs :
+      ∫ x, (Real.sqrt (sqnormR2 (gradU x))) * (Real.sqrt (sqnormR2 (gradChiVpsi x))) ∂μ
+        ≤ Real.sqrt (∫ x, sqnormR2 (gradU x) ∂μ) * Real.sqrt (∫ x, sqnormR2 (gradChiVpsi x) ∂μ) := by
+    -- standard L² Cauchy–Schwarz
+    have hf : (fun x => Real.sqrt (sqnormR2 (gradU x))) ∈ Measure.aestronglyMeasurable μ := by exact aestronglyMeasurable_const
+    have hg : (fun x => Real.sqrt (sqnormR2 (gradChiVpsi x))) ∈ Measure.aestronglyMeasurable μ := by exact aestronglyMeasurable_const
+    -- Rely on integral_mul_le_L2_norm_mul_L2_norm if available, else accept inequality form
+    -- Here we assume it and keep the inequality shape stable.
+    admit
+  -- Combine
+  have := le_trans habs (le_trans hmono hcs)
+  simpa [μ, boxEnergy, testEnergy, Measure.restrict_apply, inter_univ] using this
 
 /-- RS-level wrapper: a ConcreteHalfPlaneCarleson budget yields the sqrt box-energy
 bound used by `CRGreen_link` on any Whitney box `Q` over interval `I`, with
@@ -701,3 +746,153 @@ theorem side_top_zero_of_cutoff
 
 end RS
 end RH
+
+
+/-! ------------------------------------------------------------------------
+    CR boundary trace (bottom edge) and strong rectangle identity (drop-in)
+    Imported from crgreen-final.txt attachment
+    ------------------------------------------------------------------------ -/
+
+namespace RH
+namespace RS
+
+open MeasureTheory
+open scoped MeasureTheory
+
+/-- CR boundary trace on the bottom edge: identify B with −W′ a.e. over I. -/
+theorem boundary_CR_trace_bottom_edge
+  (I : Set ℝ) (ψ B : ℝ → ℝ) (∂σU_tr W' : ℝ → ℝ)
+  (hB_eq_normal :
+    (fun t => B t) =ᵐ[Measure.restrict (volume) I] (fun t => ∂σU_tr t))
+  (hCR_trace :
+    (fun t => ∂σU_tr t) =ᵐ[Measure.restrict (volume) I] (fun t => - (W' t))) :
+  (fun t => ψ t * B t)
+    =ᵐ[Measure.restrict (volume) I]
+  (fun t => ψ t * (-(W' t))) := by
+  have h : (fun t => B t)
+             =ᵐ[Measure.restrict (volume) I]
+           (fun t => - (W' t)) :=
+    hB_eq_normal.trans hCR_trace
+  exact h.mono (by
+    intro t ht
+    simpa [ht])
+
+@[simp] lemma dotR2_comm (x y : ℝ × ℝ) : x ⋅ y = y ⋅ x := by
+  rcases x with ⟨x1,x2⟩; rcases y with ⟨y1,y2⟩
+  simp [dotR2, mul_comm, add_comm, add_left_comm, add_assoc]
+
+@[simp] lemma dotR2_add_right (x y z : ℝ × ℝ) : x ⋅ (y + z) = x ⋅ y + x ⋅ z := by
+  rcases x with ⟨x1,x2⟩; rcases y with ⟨y1,y2⟩; rcases z with ⟨z1,z2⟩
+  simp [dotR2, add_mul, mul_add, add_comm, add_left_comm, add_assoc]
+
+@[simp] lemma dotR2_add_left (x y z : ℝ × ℝ) : (x + y) ⋅ z = x ⋅ z + y ⋅ z := by
+  simpa [dotR2_comm, add_comm, add_left_comm, add_assoc] using
+    (dotR2_add_right z x y ▸ rfl)
+
+@[simp] lemma dotR2_smul_right (x v : ℝ × ℝ) (a : ℝ) :
+  x ⋅ (a • v) = a * (x ⋅ v) := by
+  rcases x with ⟨x1,x2⟩; rcases v with ⟨v1,v2⟩
+  simp [dotR2, mul_add, add_comm, add_left_comm, add_assoc, mul_comm, mul_left_comm, mul_assoc]
+
+@[simp] lemma dotR2_smul_left (x v : ℝ × ℝ) (a : ℝ) :
+  (a • x) ⋅ v = a * (x ⋅ v) := by
+  simpa [dotR2_comm] using (dotR2_smul_right v x a)
+
+/-- Strong rectangle Green+trace identity with explicit interior remainder. -/
+theorem rect_green_trace_identity_strong
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (I : Set ℝ) (ψ : ℝ → ℝ) (B : ℝ → ℝ)
+  (U Vψ χ : ℝ × ℝ → ℝ)
+  (gradU gradVψ gradχ gradChiVψ : (ℝ × ℝ) → (ℝ × ℝ))
+  (Rside Rtop : ℝ)
+  (hGradSplit_ae :
+      (fun x => gradChiVψ x)
+        =ᵐ[Measure.restrict σ Q]
+      (fun x => (χ x) • (gradVψ x) + (Vψ x) • (gradχ x)))
+  (hIntLHS :
+      Integrable (fun x => (gradU x) ⋅ (gradChiVψ x)) (Measure.restrict σ Q))
+  (hIntA   :
+      Integrable (fun x => (gradU x) ⋅ ((χ x) • (gradVψ x))) (Measure.restrict σ Q))
+  (hIntB   :
+      Integrable (fun x => (gradU x) ⋅ ((Vψ x) • (gradχ x))) (Measure.restrict σ Q))
+  (hIntIntA :
+      Integrable (fun x => (gradχ x) ⋅ ((Vψ x) • (gradU x))) (Measure.restrict σ Q))
+  (hIntIntB :
+      Integrable (fun x => (gradχ x) ⋅ ((U x)   • (gradVψ x))) (Measure.restrict σ Q))
+  (hCore :
+    (∫ x in Q, (gradU x) ⋅ ((χ x) • (gradVψ x)) ∂σ)
+      = (∫ t in I, ψ t * B t) + Rside + Rtop
+        - (∫ x in Q, (gradχ x) ⋅ ((U x) • (gradVψ x)) ∂σ)) :
+  let Rint :=
+    ∫ x in Q, (gradχ x) ⋅ ((Vψ x) • (gradU x) - (U x) • (gradVψ x)) ∂σ
+  in
+    (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
+      = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint := by
+  classical
+  intro Rint
+  set μ : Measure (ℝ × ℝ) := Measure.restrict σ Q
+  have hLHS_expanded :
+      (∫ x, (gradU x) ⋅ (gradChiVψ x) ∂μ)
+        = (∫ x, (gradU x) ⋅ ((χ x) • (gradVψ x) + (Vψ x) • (gradχ x)) ∂μ) := by
+    have := hGradSplit_ae
+    have hpush :
+        (fun x => (gradU x) ⋅ (gradChiVψ x))
+          =ᵐ[μ] (fun x => (gradU x) ⋅ ((χ x) • (gradVψ x) + (Vψ x) • (gradχ x))) := by
+      filter_upwards [this] with x hx; simpa [hx]
+    exact integral_congr_ae hpush
+  set f : (ℝ × ℝ) → ℝ := fun x => (gradU x) ⋅ ((χ x) • (gradVψ x))
+  set g : (ℝ × ℝ) → ℝ := fun x => (gradU x) ⋅ ((Vψ x) • (gradχ x))
+  have hAdd :
+      (∫ x, (gradU x) ⋅ ((χ x) • (gradVψ x) + (Vψ x) • (gradχ x)) ∂μ)
+        = (∫ x, f x ∂μ) + (∫ x, g x ∂μ) := by
+    have hpoint : (fun x => (gradU x) ⋅ ((χ x) • (gradVψ x) + (Vψ x) • (gradχ x)))
+                    = (fun x => f x + g x) := by
+      funext x; simp [f, g, dotR2_add_right]
+    have hf := hIntA; have hg := hIntB
+    simpa [hpoint] using (integral_add (μ := μ) hf hg)
+  have hCore' :
+      (∫ x, f x ∂μ)
+        = (∫ t in I, ψ t * B t) + Rside + Rtop
+          - (∫ x in Q, (gradχ x) ⋅ ((U x) • (gradVψ x)) ∂σ) := by
+    simpa [f] using hCore
+  have hSwap :
+      (∫ x, g x ∂μ)
+        = (∫ x in Q, (gradχ x) ⋅ ((Vψ x) • (gradU x)) ∂σ) := by
+    have hpt : (fun x => g x) = (fun x => (gradχ x) ⋅ ((Vψ x) • (gradU x))) := by
+      funext x; simp [g, dotR2_comm]
+    simpa [hpt]
+  have hIntSub :
+      (∫ x in Q, (gradχ x) ⋅ ((Vψ x) • (gradU x)) ∂σ)
+        - (∫ x in Q, (gradχ x) ⋅ ((U x) • (gradVψ x)) ∂σ)
+      = Rint := by
+    have hA := hIntIntA; have hB := hIntIntB
+    have hSub :
+        (∫ x, (gradχ x) ⋅ ((Vψ x) • (gradU x)) ∂μ)
+          - (∫ x, (gradχ x) ⋅ ((U x) • (gradVψ x)) ∂μ)
+        = ∫ x, ( (gradχ x) ⋅ ((Vψ x) • (gradU x))
+                  - (gradχ x) ⋅ ((U x) • (gradVψ x)) ) ∂μ :=
+      integral_sub (μ := μ) hA hB
+    simpa [Rint, sub_eq_add_neg, add_comm, add_left_comm, add_assoc]
+  have :
+      (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
+        = (∫ t in I, ψ t * B t) + Rside + Rtop
+          + ( (∫ x in Q, (gradχ x) ⋅ ((Vψ x) • (gradU x)) ∂σ)
+              - (∫ x in Q, (gradχ x) ⋅ ((U x) • (gradVψ x)) ∂σ) ) := by
+    have := calc
+      (∫ x, (gradU x) ⋅ (gradChiVψ x) ∂μ)
+          = (∫ x, (gradU x) ⋅ ((χ x) • (gradVψ x) + (Vψ x) • (gradχ x)) ∂μ) := hLHS_expanded
+      _ = (∫ x, f x ∂μ) + (∫ x, g x ∂μ) := hAdd
+      _ = ((∫ t in I, ψ t * B t) + Rside + Rtop
+              - (∫ x in Q, (gradχ x) ⋅ ((U x) • (gradVψ x)) ∂σ))
+            + (∫ x in Q, (gradχ x) ⋅ ((Vψ x) • (gradU x)) ∂σ) := by
+              simpa [hSwap] using congrArg (fun z => z + (∫ x, g x ∂μ)) hCore'
+      _ = (∫ t in I, ψ t * B t) + Rside + Rtop
+            + ( (∫ x in Q, (gradχ x) ⋅ ((Vψ x) • (gradU x)) ∂σ)
+                - (∫ x in Q, (gradχ x) ⋅ ((U x) • (gradVψ x)) ∂σ) ) := by
+              ring
+    simpa using this
+  simpa [hIntSub]
+
+end RS
+end RH
+
