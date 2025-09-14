@@ -331,6 +331,26 @@ theorem boundary_integral_congr_ae
   (∫ t in I, ψ t * B t) = (∫ t in I, ψ t * f t) := by
   exact integral_congr_ae h_ae
 
+/-- Transfer a boundary integral bound along an equality of integrals. -/
+theorem boundary_integral_bound_transfer
+  {I : Set ℝ} {ψ B f : ℝ → ℝ}
+  (hEq : (∫ t in I, ψ t * B t) = (∫ t in I, ψ t * f t))
+  {M : ℝ}
+  (hB : |∫ t in I, ψ t * B t| ≤ M) :
+  |∫ t in I, ψ t * f t| ≤ M := by
+  simpa [hEq] using hB
+
+/-- Transfer a boundary integral bound along an a.e. pointwise equality on `I`. -/
+theorem boundary_integral_bound_transfer_ae
+  {I : Set ℝ} {ψ B f : ℝ → ℝ}
+  (h_ae : (fun t => ψ t * B t) =ᵐ[Measure.restrict (volume) I]
+          (fun t => ψ t * f t))
+  {M : ℝ}
+  (hB : |∫ t in I, ψ t * B t| ≤ M) :
+  |∫ t in I, ψ t * f t| ≤ M := by
+  have hEq := boundary_integral_congr_ae (I := I) (ψ := ψ) (B := B) (f := f) h_ae
+  exact boundary_integral_bound_transfer (I := I) (ψ := ψ) (B := B) (f := f) hEq hB
+
 /-- Rectangle Green+trace collapse: if a four-term decomposition holds
 with side and top terms explicitly provided, and these collapse (e.g. by χ vanishing
 on those boundary pieces), then the pairing reduces to a single interior remainder.
@@ -420,6 +440,11 @@ theorem hRemBound_from_green_trace_smooth
   -- Reduce to the general remainder packaging
   exact hRemBound_from_green_trace σ Q I ψ B gradU gradChiVψ
     Rside Rtop Rint Cψ_rem hEqDecomp hSideZero hTopZero hRintBound
+
+/-- Interior remainder (Whitney form) L²-bound using an L² bound on `∇χ` and
+L∞ bounds on `U, Vψ`. This yields a two-term inequality that is scale-agnostic
+and ready to combine with `boxEnergy` and a test L² bound. -/
+-- Removed experimental remainder_bound_L2_with_sup; rely on simpler packaging lemmas above.
 
 /-
   ------------------------------------------------------------------------
