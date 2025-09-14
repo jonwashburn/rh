@@ -519,7 +519,7 @@ theorem pairing_L2_CauchySchwarz_restrict
     have hR : Real.sqrt ((A^2 + B^2) * (C^2 + D^2))
                = Real.sqrt (A^2 + B^2) * Real.sqrt (C^2 + D^2) := by
       -- Use the standard sqrt-multiplicativity on nonnegative reals
-      simpa using Real.sqrt_mul (a := (A^2 + B^2)) (b := (C^2 + D^2)) ha hc
+      simpa using Real.sqrt_mul (a := (A ^ 2 + B ^ 2)) (b := (C ^ 2 + D ^ 2)) ha hc
     have hRHSnn : 0 ≤ Real.sqrt (A^2 + B^2) * Real.sqrt (C^2 + D^2) :=
       mul_nonneg (Real.sqrt_nonneg _) (Real.sqrt_nonneg _)
     have : A*C + B*D ≤ Real.sqrt (A^2 + B^2) * Real.sqrt (C^2 + D^2) := by
@@ -533,6 +533,8 @@ theorem pairing_L2_CauchySchwarz_restrict
     (∫ x, (f1 x)^2 ∂μ) + (∫ x, (f2 x)^2 ∂μ)
       = ∫ x in Q, sqnormR2 (gradU x) ∂σ := by
     have := integral_add (μ := μ) hF1sq hF2sq
+    -- integral_add: ∫ (f1^2 + f2^2) = ∫ f1^2 + ∫ f2^2
+    -- We need the reverse orientation; flip with .symm
     simpa [μ, f1, f2, sqnormR2, pow_two, add_comm, add_left_comm, add_assoc] using this
   have hCD :
     (∫ x, (g1 x)^2 ∂μ) + (∫ x, (g2 x)^2 ∂μ)
