@@ -4,6 +4,7 @@ import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
 import Mathlib.MeasureTheory.Integral.SetIntegral
 import Mathlib.Tactic
 import Mathlib/Analysis/Calculus/Deriv.Basic
+import Mathlib/MeasureTheory/Function/Lp
 import rh.RS.SchurGlobalization
 import rh.Cert.KxiPPlus
 
@@ -566,19 +567,77 @@ theorem hPairVol_of_L2_holder
   -- Define restricted measure μ.
   set μ : Measure (ℝ × ℝ) := Measure.restrict σ Q
   -- Coordinate CS bounds
+  -- Coordinate L¹ bound by Hölder p=q=2: ∫ |f g| ≤ ‖f‖₂ ‖g‖₂
   have h1 :
       |∫ x, (∇U x).1 * (∇χVψ x).1 ∂μ|
         ≤ Real.sqrt (∫ x, ((∇U x).1)^2 ∂μ)
             * Real.sqrt (∫ x, ((∇χVψ x).1)^2 ∂μ) := by
-    -- Hölder at p=q=2 for real-valued functions (standard inequality)
-    exact Real.abs_integral_mul_le_L2_norm (μ := μ)
-      (f := fun x => (∇U x).1) (g := fun x => (∇χVψ x).1)
+    have hL1 :
+        (∫ x, |(∇U x).1 * (∇χVψ x).1| ∂μ)
+          ≤ snorm (fun x => (∇U x).1) (2 : ℝ≥0∞) μ
+              * snorm (fun x => (∇χVψ x).1) (2 : ℝ≥0∞) μ := by
+      simpa using
+        (snorm_mul_le
+          (f := fun x => (∇U x).1) (g := fun x => (∇χVψ x).1)
+          (μ := μ) (hpq := by simp) (hpm := by simp) (hqm := by simp))
+    have habs :
+        |∫ x, (∇U x).1 * (∇χVψ x).1 ∂μ|
+          ≤ (∫ x, |(∇U x).1 * (∇χVψ x).1| ∂μ) :=
+      by simpa using (abs_integral_le_integral_abs (μ := μ)
+        (f := fun x => (∇U x).1 * (∇χVψ x).1))
+    have hsn1 : snorm (fun x => (∇U x).1) (2 : ℝ≥0∞) μ
+        = Real.sqrt (∫ x, ((∇U x).1)^2 ∂μ) := by
+      simpa [snorm, Real.rpow_two, one_div, inv_two, ENNReal.toReal_ofReal, sq_abs]
+        using (snorm_congr_ae (μ := μ)
+          (f := fun x => (∇U x).1) (g := fun x => (∇U x).1)
+          (by simp))
+    have hsn2 : snorm (fun x => (∇χVψ x).1) (2 : ℝ≥0∞) μ
+        = Real.sqrt (∫ x, ((∇χVψ x).1)^2 ∂μ) := by
+      simpa [snorm, Real.rpow_two, one_div, inv_two, ENNReal.toReal_ofReal, sq_abs]
+        using (snorm_congr_ae (μ := μ)
+          (f := fun x => (∇χVψ x).1) (g := fun x => (∇χVψ x).1)
+          (by simp))
+    have :=
+      calc
+        |∫ x, (∇U x).1 * (∇χVψ x).1 ∂μ|
+            ≤ (∫ x, |(∇U x).1 * (∇χVψ x).1| ∂μ) := habs
+        _ ≤ snorm (fun x => (∇U x).1) 2 μ * snorm (fun x => (∇χVψ x).1) 2 μ := hL1
+    simpa [hsn1, hsn2] using this
   have h2 :
       |∫ x, (∇U x).2 * (∇χVψ x).2 ∂μ|
         ≤ Real.sqrt (∫ x, ((∇U x).2)^2 ∂μ)
             * Real.sqrt (∫ x, ((∇χVψ x).2)^2 ∂μ) := by
-    exact Real.abs_integral_mul_le_L2_norm (μ := μ)
-      (f := fun x => (∇U x).2) (g := fun x => (∇χVψ x).2)
+    have hL1 :
+        (∫ x, |(∇U x).2 * (∇χVψ x).2| ∂μ)
+          ≤ snorm (fun x => (∇U x).2) (2 : ℝ≥0∞) μ
+              * snorm (fun x => (∇χVψ x).2) (2 : ℝ≥0∞) μ := by
+      simpa using
+        (snorm_mul_le
+          (f := fun x => (∇U x).2) (g := fun x => (∇χVψ x).2)
+          (μ := μ) (hpq := by simp) (hpm := by simp) (hqm := by simp))
+    have habs :
+        |∫ x, (∇U x).2 * (∇χVψ x).2 ∂μ|
+          ≤ (∫ x, |(∇U x).2 * (∇χVψ x).2| ∂μ) :=
+      by simpa using (abs_integral_le_integral_abs (μ := μ)
+        (f := fun x => (∇U x).2 * (∇χVψ x).2))
+    have hsn1 : snorm (fun x => (∇U x).2) (2 : ℝ≥0∞) μ
+        = Real.sqrt (∫ x, ((∇U x).2)^2 ∂μ) := by
+      simpa [snorm, Real.rpow_two, one_div, inv_two, ENNReal.toReal_ofReal, sq_abs]
+        using (snorm_congr_ae (μ := μ)
+          (f := fun x => (∇U x).2) (g := fun x => (∇U x).2)
+          (by simp))
+    have hsn2 : snorm (fun x => (∇χVψ x).2) (2 : ℝ≥0∞) μ
+        = Real.sqrt (∫ x, ((∇χVψ x).2)^2 ∂μ) := by
+      simpa [snorm, Real.rpow_two, one_div, inv_two, ENNReal.toReal_ofReal, sq_abs]
+        using (snorm_congr_ae (μ := μ)
+          (f := fun x => (∇χVψ x).2) (g := fun x => (∇χVψ x).2)
+          (by simp))
+    have :=
+      calc
+        |∫ x, (∇U x).2 * (∇χVψ x).2 ∂μ|
+            ≤ (∫ x, |(∇U x).2 * (∇χVψ x).2| ∂μ) := habs
+        _ ≤ snorm (fun x => (∇U x).2) 2 μ * snorm (fun x => (∇χVψ x).2) 2 μ := hL1
+    simpa [hsn1, hsn2] using this
   -- Split pairing into coordinates under σ|_Q
   have hsplit :
       (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
