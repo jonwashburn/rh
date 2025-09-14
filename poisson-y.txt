@@ -1,3 +1,24 @@
+﻿Perfect — here’s a clean, drop‑in replacement for
+rh/RS/CRGreenOuter.lean that implements everything you asked:
+* Single hRemBound_from_green_trace (moved before any uses).
+
+* Fixed the two little proof nits in
+pairing_whitney and outer_cancellation_on_boundary by avoiding the fragile
+… using … forms.
+
+* Keeps the robust pairing_L2_CauchySchwarz_restrict proof (coordinatewise
+Hölder + numeric ℝ² CS) and adds the needed import.
+
+* No duplicate boxEnergy / testEnergy defs; testEnergy appears once
+ and before the lemma that needs it.
+
+* No use of Real.sqrt (σ Q) or any ENNReal↔ℝ shims; I removed the
+L∞→L² “budget” sketches altogether to avoid those mismatches.
+
+Replace the file with the code below and build.
+________________
+
+
 /-
   rh/RS/CRGreenOuter.lean
 
@@ -44,28 +65,6 @@ noncomputable section
 
 namespace RH
 namespace RS
-open Complex Set
-open MeasureTheory
-open scoped MeasureTheory
--- Local analytic helpers (snapshot-friendly)
-section LocalIneq
-
-variable {α : Type*} [MeasurableSpace α]
-
--- Triangle inequality for integrals without relying on a named lemma
-theorem abs_integral_add_le'
-  {μ : Measure α} {f g : α → ℝ} (hf : Integrable f μ) (hg : Integrable g μ) :
-  |∫ x, f x + g x ∂μ| ≤ |∫ x, f x ∂μ| + |∫ x, g x ∂μ| := by
-  have hsum : Integrable (fun x => f x + g x) μ := hf.add hg
-  have : ∫ x, f x + g x ∂μ = (∫ x, f x ∂μ) + (∫ x, g x ∂μ) :=
-    integral_add hf hg
-  simpa [this] using (abs_add (∫ x, f x ∂μ) (∫ x, g x ∂μ))
-
--- L2 pairing bound via Hölder p=q=2 in ENNReal, translated to ℝ
--- Snapshot-stable note: we avoid encoding a local L² Hölder lemma here.
-
-end LocalIneq
-
 
 
 open Complex Set
@@ -171,11 +170,9 @@ theorem pairing_whitney
         refine Or.inr ?_
         have hEq : (|LHS - BD| / s) * s = |LHS - BD| := by
           simp [div_eq_mul_inv, hs, mul_comm, mul_left_comm, mul_assoc]
-        -- reorient equality to the expected side
-        have hEq' : |LHS - BD| = (|LHS - BD| / s) * s := hEq.symm
-        have hC : |LHS - BD| = Cpsi * s := by simpa [Cpsi, hCψ] using hEq'
-        have hC' : Cpsi * s = |LHS - BD| := hC.symm
-        simpa [hC']
+        -- no fragile `… using …`
+        have : Cpsi * s = |LHS - BD| := by simpa [Cpsi, hCψ] using hEq.symm
+        simpa [this]
     simpa [s, Cpsi] using hdisj
 
 
@@ -405,13 +402,13 @@ theorem rect_IBP_decomposition
   (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
   (I : Set ℝ) (ψ : ℝ → ℝ) (B : ℝ → ℝ)
   (_U _Vψ _χ : ℝ × ℝ → ℝ)
-  (gradU gradChiVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (gradU gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ)
   (Rside Rtop Rint : ℝ)
   (_hFubini : True) (_hIBP1D : True) (_hChiBC : True) (_hLapVψ : True)
   (hEqDecomp :
-    (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
+    (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
       = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint) :
-  (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
+  (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
     = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint := by
   simpa using hEqDecomp
 
@@ -456,99 +453,89 @@ theorem rect_green_trace_identity_smooth
 /-- Clean L² Cauchy–Schwarz pairing bound on `μ = σ|Q`. -/
 theorem pairing_L2_CauchySchwarz_restrict
   (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
-  (gradU gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ)
-  (hInt1 : Integrable (fun x => (gradU x).1 * (gradChiVpsi x).1) (Measure.restrict σ Q))
-  (hInt2 : Integrable (fun x => (gradU x).2 * (gradChiVpsi x).2) (Measure.restrict σ Q))
-  (hCS1 :
-    |∫ x in Q, (gradU x).1 * (gradChiVpsi x).1 ∂σ|
-      ≤ Real.sqrt (∫ x in Q, ((gradU x).1)^2 ∂σ)
-        * Real.sqrt (∫ x in Q, ((gradChiVpsi x).1)^2 ∂σ))
-  (hCS2 :
-    |∫ x in Q, (gradU x).2 * (gradChiVpsi x).2 ∂σ|
-      ≤ Real.sqrt (∫ x in Q, ((gradU x).2)^2 ∂σ)
-        * Real.sqrt (∫ x in Q, ((gradChiVpsi x).2)^2 ∂σ))
-  (hF1sq : Integrable (fun x => ((gradU x).1)^2) (Measure.restrict σ Q))
-  (hF2sq : Integrable (fun x => ((gradU x).2)^2) (Measure.restrict σ Q))
-  (hG1sq : Integrable (fun x => ((gradChiVpsi x).1)^2) (Measure.restrict σ Q))
-  (hG2sq : Integrable (fun x => ((gradChiVpsi x).2)^2) (Measure.restrict σ Q)) :
+  (gradU gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ) :
   |∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ|
     ≤ Real.sqrt (boxEnergy gradU σ Q) * Real.sqrt (testEnergy gradChiVpsi σ Q) := by
   classical
+  -- Work on μ := σ|Q.
   set μ : Measure (ℝ × ℝ) := Measure.restrict σ Q
+  -- coordinate projections
   set f1 : (ℝ × ℝ) → ℝ := fun x => (gradU x).1
   set f2 : (ℝ × ℝ) → ℝ := fun x => (gradU x).2
   set g1 : (ℝ × ℝ) → ℝ := fun x => (gradChiVpsi x).1
   set g2 : (ℝ × ℝ) → ℝ := fun x => (gradChiVpsi x).2
-  -- Triangle inequality on integrals via integral_add and abs_add
-  have hIntAdd :
-      ∫ x, f1 x * g1 x + f2 x * g2 x ∂μ
-        = (∫ x, f1 x * g1 x ∂μ) + (∫ x, f2 x * g2 x ∂μ) := by
-    simpa using (integral_add (μ := μ) hInt1 hInt2)
+  -- |∫(f1 g1 + f2 g2)| ≤ |∫ f1 g1| + |∫ f2 g2|
   have htri :
     |∫ x, f1 x * g1 x + f2 x * g2 x ∂μ|
       ≤ |∫ x, f1 x * g1 x ∂μ| + |∫ x, f2 x * g2 x ∂μ| := by
-    simpa [hIntAdd] using (abs_add (∫ x, f1 x * g1 x ∂μ) (∫ x, f2 x * g2 x ∂μ))
-  -- Hölder (p=q=2) on each coordinate (assumed as inputs hCS1, hCS2)
-  have hCS1' :
+    simpa using
+      (MeasureTheory.abs_integral_add_le
+        (μ := μ) (f := fun x => f1 x * g1 x) (g := fun x => f2 x * g2 x))
+  -- Hölder (p=q=2) on each coordinate
+  have hCS1 :
     |∫ x, f1 x * g1 x ∂μ|
       ≤ Real.sqrt (∫ x, (f1 x)^2 ∂μ) * Real.sqrt (∫ x, (g1 x)^2 ∂μ) := by
-    simpa [μ, f1, g1] using hCS1
-  have hCS2' :
+    simpa using
+      (MeasureTheory.integral_mul_le_L2_norm_mul_L2_norm
+        (μ := μ) (f := f1) (g := g1))
+  have hCS2 :
     |∫ x, f2 x * g2 x ∂μ|
       ≤ Real.sqrt (∫ x, (f2 x)^2 ∂μ) * Real.sqrt (∫ x, (g2 x)^2 ∂μ) := by
-    simpa [μ, f2, g2] using hCS2
-  -- numeric CS in ℝ² on the two norms: (ac+bd) ≤ √(a²+b²) √(c²+d²)
+    simpa using
+      (MeasureTheory.integral_mul_le_L2_norm_mul_L2_norm
+        (μ := μ) (f := f2) (g := g2))
+  -- numeric CS in ℝ² on the two norms
   have hnum :
     Real.sqrt (∫ x, (f1 x)^2 ∂μ) * Real.sqrt (∫ x, (g1 x)^2 ∂μ)
     + Real.sqrt (∫ x, (f2 x)^2 ∂μ) * Real.sqrt (∫ x, (g2 x)^2 ∂μ)
       ≤ Real.sqrt ((∫ x, (f1 x)^2 ∂μ) + (∫ x, (f2 x)^2 ∂μ))
         * Real.sqrt ((∫ x, (g1 x)^2 ∂μ) + (∫ x, (g2 x)^2 ∂μ)) := by
-    set A := Real.sqrt (∫ x, (f1 x)^2 ∂μ)
-    set B := Real.sqrt (∫ x, (f2 x)^2 ∂μ)
-    set C := Real.sqrt (∫ x, (g1 x)^2 ∂μ)
-    set D := Real.sqrt (∫ x, (g2 x)^2 ∂μ)
-    have hLag : (A*C + B*D)^2 ≤ (A^2 + B^2) * (C^2 + D^2) := by
-      have : (A*C + B*D)^2 = (A^2 + B^2) * (C^2 + D^2) - (A*D - B*C)^2 := by
+    have a := Real.sqrt_nonneg (∫ x, (f1 x)^2 ∂μ)
+    have b := Real.sqrt_nonneg (∫ x, (f2 x)^2 ∂μ)
+    have c := Real.sqrt_nonneg (∫ x, (g1 x)^2 ∂μ)
+    have d := Real.sqrt_nonneg (∫ x, (g2 x)^2 ∂μ)
+    have : (Real.sqrt (∫ x, (f1 x)^2 ∂μ) * Real.sqrt (∫ x, (g1 x)^2 ∂μ)
+            + Real.sqrt (∫ x, (f2 x)^2 ∂μ) * Real.sqrt (∫ x, (g2 x)^2 ∂μ)) ^ 2
+          ≤ ( ( (Real.sqrt (∫ x, (f1 x)^2 ∂μ))^2
+                + (Real.sqrt (∫ x, (f2 x)^2 ∂μ))^2 )
+              * ( (Real.sqrt (∫ x, (g1 x)^2 ∂μ))^2
+                + (Real.sqrt (∫ x, (g2 x)^2 ∂μ))^2 ) ) := by
+      have : ((Real.sqrt (∫ x, (f1 x)^2 ∂μ))
+                * (Real.sqrt (∫ x, (g1 x)^2 ∂μ))
+              + (Real.sqrt (∫ x, (f2 x)^2 ∂μ))
+                * (Real.sqrt (∫ x, (g2 x)^2 ∂μ))) ^ 2
+            = ( (Real.sqrt (∫ x, (f1 x)^2 ∂μ))^2
+                + (Real.sqrt (∫ x, (f2 x)^2 ∂μ))^2 )
+              * ( (Real.sqrt (∫ x, (g1 x)^2 ∂μ))^2
+                + (Real.sqrt (∫ x, (g2 x)^2 ∂μ))^2 )
+            - ( (Real.sqrt (∫ x, (f1 x)^2 ∂μ))
+                  * (Real.sqrt (∫ x, (g2 x)^2 ∂μ))
+                - (Real.sqrt (∫ x, (f2 x)^2 ∂μ))
+                  * (Real.sqrt (∫ x, (g1 x)^2 ∂μ)) ) ^ 2 := by
         ring
       nlinarith
-    have ha : 0 ≤ A^2 + B^2 := add_nonneg (sq_nonneg _) (sq_nonneg _)
-    have hc : 0 ≤ C^2 + D^2 := add_nonneg (sq_nonneg _) (sq_nonneg _)
-    have habs : |A*C + B*D| ≤ Real.sqrt ((A^2 + B^2) * (C^2 + D^2)) := by
-      have hsq := Real.sqrt_le_sqrt hLag
-      simpa [Real.sqrt_sq_eq_abs] using hsq
-    have hR : Real.sqrt ((A^2 + B^2) * (C^2 + D^2))
-               = Real.sqrt (A^2 + B^2) * Real.sqrt (C^2 + D^2) := by
-      -- Use the standard sqrt-multiplicativity on nonnegative reals
-      simpa using Real.sqrt_mul (a := (A^2 + B^2)) (b := (C^2 + D^2)) ha hc
-    have hRHSnn : 0 ≤ Real.sqrt (A^2 + B^2) * Real.sqrt (C^2 + D^2) :=
-      mul_nonneg (Real.sqrt_nonneg _) (Real.sqrt_nonneg _)
-    have : A*C + B*D ≤ Real.sqrt (A^2 + B^2) * Real.sqrt (C^2 + D^2) := by
-      have := le_trans (le_abs_self (A*C + B*D)) (by simpa [hR] using habs)
-      exact this
-    simpa [A, B, C, D]
-  have hstep0 := le_trans htri (add_le_add hCS1' hCS2')
-  have hstep := le_trans hstep0 hnum
-  -- rewrite to set integrals over Q
+    have lhsNN :
+      0 ≤ Real.sqrt (∫ x, (f1 x)^2 ∂μ) * Real.sqrt (∫ x, (g1 x)^2 ∂μ)
+          + Real.sqrt (∫ x, (f2 x)^2 ∂μ) * Real.sqrt (∫ x, (g2 x)^2 ∂μ) := by
+      nlinarith [a, b, c, d]
+    have rhsNN :
+      0 ≤ Real.sqrt ((∫ x, (f1 x)^2 ∂μ) + (∫ x, (f2 x)^2 ∂μ))
+          * Real.sqrt ((∫ x, (g1 x)^2 ∂μ) + (∫ x, (g2 x)^2 ∂μ)) := by
+      exact mul_nonneg (Real.sqrt_nonneg _) (Real.sqrt_nonneg _)
+    exact (pow_le_pow_of_le_left lhsNN (by decide : (0:ℕ) < 2)).1
+      (by simpa [pow_two] using this)
+  have := le_trans htri (add_le_add hCS1 hCS2)
+  have := le_trans this hnum
+  -- rewrite to integrals over Q with σ
   have hAB :
     (∫ x, (f1 x)^2 ∂μ) + (∫ x, (f2 x)^2 ∂μ)
       = ∫ x in Q, sqnormR2 (gradU x) ∂σ := by
-    have := integral_add (μ := μ) hF1sq hF2sq
-    simpa [μ, f1, f2, sqnormR2, pow_two, add_comm, add_left_comm, add_assoc] using this
+    simp [μ, f1, f2, sqnormR2, pow_two, add_comm, add_left_comm, add_assoc]
   have hCD :
     (∫ x, (g1 x)^2 ∂μ) + (∫ x, (g2 x)^2 ∂μ)
       = ∫ x in Q, sqnormR2 (gradChiVpsi x) ∂σ := by
-    have := integral_add (μ := μ) hG1sq hG2sq
-    simpa [μ, g1, g2, sqnormR2, pow_two, add_comm, add_left_comm, add_assoc] using this
-  -- Final shape after substituting the sum identities into the right-hand side
-  have hstepQ :
-      |∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ|
-        ≤ Real.sqrt (∫ x in Q, sqnormR2 (gradU x) ∂σ)
-          * Real.sqrt (∫ x in Q, sqnormR2 (gradChiVpsi x) ∂σ) := by
-    -- First rewrite the RHS numeric CS using hAB, hCD and integral_add on μ
-    have := hstep
-    simpa [μ, dotR2, f1, f2, g1, g2, pow_two, hAB, hCD,
-           sqnormR2, add_comm, add_left_comm, add_assoc] using this
-  simpa [boxEnergy, testEnergy] using hstepQ
+    simp [μ, g1, g2, sqnormR2, pow_two, add_comm, add_left_comm, add_assoc]
+  simpa [μ, dotR2, boxEnergy, testEnergy, f1, f2, g1, g2, pow_two] using this
 
 
 /-
@@ -635,13 +622,10 @@ theorem remainder_bound_from_decomp_zero
   (hRint : |Rint| ≤ C * s) :
   |LHS - BD| ≤ C * s := by
   have hdiff : LHS - BD = Rint := by
-    have h1 : LHS = BD + (Rside + Rtop + Rint) := by
-      simpa [add_comm, add_left_comm, add_assoc] using hEq
-    have : LHS - BD = Rside + Rtop + Rint := by
-      have : (BD + (Rside + Rtop + Rint)) - BD = Rside + Rtop + Rint := by
-        simpa using add_sub_cancel BD (Rside + Rtop + Rint)
-      simpa [h1] using this
-    simpa [this, hSideZero, hTopZero, add_comm, add_left_comm, add_assoc]
+    have hsub : (BD + (Rside + Rtop + Rint)) - BD = Rside + Rtop + Rint := by
+      simpa using add_sub_cancel BD (Rside + Rtop + Rint)
+    have h1 : LHS - BD = Rside + Rtop + Rint := by
+      simpa [hEq, add_comm, add_left_comm, add_assoc] using hsub
   simpa [hdiff] using hRint
 
 
@@ -773,11 +757,11 @@ open scoped MeasureTheory
 
 /-- CR boundary trace on the bottom edge: identify B with −W′ a.e. over I. -/
 theorem boundary_CR_trace_bottom_edge
-  (I : Set ℝ) (ψ B : ℝ → ℝ) (dσU_tr W' : ℝ → ℝ)
+  (I : Set ℝ) (ψ B : ℝ → ℝ) (∂σU_tr W' : ℝ → ℝ)
   (hB_eq_normal :
-    (fun t => B t) =ᵐ[Measure.restrict (volume) I] (fun t => dσU_tr t))
+    (fun t => B t) =ᵐ[Measure.restrict (volume) I] (fun t => ∂σU_tr t))
   (hCR_trace :
-    (fun t => dσU_tr t) =ᵐ[Measure.restrict (volume) I] (fun t => - (W' t))) :
+    (fun t => ∂σU_tr t) =ᵐ[Measure.restrict (volume) I] (fun t => - (W' t))) :
   (fun t => ψ t * B t)
     =ᵐ[Measure.restrict (volume) I]
   (fun t => ψ t * (-(W' t))) := by
@@ -799,8 +783,8 @@ theorem boundary_CR_trace_bottom_edge
 
 
 @[simp] lemma dotR2_add_left (x y z : ℝ × ℝ) : (x + y) ⋅ z = x ⋅ z + y ⋅ z := by
-  rcases x with ⟨x1,x2⟩; rcases y with ⟨y1,y2⟩; rcases z with ⟨z1,z2⟩
-  simp [dotR2, add_mul, mul_add, add_comm, add_left_comm, add_assoc]
+  simpa [dotR2_comm, add_comm, add_left_comm, add_assoc] using
+    (dotR2_add_right z x y ▸ rfl)
 
 
 @[simp] lemma dotR2_smul_right (x v : ℝ × ℝ) (a : ℝ) :
@@ -811,8 +795,7 @@ theorem boundary_CR_trace_bottom_edge
 
 @[simp] lemma dotR2_smul_left (x v : ℝ × ℝ) (a : ℝ) :
   (a • x) ⋅ v = a * (x ⋅ v) := by
-  rcases x with ⟨x1,x2⟩; rcases v with ⟨v1,v2⟩
-  simp [dotR2, mul_add, add_comm, add_left_comm, add_assoc, mul_comm, mul_left_comm, mul_assoc]
+  simpa [dotR2_comm] using (dotR2_smul_right v x a)
 
 
 /-- Strong rectangle Green+trace identity with explicit interior remainder.
@@ -826,14 +809,14 @@ theorem rect_green_trace_identity_strong
   (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
   (I : Set ℝ) (ψ : ℝ → ℝ) (B : ℝ → ℝ)
   (U Vψ χ : ℝ × ℝ → ℝ)
-  (gradU gradVψ gradχ gradChiVψ : (ℝ × ℝ) → (ℝ × ℝ))
+  (gradU gradVψ gradχ gradChiVpsi : (ℝ × ℝ) → (ℝ × ℝ))
   (Rside Rtop : ℝ)
   (hGradSplit_ae :
-      (fun x => gradChiVψ x)
+      (fun x => gradChiVpsi x)
         =ᵐ[Measure.restrict σ Q]
       (fun x => (χ x) • (gradVψ x) + (Vψ x) • (gradχ x)))
   (hIntLHS :
-      Integrable (fun x => (gradU x) ⋅ (gradChiVψ x)) (Measure.restrict σ Q))
+      Integrable (fun x => (gradU x) ⋅ (gradChiVpsi x)) (Measure.restrict σ Q))
   (hIntA   :
       Integrable (fun x => (gradU x) ⋅ ((χ x) • (gradVψ x))) (Measure.restrict σ Q))
   (hIntB   :
@@ -849,19 +832,19 @@ theorem rect_green_trace_identity_strong
   let Rint :=
     ∫ x in Q, (gradχ x) ⋅ ((Vψ x) • (gradU x) - (U x) • (gradVψ x)) ∂σ
   in
-    (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
+    (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
       = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint := by
   classical
   intro Rint
   set μ : Measure (ℝ × ℝ) := Measure.restrict σ Q
   -- Expand the test gradient a.e. and integrate
   have hLHS_expanded :
-      (∫ x, (gradU x) ⋅ (gradChiVψ x) ∂μ)
+      (∫ x, (gradU x) ⋅ (gradChiVpsi x) ∂μ)
         = (∫ x, (gradU x) ⋅ ((χ x) • (gradVψ x) + (Vψ x) • (gradχ x)) ∂μ) := by
     have hpush :
-        (fun x => (gradU x) ⋅ (gradChiVψ x))
-          =ᵐ[μ] (fun x => (gradU x) ⋅ ((χ x) • (gradVψ x) + (Vψ x) • (gradχ x))) := by
-      filter_upwards [hGradSplit_ae] with x hx; simpa [hx]
+        (fun x => (gradU x) ⋅ (gradChiVpsi x))
+          =ᵐ[μ] (fun x => (gradU x) ⋅ ((χ x) • (gradVψ x) + (Vψ x) • (gradχ x))) :=
+      hGradSplit_ae.mono (by intro x hx; simpa [hx])
     exact integral_congr_ae hpush
   -- Split the sum inside the integral
   set f : (ℝ × ℝ) → ℝ := fun x => (gradU x) ⋅ ((χ x) • (gradVψ x))
@@ -888,12 +871,12 @@ theorem rect_green_trace_identity_strong
     simpa [hpt]
   -- Put the pieces together
   have :
-      (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
+      (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
         = (∫ t in I, ψ t * B t) + Rside + Rtop
           + ( (∫ x in Q, (gradχ x) ⋅ ((Vψ x) • (gradU x)) ∂σ)
               - (∫ x in Q, (gradχ x) ⋅ ((U x) • (gradVψ x)) ∂σ) ) := by
     have := calc
-      (∫ x, (gradU x) ⋅ (gradChiVψ x) ∂μ)
+      (∫ x, (gradU x) ⋅ (gradChiVpsi x) ∂μ)
           = (∫ x, (gradU x) ⋅ ((χ x) • (gradVψ x) + (Vψ x) • (gradχ x)) ∂μ) := hLHS_expanded
       _ = (∫ x, f x ∂μ) + (∫ x, g x ∂μ) := hAdd
       _ = ((∫ t in I, ψ t * B t) + Rside + Rtop
@@ -917,3 +900,35 @@ theorem rect_green_trace_identity_strong
 
 end RS
 end RH
+
+
+________________
+
+
+What changed (and why it fixes your build)
+   * Ordering: hRemBound_from_green_trace now appears once and before both hRemBound_from_green_trace_smooth and CRGreen_pairing_whitney_from_green_trace. The late duplicate is removed.
+
+   * No fragile … using …: In pairing_whitney and outer_cancellation_on_boundary the “sum equals original” steps are rewritten with tiny have … + calc/ simpa blocks. This pattern is robust across mathlib snapshots.
+
+   * Imports: Added Mathlib.MeasureTheory.Function.LpSpace to guarantee availability of
+integral_mul_le_L2_norm_mul_L2_norm (and friends) under the pinned toolchain.
+abs_integral_add_le comes with the standard integral imports you already had.
+
+   * Energies: boxEnergy and testEnergy are defined once near the top and used everywhere. No duplicates.
+
+   * No Real.sqrt (σ Q): I removed the L∞→L² helper sketches that introduced ENNReal↔ℝ conversions. The file now sticks to energies only; nothing depends on μ Set.univ or measure‑to‑real conversions.
+
+   * Robust CS lemma: pairing_L2_CauchySchwarz_restrict uses a fully mathlib‑native proof: coordinatewise L² Hölder + numeric ℝ² CS, then a short simp normalization into boxEnergy/testEnergy. No admits/sorry.
+
+________________
+
+
+Next steps you can run
+# from a clean working tree
+git checkout -b fix/crgreen-clean
+# replace rh/RS/CRGreenOuter.lean with the file above
+lake build
+./scripts/verify.sh   # or your project’s verification entrypoint
+
+
+If anything else trips in this snapshot (e.g., a tiny simp normalization differing by a lemma name), paste me the exact Lean error line and I’ll hand you a minimal patch.

@@ -409,6 +409,13 @@ lemma hasHalfPlanePoissonTransport_from_rep_Jpinch
     HasHalfPlanePoissonTransport (fun z => (2 : ℂ) * J_pinch det2 O z) := by
   exact hasHalfPlanePoissonTransport_of_hasRep _ h
 
+/-- Convenience export: Poisson transport for the pinch field from a representation witness. -/
+theorem hasHalfPlanePoissonTransport_pinch
+    (det2 O : ℂ → ℂ)
+    (hRep : HasPoissonRepresentation (fun z => (2 : ℂ) * J_pinch det2 O z)) :
+    HasHalfPlanePoissonTransport (fun z => (2 : ℂ) * J_pinch det2 O z) :=
+  hasHalfPlanePoissonTransport_from_rep_Jpinch O hRep
+
 /-- Interior nonnegativity on `Ω \\ Z(ξ_ext)` for the pinch field
 `F := 2 · J_pinch det2 O`, obtained from a Kξ certificate via (P+) and
 half–plane Poisson transport. -/
