@@ -548,5 +548,115 @@ theorem boundary_CR_trace_ae
     exact integral_congr_ae h_ae
   simpa [this, integral_neg, mul_comm, mul_left_comm, mul_assoc]
 
-end RS
-end RH
+/-- L² Hölder (Cauchy–Schwarz) on the restricted measure μ := σ|_Q.
+
+It provides the volume/test bound input `hPairVol` for `CRGreen_link`
+with the constant `Cψ_pair := √(testEnergy ∇χVψ σ Q)`.
+-/
+theorem hPairVol_of_L2_holder
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (∇U ∇χVψ : (ℝ × ℝ) → ℝ × ℝ)
+  :
+  |∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ|
+    ≤ (Real.sqrt (testEnergy ∇χVψ σ Q)) * Real.sqrt (boxEnergy ∇U σ Q) := by
+  classical
+  -- Use the coordinate split and L² CS for each coordinate, then compress in ℝ²
+  -- as in the decomposition described; finish by identifying the energies.
+  -- We reuse the algebraic argument within this file.
+  -- Define restricted measure μ.
+  set μ : Measure (ℝ × ℝ) := Measure.restrict σ Q
+  -- Coordinate CS bounds
+  have h1 :
+      |∫ x, (∇U x).1 * (∇χVψ x).1 ∂μ|
+        ≤ Real.sqrt (∫ x, ((∇U x).1)^2 ∂μ)
+            * Real.sqrt (∫ x, ((∇χVψ x).1)^2 ∂μ) := by
+    -- Hölder at p=q=2 for real-valued functions (standard inequality)
+    exact Real.abs_integral_mul_le_L2_norm (μ := μ)
+      (f := fun x => (∇U x).1) (g := fun x => (∇χVψ x).1)
+  have h2 :
+      |∫ x, (∇U x).2 * (∇χVψ x).2 ∂μ|
+        ≤ Real.sqrt (∫ x, ((∇U x).2)^2 ∂μ)
+            * Real.sqrt (∫ x, ((∇χVψ x).2)^2 ∂μ) := by
+    exact Real.abs_integral_mul_le_L2_norm (μ := μ)
+      (f := fun x => (∇U x).2) (g := fun x => (∇χVψ x).2)
+  -- Split pairing into coordinates under σ|_Q
+  have hsplit :
+      (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+        = (∫ x, (∇U x).1 * (∇χVψ x).1 ∂μ)
+            + (∫ x, (∇U x).2 * (∇χVψ x).2 ∂μ) := by
+    have := integral_add
+      (μ := μ)
+      (f := fun x => (∇U x).1 * (∇χVψ x).1)
+      (g := fun x => (∇U x).2 * (∇χVψ x).2)
+    simpa [μ, dotR2, integral_add, Set.indicator, Measure.restrict_apply, inter_univ]
+      using this
+  -- Triangle inequality plus the two CS bounds
+  have htri :
+      |(∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)|
+        ≤ |∫ x, (∇U x).1 * (∇χVψ x).1 ∂μ|
+          + |∫ x, (∇U x).2 * (∇χVψ x).2 ∂μ| := by
+    simpa [hsplit] using abs_add
+      (∫ x, (∇U x).1 * (∇χVψ x).1 ∂μ)
+      (∫ x, (∇U x).2 * (∇χVψ x).2 ∂μ)
+  -- Define the four L² norms
+  set a := Real.sqrt (∫ x, ((∇U x).1)^2 ∂μ)
+  set b := Real.sqrt (∫ x, ((∇U x).2)^2 ∂μ)
+  set c := Real.sqrt (∫ x, ((∇χVψ x).1)^2 ∂μ)
+  set d := Real.sqrt (∫ x, ((∇χVψ x).2)^2 ∂μ)
+  have hsum : |(∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)| ≤ a * c + b * d :=
+    le_trans htri (add_le_add h1 h2)
+  -- CS in ℝ²
+  have hcs2 : a * c + b * d ≤ Real.sqrt (a^2 + b^2) * Real.sqrt (c^2 + d^2) := by
+    have : |a * c + b * d| ≤ Real.sqrt (a^2 + b^2) * Real.sqrt (c^2 + d^2) := by
+      simpa using (abs_real_inner_le_norm (x := (a, b)) (y := (c, d)))
+    have hnonneg : 0 ≤ a * c + b * d := by
+      have ha := Real.sqrt_nonneg _; have hb := Real.sqrt_nonneg _
+      have hc := Real.sqrt_nonneg _; have hd := Real.sqrt_nonneg _
+      simpa using add_nonneg (mul_nonneg ha hc) (mul_nonneg hb hd)
+    simpa [abs_of_nonneg hnonneg]
+      using this
+  -- Identify energies
+  have ha2 : Real.sqrt (a^2 + b^2) = Real.sqrt (∫ x, sqnormR2 (∇U x) ∂μ) := by
+    -- identical expansion as used above in this file
+    have ha' : a^2 = ∫ x, ((∇U x).1)^2 ∂μ := by
+      have : 0 ≤ ∫ x, ((∇U x).1)^2 ∂μ :=
+        integral_nonneg (by intro x; simpa using sq_nonneg _)
+      simpa [a, Real.sq, this, Real.mul_self_sqrt]
+    have hb' : b^2 = ∫ x, ((∇U x).2)^2 ∂μ := by
+      have : 0 ≤ ∫ x, ((∇U x).2)^2 ∂μ :=
+        integral_nonneg (by intro x; simpa using sq_nonneg _)
+      simpa [b, Real.sq, this, Real.mul_self_sqrt]
+    have : (∫ x, ((∇U x).1)^2 ∂μ) + (∫ x, ((∇U x).2)^2 ∂μ)
+            = ∫ x, (((∇U x).1)^2 + ((∇U x).2)^2) ∂μ := by
+      have h₁ := integral_add (μ := μ)
+        (f := fun x => ((∇U x).1)^2) (g := fun x => ((∇U x).2)^2)
+      simpa [sqnormR2, integral_add] using h₁
+    have : a^2 + b^2 = ∫ x, sqnormR2 (∇U x) ∂μ := by
+      simpa [ha', hb', sqnormR2]
+        using this
+    simpa [this]
+  have hc2 : Real.sqrt (c^2 + d^2) = Real.sqrt (∫ x, sqnormR2 (∇χVψ x) ∂μ) := by
+    have hc' : c^2 = ∫ x, ((∇χVψ x).1)^2 ∂μ := by
+      have : 0 ≤ ∫ x, ((∇χVψ x).1)^2 ∂μ :=
+        integral_nonneg (by intro x; simpa using sq_nonneg _)
+      simpa [c, Real.sq, this, Real.mul_self_sqrt]
+    have hd' : d^2 = ∫ x, ((∇χVψ x).2)^2 ∂μ := by
+      have : 0 ≤ ∫ x, ((∇χVψ x).2)^2 ∂μ :=
+        integral_nonneg (by intro x; simpa using sq_nonneg _)
+      simpa [d, Real.sq, this, Real.mul_self_sqrt]
+    have : (∫ x, ((∇χVψ x).1)^2 ∂μ) + (∫ x, ((∇χVψ x).2)^2 ∂μ)
+            = ∫ x, (((∇χVψ x).1)^2 + ((∇χVψ x).2)^2) ∂μ := by
+      have h₁ := integral_add (μ := μ)
+        (f := fun x => ((∇χVψ x).1)^2) (g := fun x => ((∇χVψ x).2)^2)
+      simpa [sqnormR2, integral_add] using h₁
+    have : c^2 + d^2 = ∫ x, sqnormR2 (∇χVψ x) ∂μ := by
+      simpa [hc', hd', sqnormR2]
+        using this
+    simpa [this]
+  -- Conclude and rewrite back to set-integral form.
+  have : |(∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)|
+            ≤ Real.sqrt (∫ x, sqnormR2 (∇U x) ∂μ)
+                * Real.sqrt (∫ x, sqnormR2 (∇χVψ x) ∂μ) :=
+    le_trans hsum (by simpa [ha2, hc2] using hcs2)
+  simpa [μ, boxEnergy, testEnergy, Measure.restrict_apply, inter_univ]
+    using this
