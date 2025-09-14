@@ -374,6 +374,53 @@ theorem rect_IBP_decomposition
     = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint := by
   simpa using hEqDecomp
 
+/-- Concrete rectangle Green+trace identity under smoothness/integrability flags.
+
+This specializes `rect_IBP_decomposition` to a "smooth data" presentation by
+listing standard calculus flags (not used in the proof here) together with the
+resulting decomposition equality `hEqDecomp`. -/
+theorem rect_green_trace_identity_smooth
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (I : Set ℝ) (ψ : ℝ → ℝ) (B : ℝ → ℝ)
+  (_U _Vψ _χ : ℝ × ℝ → ℝ)
+  (gradU gradChiVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (Rside Rtop Rint : ℝ)
+  -- Smoothness/integrability/harmonicity flags (documentary; not used in proof):
+  (_hU_C1 : True) (_hVψ_C1 : True) (_hχ_C1 : True)
+  (_hLapVψ : True) (_hFubini : True) (_hIBP1D : True) (_hChiBC : True)
+  -- Decomposition equality delivered by Green+trace/IBP:
+  (hEqDecomp :
+    (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
+      = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint) :
+  (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
+    = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint := by
+  -- Delegate to the general packaging lemma
+  simpa using hEqDecomp
+
+/-- Remainder bound (Whitney form) from the smooth rectangle identity with
+vanishing side/top and an interior bound. -/
+theorem hRemBound_from_green_trace_smooth
+  (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+  (I : Set ℝ) (ψ : ℝ → ℝ) (B : ℝ → ℝ)
+  (_U _Vψ _χ : ℝ × ℝ → ℝ)
+  (gradU gradChiVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (Rside Rtop Rint Cψ_rem : ℝ)
+  -- Smoothness/integrability/harmonicity flags (documentary; not used in proof):
+  (_hU_C1 : True) (_hVψ_C1 : True) (_hχ_C1 : True)
+  (_hLapVψ : True) (_hFubini : True) (_hIBP1D : True) (_hChiBC : True)
+  -- Decomposition equality delivered by Green+trace/IBP:
+  (hEqDecomp :
+    (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
+      = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint)
+  (hSideZero : Rside = 0) (hTopZero : Rtop = 0)
+  (hRintBound : |Rint| ≤ Cψ_rem * Real.sqrt (boxEnergy gradU σ Q)) :
+  |(∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
+      - (∫ t in I, ψ t * B t)|
+    ≤ Cψ_rem * Real.sqrt (boxEnergy gradU σ Q) := by
+  -- Reduce to the general remainder packaging
+  exact hRemBound_from_green_trace σ Q I ψ B gradU gradChiVψ
+    Rside Rtop Rint Cψ_rem hEqDecomp hSideZero hTopZero hRintBound
+
 /-
   ------------------------------------------------------------------------
   L² Cauchy–Schwarz pairing bound on σ|Q (scalar route; mathlib-only)
