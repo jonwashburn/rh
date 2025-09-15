@@ -310,9 +310,8 @@ lemma poisson_plateau_c0 :
           ≥ ((1 / Real.pi) * b * ((1 : ℝ) / (2 * b ^ 2))) * (volume (Icc (x - b) (x + b))).toReal := by
       -- Pointwise lower bound on J and integrability imply a constant lower bound
       have hsJ : MeasurableSet (Icc (x - b) (x + b)) := isClosed_Icc.measurableSet
-      have hμJ : volume (Icc (x - b) (x + b)) ≠ ∞ := by
-        rw [Real.volume_Icc]
-        exact ENNReal.ofReal_ne_top
+      have hμJ : volume (Icc (x - b) (x + b)) ≠ ∞ :=
+        (Real.volume_Icc (x - b) (x + b)).symm ▸ ENNReal.ofReal_lt_top.ne
       have kcont : Continuous fun t : ℝ => poissonKernel b (x - t) := by
         have hden : Continuous fun t : ℝ => (x - t) ^ 2 + b ^ 2 :=
           Continuous.add ((continuous_const.sub continuous_id).pow 2) continuous_const
