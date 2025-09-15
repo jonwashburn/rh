@@ -310,7 +310,7 @@ lemma poisson_plateau_c0 :
           ≥ ((1 / Real.pi) * b * ((1 : ℝ) / (2 * b ^ 2))) * (volume (Icc (x - b) (x + b))).toReal := by
       -- Pointwise lower bound on J and integrability imply a constant lower bound
       have hsJ : MeasurableSet (Icc (x - b) (x + b)) := isClosed_Icc.measurableSet
-      have hμJ : volume (Icc (x - b) (x + b)) < ∞ := by
+      have hμJ : volume (Icc (x - b) (x + b)) < ⊤ := by
         simp only [Real.volume_Icc]
         exact ENNReal.coe_lt_top
       have kcont : Continuous fun t : ℝ => poissonKernel b (x - t) := by
@@ -329,7 +329,19 @@ lemma poisson_plateau_c0 :
         (kcont.integrableOn_Icc)
       have hpt : ∀ t ∈ Icc (x - b) (x + b),
           ((1 / Real.pi) * b * ((1 : ℝ) / (2 * b ^ 2))) ≤ poissonKernel b (x - t) := by
-        intro t ht; exact kernel_lb_on_J ht
+        intro t ht
+        have := kernel_lb_on_J ht
+        rw [ge_iff_le] at this
+        -- kernel_lb_on_J gives: poissonKernel b (x - t) ≥ 1 / (2 * Real.pi * b)
+        -- We need to show it's also ≥ (1 / Real.pi) * b * (1 / (2 * b ^ 2))
+        -- These are equal as shown in the hb' proof
+        have hb' : (1 / Real.pi) * b * ((1 : ℝ) / (2 * b ^ 2)) = (1 / (2 * Real.pi * b)) := by
+          have hbne : b ≠ 0 := ne_of_gt hb
+          have hpi : Real.pi ≠ 0 := Real.pi_ne_zero
+          field_simp [hbne, hpi, pow_two]
+          ring
+        rw [hb']
+        exact this
       have : ((1 / Real.pi) * b * ((1 : ℝ) / (2 * b ^ 2))) * (volume (Icc (x - b) (x + b))).toReal
             ≤ ∫ t in Icc (x - b) (x + b), poissonKernel b (x - t) ∂(volume) := by
         -- use setIntegral_ge_of_const_le
@@ -346,10 +358,11 @@ lemma poisson_plateau_c0 :
         simpa [sub_eq_add_neg] using
           (Real.volume_Icc : volume (Icc (x - b) (x + b)) = ENNReal.ofReal ((x + b) - (x - b)))
       have hnn : 0 ≤ ((x + b) - (x - b)) := by
-        have : (2 : ℝ) * b = (x + b) - (x - b) := by
+        have heq : (2 : ℝ) * b = (x + b) - (x - b) := by
           ring
-        have : 0 ≤ (2 : ℝ) * b := by exact mul_nonneg (by norm_num) hb0
-        simpa [this] using this
+        have hpos : 0 ≤ (2 : ℝ) * b := by exact mul_nonneg (by norm_num) hb0
+        rw [← heq]
+        exact hpos
       simpa [this, ENNReal.toReal_ofReal, sub_eq_add_neg, two_mul, add_comm, add_left_comm, add_assoc]
     have J_lb :
         ∫ t in Icc (x - b) (x + b), poissonKernel b (x - t) ∂(volume) ≥ (1 / Real.pi) := by
