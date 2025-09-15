@@ -518,8 +518,15 @@ theorem pairing_L2_CauchySchwarz_restrict
       simpa [Real.sqrt_sq_eq_abs] using hsq
     have hR : Real.sqrt ((A^2 + B^2) * (C^2 + D^2))
                = Real.sqrt (A^2 + B^2) * Real.sqrt (C^2 + D^2) := by
-      -- Use the standard sqrt-multiplicativity on nonnegative reals
-      simpa using Real.sqrt_mul (a := (A ^ 2 + B ^ 2)) (b := (C ^ 2 + D ^ 2)) ha hc
+      -- Use mathlib's Real.sqrt_mul with the first argument nonnegative
+      -- We have ha : 0 ≤ A^2 + B^2 and hc : 0 ≤ C^2 + D^2
+      -- Apply the primed variant to match (x * y)
+      have := Real.sqrt_mul' (x := C^2 + D^2) (hy := ha)
+      -- √((C^2+D^2) * (A^2+B^2)) = √(C^2+D^2) * √(A^2+B^2)
+      -- commute factors to our target form
+      have hcomm : (C^2 + D^2) * (A^2 + B^2) = (A^2 + B^2) * (C^2 + D^2) := by
+        ring
+      simpa [hcomm, mul_comm] using this
     have hRHSnn : 0 ≤ Real.sqrt (A^2 + B^2) * Real.sqrt (C^2 + D^2) :=
       mul_nonneg (Real.sqrt_nonneg _) (Real.sqrt_nonneg _)
     have : A*C + B*D ≤ Real.sqrt (A^2 + B^2) * Real.sqrt (C^2 + D^2) := by
@@ -533,23 +540,34 @@ theorem pairing_L2_CauchySchwarz_restrict
     (∫ x, (f1 x)^2 ∂μ) + (∫ x, (f2 x)^2 ∂μ)
       = ∫ x in Q, sqnormR2 (gradU x) ∂σ := by
     have := integral_add (μ := μ) hF1sq hF2sq
-    -- integral_add: ∫ (f1^2 + f2^2) = ∫ f1^2 + ∫ f2^2
-    -- We need the reverse orientation; flip with .symm
-    simpa [μ, f1, f2, sqnormR2, pow_two, add_comm, add_left_comm, add_assoc] using this
+    simpa [μ, f1, f2, sqnormR2, pow_two, add_comm, add_left_comm, add_assoc] using this.symm
   have hCD :
     (∫ x, (g1 x)^2 ∂μ) + (∫ x, (g2 x)^2 ∂μ)
       = ∫ x in Q, sqnormR2 (gradChiVpsi x) ∂σ := by
     have := integral_add (μ := μ) hG1sq hG2sq
-    simpa [μ, g1, g2, sqnormR2, pow_two, add_comm, add_left_comm, add_assoc] using this
-  -- Final shape after substituting the sum identities into the right-hand side
+    simpa [μ, g1, g2, sqnormR2, pow_two, add_comm, add_left_comm, add_assoc] using this.symm
+  -- First get the inequality with sums of the set-integrals over Q
+  have hstepQ_sum :
+      |∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ|
+        ≤ Real.sqrt ((∫ x in Q, ((gradU x).1)^2 ∂σ) + (∫ x in Q, ((gradU x).2)^2 ∂σ))
+          * Real.sqrt ((∫ x in Q, ((gradChiVpsi x).1)^2 ∂σ) + (∫ x in Q, ((gradChiVpsi x).2)^2 ∂σ)) := by
+    simpa [μ, dotR2, f1, f2, g1, g2, pow_two] using hstep
+  -- Convert sums of coordinate-squared integrals to the sqnorm integrals
+  have hsumU :
+      (∫ x in Q, ((gradU x).1)^2 ∂σ) + (∫ x in Q, ((gradU x).2)^2 ∂σ)
+        = ∫ x in Q, sqnormR2 (gradU x) ∂σ := by
+    have := integral_add (μ := σ.restrict Q) hF1sq hF2sq
+    simpa [μ, f1, f2, sqnormR2, pow_two, add_comm, add_left_comm, add_assoc] using this.symm
+  have hsumG :
+      (∫ x in Q, ((gradChiVpsi x).1)^2 ∂σ) + (∫ x in Q, ((gradChiVpsi x).2)^2 ∂σ)
+        = ∫ x in Q, sqnormR2 (gradChiVpsi x) ∂σ := by
+    have := integral_add (μ := σ.restrict Q) hG1sq hG2sq
+    simpa [μ, g1, g2, sqnormR2, pow_two, add_comm, add_left_comm, add_assoc] using this.symm
   have hstepQ :
       |∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ|
         ≤ Real.sqrt (∫ x in Q, sqnormR2 (gradU x) ∂σ)
           * Real.sqrt (∫ x in Q, sqnormR2 (gradChiVpsi x) ∂σ) := by
-    -- First rewrite the RHS numeric CS using hAB, hCD and integral_add on μ
-    have := hstep
-    simpa [μ, dotR2, f1, f2, g1, g2, pow_two, hAB, hCD,
-           sqnormR2, add_comm, add_left_comm, add_assoc] using this
+    simpa [hsumU, hsumG] using hstepQ_sum
   simpa [boxEnergy, testEnergy] using hstepQ
 
 
@@ -848,13 +866,13 @@ theorem rect_green_trace_identity_strong
     (∫ x in Q, (gradU x) ⋅ ((χ x) • (gradVψ x)) ∂σ)
       = (∫ t in I, ψ t * B t) + Rside + Rtop
         - (∫ x in Q, (gradχ x) ⋅ ((U x) • (gradVψ x)) ∂σ)) :
+  (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
+    = (∫ t in I, ψ t * B t) + Rside + Rtop
+      + ∫ x in Q, (gradχ x) ⋅ ((Vψ x) • (gradU x) - (U x) • (gradVψ x)) ∂σ := by
+  classical
+  -- Name the interior remainder used in the statement (avoid `let .. in` at head)
   let Rint :=
     ∫ x in Q, (gradχ x) ⋅ ((Vψ x) • (gradU x) - (U x) • (gradVψ x)) ∂σ
-  in
-    (∫ x in Q, (gradU x) ⋅ (gradChiVψ x) ∂σ)
-      = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint := by
-  classical
-  intro Rint
   set μ : Measure (ℝ × ℝ) := Measure.restrict σ Q
   -- Expand the test gradient a.e. and integrate
   have hLHS_expanded :
@@ -914,7 +932,7 @@ theorem rect_green_trace_identity_strong
       = Rint := by
     -- definition of Rint
     simp [Rint, sub_eq_add_neg, add_comm, add_left_comm, add_assoc]
-  simpa [hIntSub]
+  simpa [Rint, hIntSub]
 
 
 end RS

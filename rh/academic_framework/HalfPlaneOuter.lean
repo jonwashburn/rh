@@ -3,7 +3,7 @@ import Mathlib.Data.Complex.Basic
 import Mathlib.Topology.Basic
 import rh.academic_framework.CompletedXi
 import Mathlib.MeasureTheory.Integral.Bochner
-import Mathlib.MeasureTheory.Measure.Lebesgue
+import rh.RS.Cayley
 
 /-!
 # Half‑plane outers (interface)
@@ -98,14 +98,14 @@ end AcademicFramework
 end RH
 
 
-/‑!
+/-!
 # Half-plane Poisson transport (positive boundary → interior operator)
 
 We add a Poisson kernel `poissonKernel` on Ω, a transport operator `P`,
 positivity from a.e. boundary sign, a representation wrapper for `Re F`, and
 the transport corollary (with a pinch specialization).
 No axioms, no sorry.
--/ 
+-/
 
 noncomputable section
 open scoped Real Topology
@@ -115,8 +115,8 @@ namespace RH
 namespace AcademicFramework
 namespace HalfPlaneOuter
 
-/‑‑ The Poisson kernel for the right half‑plane `Re z > 1/2`.
-Normalized so that `∫_ℝ poissonKernel z t dt = 1`. -/ 
+-- The Poisson kernel for the right half‑plane `Re z > 1/2`.
+-- Normalized so that `∫_ℝ poissonKernel z t dt = 1`.
 @[simp] def poissonKernel (z : ℂ) (t : ℝ) : ℝ :=
   (1 / Real.pi) * ((z.re - (1/2 : ℝ)) / ((z.re - (1/2 : ℝ))^2 + (t - z.im)^2))
 
@@ -128,7 +128,10 @@ lemma poissonKernel_nonneg {z : ℂ} (hz : (1/2 : ℝ) < z.re) (t : ℝ) :
   have denom_pos :
       0 < (z.re - (1/2 : ℝ))^2 + (t - z.im)^2 := by
     have hxpos : 0 < (z.re - (1/2 : ℝ))^2 := by
-      exact sq_pos_of_ne_zero _ (sub_ne_zero.mpr (ne_of_gt hz))
+      have hne : z.re - (1/2 : ℝ) ≠ 0 := sub_ne_zero.mpr (ne_of_gt hz)
+      have : 0 < (z.re - (1/2 : ℝ)) * (z.re - (1/2 : ℝ)) := by
+        exact mul_self_pos.mpr hne
+      simpa [pow_two] using this
     exact add_pos_of_pos_of_nonneg hxpos (sq_nonneg _)
   have denom_nonneg :
       0 ≤ (z.re - (1/2 : ℝ))^2 + (t - z.im)^2 := le_of_lt denom_pos
@@ -140,30 +143,32 @@ lemma poissonKernel_nonneg {z : ℂ} (hz : (1/2 : ℝ) < z.re) (t : ℝ) :
     one_div_nonneg.mpr (le_of_lt Real.pi_pos)
   exact mul_nonneg invpi_nonneg div_nonneg'
 
-/‑‑ Poisson transport from boundary data `u` to the interior. -/ 
+-- Poisson transport from boundary data `u` to the interior.
 @[simp] def P (u : ℝ → ℝ) (z : ℂ) : ℝ := ∫ t : ℝ, u t * poissonKernel z t
 
-/‑‑ Boundary nonnegativity predicate for `F` on `Re = 1/2`. -/ 
+-- Boundary nonnegativity predicate for `F` on `Re = 1/2`.
 def PPlus (F : ℂ → ℂ) : Prop :=
-  (0 ≤ᵐ[Measure.lebesgue] fun t : ℝ => (F (boundary t)).re)
+  (0 ≤ᵐ[volume] fun t : ℝ => (F (boundary t)).re)
 
 lemma P_nonneg_of_ae_nonneg
     {u : ℝ → ℝ}
     (hInt : ∀ {z : ℂ}, z ∈ Ω → Integrable (fun t : ℝ => u t * poissonKernel z t))
-    (hu_nonneg : 0 ≤ᵐ[Measure.lebesgue] fun t : ℝ => u t) :
+    (hu_nonneg : 0 ≤ᵐ[volume] fun t : ℝ => u t) :
     ∀ ⦃z : ℂ⦄, z ∈ Ω → 0 ≤ P u z := by
   intro z hz
   have hker :
-      0 ≤ᵐ[Measure.lebesgue] fun t : ℝ => poissonKernel z t := by
-    refine Filter.eventually_of_forall (fun t => ?_)
-    exact poissonKernel_nonneg (by simpa using hz) t
+      0 ≤ᵐ[volume] fun t : ℝ => poissonKernel z t := by
+    refine Filter.Eventually.of_forall (fun t => ?_)
+    exact poissonKernel_nonneg (by simpa [Ω, Set.mem_setOf_eq] using hz) t
   have hprod :
-      0 ≤ᵐ[Measure.lebesgue] fun t : ℝ => u t * poissonKernel z t := by
+      0 ≤ᵐ[volume] fun t : ℝ => u t * poissonKernel z t := by
     refine (hu_nonneg.and hker).mono ?_
     intro t ht; rcases ht with ⟨hu, hk⟩; exact mul_nonneg hu hk
   have hI : Integrable (fun t : ℝ => u t * poissonKernel z t) := hInt hz
-  have := integral_nonneg_of_ae hI hprod
-  simpa [P] using this
+  -- integrability is not needed by integral_nonneg_of_ae; keep it for callers
+  have hnonneg : 0 ≤ ∫ t, u t * poissonKernel z t :=
+    integral_nonneg_of_ae (μ := volume) hprod
+  simpa [P] using hnonneg
 
 structure HasHalfPlanePoissonRepresentation (F : ℂ → ℂ) : Prop :=
   (analytic : AnalyticOn ℂ F Ω)
@@ -188,7 +193,7 @@ theorem HasHalfPlanePoissonTransport
 
 open RH.AcademicFramework.CompletedXi
 
-@[simp] def F_pinch (det2 O : ℂ → ℂ) : ℂ → ℂ := fun z => (2 : ℂ) * J_pinch det2 O z
+@[simp] def F_pinch (det2 O : ℂ → ℂ) : ℂ → ℂ := fun z => (2 : ℂ) * RH.RS.J_pinch det2 O z
 
 theorem HasHalfPlanePoissonTransport_Jpinch
     {det2 O : ℂ → ℂ}
