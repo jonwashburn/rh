@@ -892,8 +892,11 @@ theorem rect_green_trace_identity_strong
         = (∫ x, f x ∂μ) + (∫ x, g x ∂μ) := by
     have hpoint : (fun x => (gradU x) ⋅ ((χ x) • (gradVψ x) + (Vψ x) • (gradχ x)))
                     = (fun x => f x + g x) := by
-      funext x; simp [f, g, dotR2_add_right]
-    simpa [hpoint] using (integral_add (μ := μ) hIntA hIntB)
+      funext x
+      simp only [f, g]
+      rw [dotR2_add_right]
+    rw [hpoint]
+    exact integral_add hIntA hIntB
   -- Use the provided "core" identity for the f-part
   have hCore' :
       (∫ x, f x ∂μ)
@@ -905,7 +908,9 @@ theorem rect_green_trace_identity_strong
       (∫ x, g x ∂μ)
         = (∫ x in Q, (gradχ x) ⋅ ((Vψ x) • (gradU x)) ∂σ) := by
     have hpt : (fun x => g x) = (fun x => (gradχ x) ⋅ ((Vψ x) • (gradU x))) := by
-      funext x; simp [g, dotR2_comm]
+      funext x
+      simp only [g]
+      rw [dotR2_comm]
     simpa [hpt]
   -- Put the pieces together
   have :
