@@ -369,7 +369,7 @@ lemma poisson_plateau_c0 :
       -- convert the constant lower bound using the measure identity
       have : ((1 / Real.pi) * b * ((1 : ℝ) / (2 * b ^ 2))) * (volume (Icc (x - b) (x + b))).toReal
                = ((1 / Real.pi) * b * ((1 : ℝ) / (2 * b ^ 2))) * ((2 : ℝ) * b) := by
-        simpa [meas_J]
+        rw [meas_J]
       -- Now `((1/π) * b * (1/(2 b^2))) * (2 b) = 1/π` by cancellation
       have hbne : b ≠ 0 := ne_of_gt hb
       have hcalc : ((1 / Real.pi) * b * ((1 : ℝ) / (2 * b ^ 2))) * ((2 : ℝ) * b) = (1 / Real.pi) := by
@@ -389,11 +389,12 @@ lemma poisson_plateau_c0 :
             using this
         -- multiply by (1/π)
         simpa [mul_comm, mul_left_comm, mul_assoc] using congrArg (fun y => (1 / Real.pi) * y) this
-      have : ((1 / Real.pi) * b * ((1 : ℝ) / (2 * b ^ 2))) * (volume (Icc (x - b) (x + b))).toReal
+      have volume_eq : ((1 / Real.pi) * b * ((1 : ℝ) / (2 * b ^ 2))) * (volume (Icc (x - b) (x + b))).toReal
                = (1 / Real.pi) := by
-        simpa [this] using hcalc
+        rw [this]
+        exact hcalc
       -- conclude the lower bound
-      exact this ▸ const_lb
+      exact volume_eq ▸ const_lb
 
     -- (4) Put it all together with the ψ factor (1/4).
     -- ∫_{[-2,2]} ≥ ∫_J ≥ 1/π  ⇒  (1/4)*∫_{[-2,2]} ≥ (1/4)*(1/π) = 1/(4π).
@@ -406,7 +407,11 @@ lemma poisson_plateau_c0 :
       have : 0 ≤ (1 / (4 : ℝ)) := by norm_num
       exact (mul_le_mul_of_nonneg_left base_lb this)
     -- Conclude
-    simpa [conv_eq, one_div, mul_comm, mul_left_comm, mul_assoc] using this
+    calc
+      ∫ t, poissonKernel b (x - t) * psi t ∂(volume)
+          = (1/4 : ℝ) * ∫ t in Icc (-2 : ℝ) 2, poissonKernel b (x - t) ∂(volume) := conv_eq
+      _   ≥ (1/4 : ℝ) * (1 / Real.pi) := this
+      _   = 1 / (4 * Real.pi) := by ring
 
 
 end RS
