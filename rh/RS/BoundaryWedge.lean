@@ -53,6 +53,9 @@ theorem ae_of_localWedge_on_Whitney
 
 /-- Whitney local wedge from CR–Green pairing and Poisson plateau.
 
+Note: the H¹–BMO step is provided by `RH.RS.H1BMOWindows.windowed_phase_bound_of_carleson`;
+this façade delegates the windowed envelope bound to that module. 
+
 Inputs:
 - `α, ψ`: fixed aperture and window template
 - `F`: the boundary field

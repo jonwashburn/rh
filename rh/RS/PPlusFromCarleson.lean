@@ -39,7 +39,11 @@ namespace RS
 
 This packages the CR–Green pairing/remainder machinery and the Poisson plateau
 window into the Whitney local→global wedge alias
-`localWedge_from_WhitneyCarleson (F := F)`. -/
+`localWedge_from_WhitneyCarleson (F := F)`.
+
+Cross-link: the H¹–BMO window step is provided by
+`RH.RS.H1BMOWindows.windowed_phase_bound_of_carleson`, consumed via the façade
+`localWedge_from_pairing_and_uniformTest`. -/
 theorem localWedge_from_CRGreen_and_Poisson
     (F : ℂ → ℂ)
     (hex : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ RH.Cert.ConcreteHalfPlaneCarleson Kξ) :
