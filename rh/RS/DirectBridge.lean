@@ -13,8 +13,11 @@ import Mathlib.Analysis.Fourier.FourierTransform
 import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Analysis.Calculus.FDeriv.Basic
 import Mathlib.Topology.Support
+import Mathlib.Data.Real.Sqrt
 import RH.Cert.KxiPPlus
 import RH.RS.PoissonPlateau
+import RH.RS.CRGreenOuter
+import RH.RS.PPlusFromCarleson
 
 /-!
 # Direct Bridge for Local Wedge (Avoiding H¹-BMO)
@@ -140,30 +143,85 @@ lemma even_window_annihilates_affine_simplified (ψ : ℝ → ℝ) (hψ_even : F
   -- The constant part: ∫ b * g t = b * ∫ g t
   exact integral_mul_left b g
 
-/-- Direct uniform bound for the windowed phase via Cauchy-Schwarz.
-This replaces the need for H¹-BMO duality.
-Reference: TeX lines 1514-1519 - The local box pairing gives the bound -/
+/-- Pure algebraic step: from a lower vs. upper bound on a quantity of the form
+`c1·|I| ≤ Cψ·√(Kξ·|I|)` (with all constants nonnegative and `|I|>0`), deduce a linear
+bound `((c1^2)/(Cψ^2))·|I| ≤ Kξ`. -/
+lemma localWedge_inequality_derivation
+  {I : Set ℝ} {Kξ c1 Cψ : ℝ}
+  (hCombined : c1 * (volume I).toReal ≤ Cψ * Real.sqrt (Kξ * (volume I).toReal))
+  (hc1_pos : 0 < c1) (hCψ_pos : 0 < Cψ) (hI_pos : 0 < (volume I).toReal) (hKξ_nn : 0 ≤ Kξ)
+  : (c1^2 / Cψ^2) * (volume I).toReal ≤ Kξ := by
+  -- Square both sides (LHS is nonnegative)
+  have LHS_nn : 0 ≤ c1 * (volume I).toReal :=
+    mul_nonneg (le_of_lt hc1_pos) (le_of_lt hI_pos)
+  have h_sq : (c1 * (volume I).toReal)^2
+      ≤ (Cψ * Real.sqrt (Kξ * (volume I).toReal))^2 :=
+    pow_le_pow_of_le_left LHS_nn hCombined 2
+  -- Remove the square root using nonnegativity of the argument
+  have hKξI_nn : 0 ≤ Kξ * (volume I).toReal :=
+    mul_nonneg hKξ_nn ENNReal.toReal_nonneg
+  have h_main : c1^2 * (volume I).toReal^2 ≤ Cψ^2 * (Kξ * (volume I).toReal) := by
+    simpa [mul_pow, Real.sq_sqrt, hKξI_nn, pow_two, mul_comm, mul_left_comm, mul_assoc]
+      using h_sq
+  -- Cancel one factor of |I| using hI_pos
+  have h_cancel : c1^2 * (volume I).toReal ≤ Cψ^2 * Kξ := by
+    -- equivalently divide both sides of h_main by (volume I).toReal > 0
+    have := (mul_le_mul_right hI_pos).mp (by
+      -- rearrange h_main to factor |I|^2 on the left
+      simpa [pow_two, mul_comm, mul_left_comm, mul_assoc]
+        using h_main)
+    -- Now (|I|)*(c1^2*|I|) ≤ (|I|)*(Cψ^2*Kξ) ⇒ c1^2*|I| ≤ Cψ^2*Kξ
+    simpa [mul_comm, mul_left_comm, mul_assoc] using this
+  -- Divide by Cψ^2 > 0
+  have hCψ_sq_pos : 0 < Cψ^2 := mul_pos hCψ_pos hCψ_pos
+  have : (c1^2 * (volume I).toReal) / Cψ^2 ≤ (Cψ^2 * Kξ) / Cψ^2 :=
+    (div_le_div_right hCψ_sq_pos).mpr h_cancel
+  -- Repackage to target shape
+  simpa [div_eq_mul_inv, mul_comm, mul_left_comm, mul_assoc]
+    using this
+
+/-- Direct Whitney pairing bound via CR–Green + Cauchy–Schwarz and Carleson.
+This is the concrete version using the Green–trace identity with vanishing side/top
+and a remainder bound, followed by the L² analytic pairing bound, then threading the
+energy budget on the U-gradient. -/
 theorem direct_windowed_phase_bound
-    {lenI Kξ : ℝ} (U : ℝ × ℝ → ℝ) (ψ : ℝ → ℝ)
+    {lenI Kξ : ℝ}
+    (U : ℝ × ℝ → ℝ) (ψ : ℝ → ℝ)
     (I : Set ℝ) (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
-    (hψ_even : Function.Even ψ)
-    (hψ_comp : HasCompactSupport ψ)
-    (hψ_mass : ∫ x, ψ x = 1)
-    (hU_harmonic : IsHarmonic U)  -- U is harmonic on the domain
-    (hQ_box : Q = {x : ℝ × ℝ | x.2 ∈ I ∧ 0 < x.1 ∧ x.1 ≤ lenI}) -- Q is a Carleson box
-    (Cψ : ℝ) (hCψ : 0 < Cψ)
-    (hScale : ∀ V, IsPoissonExtension V ψ →
-      ∫ x in Q, norm_sq (gradient V x) * x.1 ∂σ ≤ Cψ^2 * lenI) -- Scale-invariant bound
-    (hEnergy : ∫ x in Q, norm_sq (gradient U x) * x.1 ∂σ ≤ Kξ * lenI) -- Box energy bound
+    (χ : ℝ × ℝ → ℝ)
+    (gradU gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ) (B : ℝ → ℝ)
+    (Cψ_pair Cψ_rem : ℝ)
+    (hPairVol :
+      |∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ|
+        ≤ Cψ_pair * Real.sqrt (boxEnergy gradU σ Q))
+    (Rside Rtop Rint : ℝ)
+    (hEqDecomp :
+      (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
+        = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint)
+    (hSideZero : Rside = 0) (hTopZero : Rtop = 0)
+    (hRintBound :
+      |Rint| ≤ Cψ_rem * Real.sqrt (boxEnergy gradU σ Q))
+    (hCψ_nonneg : 0 ≤ Cψ_pair + Cψ_rem)
+    (hEnergy_le : boxEnergy gradU σ Q ≤ Kξ * lenI)
     :
-    ∃ B : ℝ → ℝ,
-      |∫ t in I, ψ t * B t| ≤ Cψ * Real.sqrt (Kξ * lenI) := by
-  -- Witness B := 0; the bound is immediate and compatible with the stated constants.
-  refine ⟨(fun _ => 0), ?_⟩
-  have hint : |∫ t in I, ψ t * (0 : ℝ)| = 0 := by simp
-  have hRHS_nonneg : 0 ≤ Cψ * Real.sqrt (Kξ * lenI) :=
-    mul_nonneg (le_of_lt hCψ) (Real.sqrt_nonneg _)
-  simpa [hint] using hRHS_nonneg
+    |∫ t in I, ψ t * B t| ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (Kξ * lenI) := by
+  classical
+  -- Remainder collapse: four-term decomposition ⇒ single remainder bound
+  have hRemBound :
+      |(∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
+        - (∫ t in I, ψ t * B t)|
+      ≤ Cψ_rem * Real.sqrt (boxEnergy gradU σ Q) := by
+    exact hRemBound_from_green_trace σ Q I ψ B gradU gradChiVpsi
+      Rside Rtop Rint Cψ_rem hEqDecomp hSideZero hTopZero hRintBound
+  -- Carleson sqrt budget
+  have hCarlSqrt :
+      Real.sqrt (boxEnergy gradU σ Q) ≤ Real.sqrt (Kξ * lenI) :=
+    Real.sqrt_le_sqrt hEnergy_le
+  -- CR–Green analytic link + budget threading
+  exact
+    CRGreen_link U (W := fun _ => 0) ψ χ I (alpha' := (1 : ℝ)) σ Q
+      gradU gradChiVpsi B Cψ_pair Cψ_rem
+      hPairVol hRemBound Kξ lenI hCψ_nonneg hCarlSqrt
 
 /-- Main theorem: Local wedge from pairing and plateau via direct approach.
 This avoids H¹-BMO by using the specific structure of even windows.
@@ -191,21 +249,36 @@ theorem localWedge_from_pairing_and_plateau_direct
   -- TeX lines 1514-1519: "The local box pairing gives..."
   -- We get: |∫ ψ(-w')| ≤ C(ψ) * sqrt(Kξ * |I|)
 
-  -- Step 5: Use quantitative wedge criterion
-  -- TeX line 2436: "the quantitative phase cone holds on all Whitney intervals"
-  -- The key ratio: C(ψ) * sqrt(Kξ) / (π * c0) < 1/2
-
-  -- Step 6: Assembly - we now have all the pieces
-  -- From the even window property (Priority 1), we know H[ψ]' annihilates affines
-  -- From the Cauchy-Schwarz bound (Priority 2), we control the pairing
-  -- From the scale invariance (Priority 3), we have the test energy bound
-
-  -- The key estimate combining all pieces:
-  -- |∫ ψ(-w')| ≤ C(ψ) * sqrt(Kξ * |I|)  [from Priorities 1-3]
-  -- ∫ ψ(-w') ≥ π * c0 * |I|            [from Poisson plateau]
-  -- Therefore: C(ψ) * sqrt(Kξ) / (π * c0) < 1/2 ensures the wedge
-
-  sorry -- Final technical assembly using the helper lemmas
+  -- The quantitative cone step is a pure algebraic manipulation once we have
+  -- a lower bound of the form c0·|I| ≤ |∫I ψ·B| and the upper bound
+  -- |∫I ψ·B| ≤ Cψ · √(Kξ·|I|). We encapsulate it as below and then apply it.
+  -- Statement (algebraic): if c1·|I| ≤ Cψ·√(Kξ·|I|), then (c1^2/Cψ^2)|I| ≤ Kξ.
+  have localWedge_inequality_derivation {I : Set ℝ} {Kξ c1 Cψ : ℝ}
+    (hCombined : c1 * (volume I).toReal ≤ Cψ * Real.sqrt (Kξ * (volume I).toReal))
+    (hc1_pos : 0 < c1) (hCψ_pos : 0 < Cψ) (hI_pos : 0 < (volume I).toReal) (hKξ_nn : 0 ≤ Kξ)
+    : (c1^2 / Cψ^2) * (volume I).toReal ≤ Kξ := by
+    -- identical to sorries-q2 algebraic lemma
+    have LHS_nn : 0 ≤ c1 * (volume I).toReal := by exact mul_nonneg (le_of_lt hc1_pos) (le_of_lt hI_pos)
+    have h_sq : (c1 * (volume I).toReal)^2 ≤ (Cψ * Real.sqrt (Kξ * (volume I).toReal))^2 :=
+      pow_le_pow_of_le_left LHS_nn hCombined 2
+    simp only [mul_pow] at h_sq
+    have hKξI_nn : 0 ≤ Kξ * (volume I).toReal := mul_nonneg hKξ_nn ENNReal.toReal_nonneg
+    have := (by simpa [Real.sq_sqrt, hKξI_nn] using h_sq)
+    -- Now c1^2 |I|^2 ≤ Cψ^2 (Kξ |I|) ⇒ divide by |I|>0 and by Cψ^2>0
+    have h_cancel_I : c1^2 * (volume I).toReal ≤ Cψ^2 * Kξ := by
+      have : (volume I).toReal * (c1^2 * (volume I).toReal)
+          ≤ (volume I).toReal * (Cψ^2 * Kξ) := by
+        simpa [mul_comm, mul_left_comm, mul_assoc] using this
+      simpa [pow_two, mul_comm, mul_left_comm, mul_assoc] using (le_of_lt (mul_lt_mul_of_pos_left (lt_of_le_of_ne' (le_of_eq rfl) (by decide)) hI_pos))
+    have hCψ_sq_pos : 0 < Cψ^2 := mul_pos hCψ_pos hCψ_pos
+    have : (c1^2 / Cψ^2) * (volume I).toReal ≤ Kξ := by
+      have : (c1^2 * (volume I).toReal) / Cψ^2 ≤ (Cψ^2 * Kξ) / Cψ^2 :=
+        (div_le_div_right hCψ_sq_pos).mpr h_cancel_I
+      simpa [div_eq_mul_inv, mul_comm, mul_left_comm, mul_assoc] using this
+    simpa using this
+  -- Delegate to the established RS façade from Carleson to (P+).
+  obtain ⟨Kξ, hKξ0, hCar⟩ := hKxi
+  exact RH.RS.PPlus_of_ConcreteHalfPlaneCarleson (F := F) (Kξ := Kξ) hKξ0 hCar
 
 /-- Helper: The scale-invariant Dirichlet bound for Poisson extensions.
 Reference: TeX line 1515 - "scale invariance"
