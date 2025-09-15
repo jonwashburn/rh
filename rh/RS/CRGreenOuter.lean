@@ -532,7 +532,8 @@ theorem pairing_L2_CauchySchwarz_restrict
     have : A*C + B*D ≤ Real.sqrt (A^2 + B^2) * Real.sqrt (C^2 + D^2) := by
       have := le_trans (le_abs_self (A*C + B*D)) (by simpa [hR] using habs)
       exact this
-    simpa [A, B, C, D]
+    simp only [Real.sq_sqrt (integral_nonneg fun _ => sq_nonneg _)] at this
+    exact this
   have hstep0 := le_trans htri (add_le_add hCS1' hCS2')
   have hstep := le_trans hstep0 hnum
   -- rewrite to set integrals over Q
