@@ -909,8 +909,7 @@ theorem rect_green_trace_identity_strong
         = (∫ x in Q, (gradχ x) ⋅ ((Vψ x) • (gradU x)) ∂σ) := by
     have hpt : (fun x => g x) = (fun x => (gradχ x) ⋅ ((Vψ x) • (gradU x))) := by
       funext x
-      simp only [g]
-      rw [dotR2_comm]
+      simp only [g, dotR2_smul_right, dotR2_comm]
     simpa [hpt]
   -- Put the pieces together
   have :
@@ -937,8 +936,16 @@ theorem rect_green_trace_identity_strong
         - (∫ x in Q, (gradχ x) ⋅ ((U x) • (gradVψ x)) ∂σ)
       = Rint := by
     -- definition of Rint
-    simp [Rint, sub_eq_add_neg, add_comm, add_left_comm, add_assoc]
-  simpa [Rint, hIntSub]
+    simp only [Rint]
+    have h1 : ∫ x in Q, (gradχ x) ⋅ ((Vψ x) • (gradU x) - (U x) • (gradVψ x)) ∂σ =
+              ∫ x in Q, ((gradχ x) ⋅ ((Vψ x) • (gradU x)) - (gradχ x) ⋅ ((U x) • (gradVψ x))) ∂σ := by
+      congr 1
+      funext x
+      -- Distribute dot product over subtraction: a ⋅ (b - c) = a ⋅ b - a ⋅ c
+      simp only [dotR2, Pi.sub_apply, Prod.fst_sub, Prod.snd_sub]
+      ring
+    rw [h1, ← integral_sub hIntIntA hIntIntB]
+  rw [this, hIntSub]
 
 
 end RS
