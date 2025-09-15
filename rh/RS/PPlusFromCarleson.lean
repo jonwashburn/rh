@@ -77,7 +77,7 @@ then you have the bundled implication `(∃Kξ ≥ 0, Carleson Kξ) → (P+)`.
 This inhabits `RH.Cert.PPlusFromCarleson_exists F` without constructing
 the missing analytic bridge. -/
 theorem PPlusFromCarleson_exists_proved
-    (F : ℂ → ℂ)
+    (F : ℂ → ℂ) :
     RH.Cert.PPlusFromCarleson_exists F := by
   intro hex
   -- Use the local→global Whitney wedge façade packaged at the RS layer
