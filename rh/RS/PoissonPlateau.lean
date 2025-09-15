@@ -310,8 +310,9 @@ lemma poisson_plateau_c0 :
           ≥ ((1 / Real.pi) * b * ((1 : ℝ) / (2 * b ^ 2))) * (volume (Icc (x - b) (x + b))).toReal := by
       -- Pointwise lower bound on J and integrability imply a constant lower bound
       have hsJ : MeasurableSet (Icc (x - b) (x + b)) := isClosed_Icc.measurableSet
-      have hμJ : volume (Icc (x - b) (x + b)) ≠ ∞ :=
-        (Real.volume_Icc (x - b) (x + b)).symm ▸ ENNReal.ofReal_lt_top.ne
+      have hμJ : volume (Icc (x - b) (x + b)) < ∞ := by
+        simp only [Real.volume_Icc]
+        exact ENNReal.coe_lt_top
       have kcont : Continuous fun t : ℝ => poissonKernel b (x - t) := by
         have hden : Continuous fun t : ℝ => (x - t) ^ 2 + b ^ 2 :=
           Continuous.add ((continuous_const.sub continuous_id).pow 2) continuous_const
@@ -335,7 +336,7 @@ lemma poisson_plateau_c0 :
         simpa [mul_comm] using
           (setIntegral_ge_of_const_le (μ := volume) (s := Icc (x - b) (x + b))
             (f := fun t : ℝ => poissonKernel b (x - t))
-            (c := ((1 / Real.pi) * b * ((1 : ℝ) / (2 * b ^ 2)))) hsJ hμJ hpt hintJ)
+            (c := ((1 / Real.pi) * b * ((1 : ℝ) / (2 * b ^ 2)))) hsJ hμJ.ne hpt hintJ)
       exact this
 
     -- (3) Measure of J is 2b, so RHS is (1/(2πb)) * (2b) = 1/π.
