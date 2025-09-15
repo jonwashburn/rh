@@ -159,10 +159,16 @@ Missing: interval sup bound ∫_I f ≤ |I|·sup_I f (finite interval, Lebesgue)
 
 - Missing: centered balayage row-sum (Schur/Bessel) to keep linear ν_k.
 
-- MATH-BLOCKER: Local Whitney wedge → a.e. boundary wedge (P+)
-  - Location: `rh/RS/PPlusFromCarleson.lean`
-  - Lean goal / statement: From `∃ Kξ ≥ 0, ConcreteHalfPlaneCarleson Kξ` for `F`, build a proof term for `RH.Cert.PPlus F` (i.e. `∀ᵐ t, 0 ≤ Re F(1/2+it)`), supplying `RH.Cert.PPlusFromCarleson_exists F`.
-  - Proposed approach: Use CR–Green pairing and Poisson boundary trace to upgrade the local Whitney wedge to a.e. boundary nonnegativity; requires measure‑theoretic boundary trace/Poisson lemmas.
+- MATH-BLOCKER: H¹–BMO windows theory for local Whitney wedge → a.e. boundary wedge (P+)
+  - Location: `rh/RS/BoundaryWedge.lean` (line 102 - `localWedge_from_pairing_and_uniformTest`)
+  - Lean goal / statement: From CR-Green pairing control and Poisson plateau witness, derive `RH.Cert.PPlus F` (i.e. `∀ᵐ t, 0 ≤ Re F(1/2+it)`).
+  - Current status: Interface implemented with `sorry` marking where the analytical proof is needed
+  - Required mathematical components:
+    - H¹-BMO duality theorem (Fefferman-Stein)
+    - Carleson measure characterization
+    - Windowed phase functional bound from box energy
+    - Measure-theoretic boundary trace/Poisson lemmas
+  - Proposed approach: Use H¹–BMO windows criterion with CR–Green pairing bound and uniform Poisson test-energy to upgrade the local Whitney wedge to a.e. boundary nonnegativity.
 
 - MATH-BLOCKER: Whitney CR–Green cutoff identity with scale‑invariant remainders
   - Location: `rh/RS/CRGreenOuter.lean`

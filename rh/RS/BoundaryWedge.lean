@@ -50,31 +50,56 @@ theorem ae_of_localWedge_on_Whitney
     (hLoc : localWedge_from_WhitneyCarleson F hKxi) : RH.Cert.PPlus F :=
   hLoc
 
-/-- Schematic constructor: build the local Whitney wedge witness from
-the interface‑level pairing and uniform test‑energy lemmas. This wires the
-dependencies so callers can target this lemma when the analytic proof lands.
+/-- Whitney local wedge from CR–Green pairing and Poisson plateau.
 
-Inputs (schematic):
-- `α, ψ`: fixed aperture and window template (for test energy)
-- `pairing`: a reference to the CR–Green cutoff pairing interface
-- `testE`: a reference to the uniform Poisson test‑energy bound
-- `hPPlus`: the desired local wedge `(P+)` conclusion, provided here as an
-  explicit hypothesis to keep the constructor proof-free until the pairing
-  proof is supplied.
+Inputs:
+- `α, ψ`: fixed aperture and window template
+- `F`: the boundary field
+- `hKxi`: existence of nonnegative Carleson budget
+- `pairing`: CR–Green pairing bound pushed through Carleson
+- `plateau`: Poisson plateau witness with strictly positive lower bound
 
-Output: the `localWedge_from_WhitneyCarleson` witness, definitionally `(P+)`.
-
-Note: this lemma does not yet derive `(P+)` from the inputs; it packages the
-interfaces and marks the dependency point for the forthcoming analytic proof.
+Output: the `localWedge_from_WhitneyCarleson` witness, which is `(P+)`.
 -/
 theorem localWedge_from_pairing_and_uniformTest
     (α : ℝ) (ψ : ℝ → ℝ)
     (F : ℂ → ℂ)
     (hKxi : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ)
-    (hPPlus : RH.Cert.PPlus F)
-    : localWedge_from_WhitneyCarleson F hKxi :=
-  -- For now, the local wedge is definitionally `(P+)`, so we pass through `hPPlus`.
-  hPPlus
+    /- pairing ingredient: CR–Green pairing + Whitney remainder, pushed through Carleson -/
+    (pairing :
+      ∀ {lenI : ℝ}
+        (U : ℝ × ℝ → ℝ) (W : ℝ → ℝ) (_ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+        (I : Set ℝ) (α' : ℝ)
+        (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+        (∇U ∇χVψ : (ℝ × ℝ) → ℝ × ℝ) (B : ℝ → ℝ)
+        (Cψ_pair Cψ_rem : ℝ)
+        (hPairVol :
+          |∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ|
+            ≤ Cψ_pair * Real.sqrt (RS.boxEnergy ∇U σ Q))
+        (Rside Rtop Rint : ℝ)
+        (hEqDecomp :
+          (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+            = (∫ t in I, _ψ t * B t) + Rside + Rtop + Rint)
+        (hSideZero : Rside = 0) (hTopZero : Rtop = 0)
+        (hRintBound :
+          |Rint| ≤ Cψ_rem * Real.sqrt (RS.boxEnergy ∇U σ Q))
+        (hCψ_nonneg : 0 ≤ Cψ_pair + Cψ_rem)
+        (hEnergy_le : RS.boxEnergy ∇U σ Q ≤ (Classical.choose hKxi) * lenI),
+        |∫ t in I, _ψ t * B t|
+          ≤ (Cψ_pair + Cψ_rem) * Real.sqrt ((Classical.choose hKxi) * lenI))
+    /- plateau ingredient: fixed window with strictly positive Poisson lower bound -/
+    (plateau :
+      ∃ c0 : ℝ, 0 < c0 ∧ ∀ {b x}, 0 < b → b ≤ 1 → |x| ≤ 1 →
+        (∫ t, RH.RS.poissonKernel b (x - t) * ψ t ∂(volume)) ≥ c0)
+    : localWedge_from_WhitneyCarleson F hKxi := by
+  -- This requires the H¹–BMO windows theory to derive (P+) from the pairing
+  -- and plateau inputs. This is a deep analytical result involving:
+  -- 1. CR-Green pairing control from the Carleson budget
+  -- 2. Poisson plateau providing uniform lower bounds
+  -- 3. H¹-BMO duality and Carleson measure theory
+  -- This is documented as a blocker in BLOCKERS.md (lines 162-165).
+  -- The analytical bridge will be supplied when the H¹–BMO theory is formalized.
+  sorry
 
 
 /-- Assemble (P+) from a finite ζ‑side box constant.
