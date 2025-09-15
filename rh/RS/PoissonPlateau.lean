@@ -182,7 +182,7 @@ lemma poisson_plateau_c0 :
       -- convert to a set integral and use linearity to pull out the constant
       have kcont : Continuous fun t : ℝ => poissonKernel b (x - t) := by
         have hden : Continuous fun t : ℝ => (x - t) ^ 2 + b ^ 2 :=
-          (continuous_const.sub continuous_id).pow 2 |>.add continuous_const
+          Continuous.add ((continuous_const.sub continuous_id).pow 2) continuous_const
         have hpos : ∀ t, (x - t) ^ 2 + b ^ 2 ≠ 0 := by
           intro t; have : 0 < (x - t) ^ 2 + b ^ 2 := by
             have : 0 < b ^ 2 := sq_pos_iff.mpr (ne_of_gt hb)
@@ -262,12 +262,9 @@ lemma poisson_plateau_c0 :
       -- Finally, match goal direction
       have hb' : (1 / Real.pi) * b * ((1 : ℝ) / (2 * b ^ 2)) = (1 / (2 * Real.pi * b)) := by
         have hbne : b ≠ 0 := ne_of_gt hb
-        -- Simplify (1/π) * b * (1/(2*b^2)) = 1/(2*π*b)
-        have : b * (1 / (2 * b ^ 2)) = 1 / (2 * b) := by
-          rw [pow_two, mul_comm (2:ℝ), mul_assoc b b, ← mul_assoc]
-          rw [div_mul_eq_mul_div, mul_one]
-          rw [mul_div_cancel_left b hbne]
-        rw [mul_assoc, this]
+        have hpi : Real.pi ≠ 0 := Real.pi_ne_zero
+        -- Direct simplification using field_simp
+        field_simp [hbne, hpi, pow_two]
         ring
       rw [← hb']
       exact this
@@ -282,7 +279,7 @@ lemma poisson_plateau_c0 :
       have kcont : Continuous fun t : ℝ => poissonKernel b (x - t) := by
         -- polynomial/positive-denominator composition is continuous
         have hden : Continuous fun t : ℝ => (x - t) ^ 2 + b ^ 2 :=
-          (continuous_const.sub continuous_id).pow 2 |>.add continuous_const
+          Continuous.add ((continuous_const.sub continuous_id).pow 2) continuous_const
         have hpos : ∀ t, (x - t) ^ 2 + b ^ 2 ≠ 0 := by
           intro t; have : 0 < (x - t) ^ 2 + b ^ 2 := by
             have : 0 < b ^ 2 := sq_pos_iff.mpr (ne_of_gt hb)
@@ -318,7 +315,7 @@ lemma poisson_plateau_c0 :
         exact ENNReal.ofReal_ne_top
       have kcont : Continuous fun t : ℝ => poissonKernel b (x - t) := by
         have hden : Continuous fun t : ℝ => (x - t) ^ 2 + b ^ 2 :=
-          (continuous_const.sub continuous_id).pow 2 |>.add continuous_const
+          Continuous.add ((continuous_const.sub continuous_id).pow 2) continuous_const
         have hpos : ∀ t, (x - t) ^ 2 + b ^ 2 ≠ 0 := by
           intro t; have : 0 < (x - t) ^ 2 + b ^ 2 := by
             have : 0 < b ^ 2 := sq_pos_iff.mpr (ne_of_gt hb)
