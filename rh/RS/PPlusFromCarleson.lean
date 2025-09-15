@@ -1,4 +1,5 @@
 import Mathlib.Data.Complex.Basic
+import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
 import rh.Cert.KxiPPlus
 import rh.RS.BoundaryWedge
 import rh.RS.CRGreenOuter
@@ -59,34 +60,44 @@ theorem localWedge_from_CRGreen_and_Poisson
   --
   -- The `localWedge_from_pairing_and_uniformTest` façade (from `BoundaryWedge`)
   -- wraps the H¹–BMO windows argument, so using it here completes the local wedge.
+  -- Package the Carleson existence into a named variable for reuse below
+  let hKxiVar : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ RH.Cert.ConcreteHalfPlaneCarleson Kξ := ⟨Kξ, hKξ0, hCar⟩
   exact
     localWedge_from_pairing_and_uniformTest
       (α := (1 : ℝ)) (ψ := ψ) (F := F)
-      (hKxi := ⟨Kξ, hKξ0, hCar⟩)
+      (hKxi := hKxiVar)
       (pairing :=
         fun {lenI : ℝ}
             (U : ℝ × ℝ → ℝ) (W : ℝ → ℝ) (_ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
             (I : Set ℝ) (α' : ℝ)
-            (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
-            (∇U ∇χVψ : (ℝ × ℝ) → ℝ × ℝ) (B : ℝ → ℝ)
+            (σ : MeasureTheory.Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+            (gradU gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ) (B : ℝ → ℝ)
             (Cψ_pair Cψ_rem : ℝ)
             (hPairVol :
-              |∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ|
-                ≤ Cψ_pair * Real.sqrt (RS.boxEnergy ∇U σ Q))
+              |∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ|
+                ≤ Cψ_pair * Real.sqrt (RS.boxEnergy gradU σ Q))
             (Rside Rtop Rint : ℝ)
             (hEqDecomp :
-              (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+              (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
                 = (∫ t in I, _ψ t * B t) + Rside + Rtop + Rint)
             (hSideZero : Rside = 0) (hTopZero : Rtop = 0)
             (hRintBound :
-              |Rint| ≤ Cψ_rem * Real.sqrt (RS.boxEnergy ∇U σ Q))
+              |Rint| ≤ Cψ_rem * Real.sqrt (RS.boxEnergy gradU σ Q))
             (hCψ_nonneg : 0 ≤ Cψ_pair + Cψ_rem)
-            (hEnergy_le : RS.boxEnergy ∇U σ Q ≤ Kξ * lenI) =>
-          RS.local_pairing_bound_from_Carleson_budget
-            (Kξ := Kξ) (lenI := lenI) (hCar := hCar)
-            U W _ψ χ I α' σ Q ∇U ∇χVψ B Cψ_pair Cψ_rem
-            hPairVol Rside Rtop Rint hEqDecomp hSideZero hTopZero hRintBound
-            hCψ_nonneg hEnergy_le)
+            (hEnergy_le : RS.boxEnergy gradU σ Q ≤ (Classical.choose hKxiVar) * lenI) =>
+          -- recover the Carleson witness for (Classical.choose hKxiVar)
+          have hCar' : RH.Cert.ConcreteHalfPlaneCarleson (Classical.choose hKxiVar) :=
+            (Classical.choose_spec hKxiVar).2
+          RS.local_pairing_bound_from_IBP_and_Carleson
+            (Kξ := Classical.choose hKxiVar) (lenI := lenI) (hCar := hCar')
+            U W _ψ χ I α' σ Q gradU gradChiVpsi B Cψ_pair Cψ_rem
+            (hPairVol := hPairVol)
+            (Rside := Rside) (Rtop := Rtop) (Rint := Rint)
+            (hEqDecomp := hEqDecomp)
+            (hSideZero := hSideZero) (hTopZero := hTopZero)
+            (hRintBound := hRintBound)
+            (hCψ_nonneg := hCψ_nonneg)
+            (hEnergy_le := hEnergy_le))
       (plateau := ⟨c0, hc0_pos, hPlateau⟩)
 
 
