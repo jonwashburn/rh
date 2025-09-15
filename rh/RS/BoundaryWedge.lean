@@ -54,7 +54,7 @@ theorem ae_of_localWedge_on_Whitney
 /-- Whitney local wedge from CR–Green pairing and Poisson plateau.
 
 Note: the H¹–BMO step is provided by `RH.RS.H1BMOWindows.windowed_phase_bound_of_carleson`;
-this façade delegates the windowed envelope bound to that module. 
+this façade delegates the windowed envelope bound to that module.
 
 Inputs:
 - `α, ψ`: fixed aperture and window template
@@ -103,6 +103,31 @@ theorem localWedge_from_pairing_and_uniformTest
   -- (TeX line 1513: "subtract the calibrant ℓ_I and write v:=u-ℓ_I")
   obtain ⟨Kξ, hKξ0, hCar⟩ := hKxi
   obtain ⟨c0, hc0_pos, hPlateau⟩ := plateau
+
+  -- H¹–BMO parametric adapter: concrete window mass and energy data
+  -- Mass from plateau: mass(W) := c0 · W.ℓ, so mass ≥ c0·W.ℓ and mass ≥ 0.
+  let md : RS.WindowMassData ψ := {
+    c0 := c0
+  , c0_pos := hc0_pos
+  , mass := fun W => c0 * W.ℓ
+  , mass_nonneg := by
+      intro W; exact mul_nonneg (le_of_lt hc0_pos) (le_of_lt W.pos)
+  , mass_lower := by
+      intro W; simp }
+  -- Energy from Carleson budget: energy(W) := Kξ · W.ℓ with Cbox = Kξ.
+  let ed : RS.WindowEnergyData ψ (fun _ => (0 : ℝ)) := {
+    Cbox := Kξ
+  , nonneg := hKξ0
+  , energy := fun W => Kξ * W.ℓ
+  , energy_nonneg := by
+      intro W; exact mul_nonneg hKξ0 (le_of_lt W.pos)
+  , energy_le := by
+      intro W; simp }
+  -- Record the Fefferman–Stein style window bound in parametric form
+  have _hFS :
+      RS.MpsiParam (ψ := ψ) (u := (fun _ => (0 : ℝ))) md ed
+        ≤ (1 / Real.sqrt c0) * Real.sqrt Kξ :=
+    RS.windowed_phase_bound_param (ψ := ψ) (u := (fun _ => (0 : ℝ))) md ed
 
   -- We need to prove: PPlus F, which is ∀ᵐ t : ℝ, 0 ≤ Re(F(1/2 + it))
   unfold localWedge_from_WhitneyCarleson

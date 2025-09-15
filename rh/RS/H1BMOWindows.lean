@@ -151,3 +151,94 @@ theorem windowed_phase_bound_of_carleson
   simpa [H1_BMO_window_constant] using hW
 
 end RS
+
+/-! ## Parametric adapter (no opaque symbols)
+
+This section adds a parametric variant that accepts any mass/energy functions
+on windows together with the two monotone inequalities required in the proof.
+It is convenient for wiring from concrete plateau/carleson data.
+-/
+
+namespace RS
+
+structure WindowMassData (ψ : ℝ → ℝ) where
+  c0       : ℝ
+  c0_pos   : 0 < c0
+  mass     : Window → ℝ
+  mass_nonneg : ∀ W, 0 ≤ mass W
+  mass_lower  : ∀ W, c0 * W.ℓ ≤ mass W
+
+structure WindowEnergyData (ψ u : ℝ → ℝ) where
+  Cbox        : ℝ
+  nonneg      : 0 ≤ Cbox
+  energy      : Window → ℝ
+  energy_nonneg : ∀ W, 0 ≤ energy W
+  energy_le     : ∀ W, energy W ≤ Cbox * W.ℓ
+
+@[simp] noncomputable
+def MpsiParam (md : WindowMassData ψ) (ed : WindowEnergyData ψ u) : ℝ :=
+  ⨆ (W : Window), Real.sqrt (ed.energy W) / Real.sqrt (md.mass W)
+
+theorem windowed_phase_bound_param
+  (ψ u : ℝ → ℝ)
+  (md : WindowMassData ψ) (ed : WindowEnergyData ψ u) :
+  MpsiParam (ψ := ψ) (u := u) md ed
+    ≤ (1 / Real.sqrt md.c0) * Real.sqrt ed.Cbox := by
+  have hc0pos : 0 < md.c0 := md.c0_pos
+  have hCbox_nonneg : 0 ≤ ed.Cbox := ed.nonneg
+  refine iSup_le ?_
+  intro W
+  have hℓpos : 0 < W.ℓ := W.pos
+  have hℓnonneg : 0 ≤ W.ℓ := le_of_lt hℓpos
+  -- √E ≤ √(Cbox⋅ℓ)
+  have hE_sqrt_le :
+      Real.sqrt (ed.energy W) ≤ Real.sqrt (ed.Cbox * W.ℓ) :=
+    Real.sqrt_le_sqrt (ed.energy_le W)
+  -- √M ≥ √(c0⋅ℓ)
+  have hsqrt_lower :
+      Real.sqrt (md.c0 * W.ℓ) ≤ Real.sqrt (md.mass W) :=
+    Real.sqrt_le_sqrt (md.mass_lower W)
+  -- Numerator improvement
+  have step1 :
+      Real.sqrt (ed.energy W) / Real.sqrt (md.mass W)
+        ≤ Real.sqrt (ed.Cbox * W.ℓ) / Real.sqrt (md.mass W) := by
+    have nonneg_inv : 0 ≤ (1 / Real.sqrt (md.mass W)) :=
+      one_div_nonneg.mpr (Real.sqrt_nonneg _)
+    simpa [div_eq_mul_inv] using
+      (mul_le_mul_of_nonneg_right hE_sqrt_le nonneg_inv)
+  -- Denominator improvement
+  have hinv :
+      (1 / Real.sqrt (md.mass W))
+        ≤ (1 / Real.sqrt (md.c0 * W.ℓ)) := by
+    have hpos_c0ℓ : 0 < Real.sqrt (md.c0 * W.ℓ) :=
+      Real.sqrt_pos.mpr (mul_pos hc0pos hℓpos)
+    exact (one_div_le_one_div_of_le hpos_c0ℓ).mpr hsqrt_lower
+  have step2 :
+      Real.sqrt (ed.Cbox * W.ℓ) / Real.sqrt (md.mass W)
+        ≤ Real.sqrt (ed.Cbox * W.ℓ) / Real.sqrt (md.c0 * W.ℓ) := by
+    have hCboxℓ_nonneg : 0 ≤ Real.sqrt (ed.Cbox * W.ℓ) := Real.sqrt_nonneg _
+    simpa [div_eq_mul_inv] using
+      (mul_le_mul_of_nonneg_left hinv hCboxℓ_nonneg)
+  have hchain := le_trans step1 step2
+  -- Cancel √ℓ
+  have hsqrtℓ_ne : Real.sqrt W.ℓ ≠ 0 :=
+    (ne_of_gt (Real.sqrt_pos.mpr hℓpos))
+  have hsimp :
+      Real.sqrt (ed.Cbox * W.ℓ) / Real.sqrt (md.c0 * W.ℓ)
+        = (1 / Real.sqrt md.c0) * Real.sqrt ed.Cbox := by
+    calc
+      Real.sqrt (ed.Cbox * W.ℓ) / Real.sqrt (md.c0 * W.ℓ)
+          = (Real.sqrt ed.Cbox * Real.sqrt W.ℓ)
+            / (Real.sqrt md.c0 * Real.sqrt W.ℓ) := by
+              have hnum := Real.sqrt_mul hCbox_nonneg hℓnonneg
+              have hden := Real.sqrt_mul (le_of_lt hc0pos) hℓnonneg
+              simpa [hnum, hden]
+      _ = (Real.sqrt ed.Cbox) / (Real.sqrt md.c0) := by
+            simpa [mul_comm, mul_left_comm, mul_assoc] using
+              (mul_div_mul_left (Real.sqrt ed.Cbox)
+                (Real.sqrt md.c0) (Real.sqrt W.ℓ) hsqrtℓ_ne)
+      _ = (1 / Real.sqrt md.c0) * Real.sqrt ed.Cbox := by
+            simpa [div_eq_mul_inv, mul_comm]
+  exact hchain.trans (by simpa [hsimp])
+
+end RS

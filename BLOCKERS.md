@@ -170,6 +170,18 @@ Missing: interval sup bound ∫_I f ≤ |I|·sup_I f (finite interval, Lebesgue)
     - Measure-theoretic boundary trace/Poisson lemmas
   - Proposed approach: Use H¹–BMO windows criterion with CR–Green pairing bound and uniform Poisson test-energy to upgrade the local Whitney wedge to a.e. boundary nonnegativity.
 
+- MATH-BLOCKER: Integral of odd integrable function over ℝ is 0 (to discharge `even_function_linear_vanishes`)
+  - Location: `rh/RS/DirectBridge.lean`
+  - Lean goal / statement: For integrable `f : ℝ → ℝ` with `Function.Odd f`, prove `∫ t, f t = 0`.
+
+- MATH-BLOCKER: Direct CR–Green pairing bound assembly (Cauchy–Schwarz details)
+  - Location: `rh/RS/DirectBridge.lean` (`direct_windowed_phase_bound`)
+  - Lean goal / statement: Fill the technical Cauchy–Schwarz application to produce `|∫_I ψ·B| ≤ Cψ · √(Kξ·|I|)` from the stated hypotheses.
+
+- MATH-BLOCKER: Scale–invariant Dirichlet bound for Poisson extensions (energy scales linearly with |I|)
+  - Location: `rh/RS/DirectBridge.lean` (`poisson_extension_scale_invariant`)
+  - Lean goal / statement: From compact support of `ψ`, prove `∬_Q |∇V|² σ ≤ C(ψ,α) · |I|` for the Poisson extension `V`.
+
 - MATH-BLOCKER: Whitney CR–Green cutoff identity with scale‑invariant remainders
   - Location: `rh/RS/CRGreenOuter.lean`
   - Lean goal / statement:

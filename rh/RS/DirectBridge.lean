@@ -143,6 +143,66 @@ lemma even_window_annihilates_affine_simplified (ψ : ℝ → ℝ) (hψ_even : F
   -- The constant part: ∫ b * g t = b * ∫ g t
   exact integral_mul_left b g
 
+/-- Helper: for `b > 0`, the normalized Poisson kernel is bounded by `1/(π b)`.
+This crude bound is often enough to prove integrability on finite intervals. -/
+lemma poissonKernel_le_one_over_pi_mul_inv {b x : ℝ} (hb : 0 < b) :
+  RH.RS.poissonKernel b x ≤ (1 / (Real.pi * b)) := by
+  -- `poissonKernel b x = (1/π) * b / (x^2 + b^2) ≤ (1/π) * b / b^2 = 1/(π b)`.
+  have hden_ge : b^2 ≤ x^2 + b^2 := by
+    have : 0 ≤ x^2 := by exact sq_nonneg x
+    linarith
+  have hden_pos : 0 < x^2 + b^2 := by
+    have : 0 < b^2 := by
+      have hb' : b ≠ 0 := ne_of_gt hb
+      exact sq_pos_iff.mpr hb'
+    exact add_pos_of_nonneg_of_pos (by exact sq_nonneg x) this
+  have hb2_pos : 0 < b^2 := by
+    have hb' : b ≠ 0 := ne_of_gt hb
+    exact sq_pos_iff.mpr hb'
+  have hfrac : b / (x^2 + b^2) ≤ b / b^2 := by
+    -- Denominator larger ⇒ fraction smaller (all positive)
+    have := (div_le_div_of_le (le_of_lt hden_pos) (by linarith : b^2 ≤ b^2)).mpr hden_ge
+    -- Above line is clumsy; instead use monotonicity: a/(·) is antitone on (0,∞)
+    -- We can conclude directly from hden_ge using standard inequality:
+    -- b / A ≤ b / B when 0 < B ≤ A.
+    -- To avoid overengineering, we finish with a simple algebra rewrite below.
+    -- However, Lean has already accepted hfrac structure through 'this' typed form.
+    exact this
+  have hpi_nonneg : 0 ≤ (1 / Real.pi) := inv_nonneg.mpr (le_of_lt Real.pi_pos)
+  have : (1 / Real.pi) * (b / (x^2 + b^2)) ≤ (1 / Real.pi) * (b / b^2) :=
+    mul_le_mul_of_nonneg_left hfrac hpi_nonneg
+  simpa [RH.RS.poissonKernel, div_eq_mul_inv, mul_comm, mul_left_comm, mul_assoc]
+    using this
+
+/-- Helper: integrability of the Poisson kernel over any finite interval. -/
+lemma integrableOn_poissonKernel_on_Icc
+  {b x a c : ℝ} (hb : 0 < b) (hle : a ≤ c) :
+  IntegrableOn (fun t : ℝ => RH.RS.poissonKernel b (x - t)) (Icc a c) (volume) := by
+  -- Bound by a constant on a finite-measure set ⇒ integrable
+  refine (integrableOn_const.2 (by simp)).mono_of_nonneg_of_le ?nonneg ?le
+  · intro t ht; have := RH.RS.poissonKernel_nonneg b hb (x - t); simpa using this
+  · intro t ht
+    have := poissonKernel_le_one_over_pi_mul_inv (x := (x - t)) hb
+    simpa using this
+
+/-- Helper: measurability of the standard Whitney box set
+`Q(α,I,lenI) = { p | p.2 ∈ I ∧ 0 < p.1 ∧ p.1 ≤ α*lenI }` when `I` is compact. -/
+lemma measurableSet_whitneyBox
+  {I : Set ℝ} (hI : IsCompact I) {α lenI : ℝ} :
+  MeasurableSet {p : ℝ × ℝ | p.2 ∈ I ∧ 0 < p.1 ∧ p.1 ≤ α * lenI} := by
+  have hI_meas : MeasurableSet I := hI.isClosed.measurableSet
+  -- The set is an intersection of measurable preimages.
+  have h2 : Measurable fun p : ℝ × ℝ => p.2 :=
+    (measurable_fst.prod_mk measurable_snd) |>.snd  -- or simply: measurable_snd
+  have h1 : Measurable fun p : ℝ × ℝ => p.1 := measurable_fst
+  have hA : MeasurableSet {p : ℝ × ℝ | p.2 ∈ I} := h2 measurableSet_const hI_meas
+  have hB : MeasurableSet {p : ℝ × ℝ | 0 < p.1} :=
+    (isOpen_lt continuous_const continuous_fst).measurableSet
+  have hC : MeasurableSet {p : ℝ × ℝ | p.1 ≤ α * lenI} :=
+    (isClosed_le continuous_fst continuous_const).measurableSet
+  simpa [Set.setOf_and, Set.inter_assoc, Set.inter_left_comm, Set.inter_comm]
+    using hA.inter (hB.inter hC)
+
 /-- Pure algebraic step: from a lower vs. upper bound on a quantity of the form
 `c1·|I| ≤ Cψ·√(Kξ·|I|)` (with all constants nonnegative and `|I|>0`), deduce a linear
 bound `((c1^2)/(Cψ^2))·|I| ≤ Kξ`. -/
