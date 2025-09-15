@@ -71,8 +71,6 @@ theorem localWedge_from_pairing_and_uniformTest
     (α : ℝ) (ψ : ℝ → ℝ)
     (F : ℂ → ℂ)
     (hKxi : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ)
-    (pairing := cutoff_pairing_bound)
-    (testE := RS.uniform_test_energy α ψ)
     (hPPlus : RH.Cert.PPlus F)
     : localWedge_from_WhitneyCarleson F hKxi :=
   -- For now, the local wedge is definitionally `(P+)`, so we pass through `hPPlus`.
@@ -143,25 +141,25 @@ theorem local_pairing_bound_from_Carleson_budget
   (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
   (I : Set ℝ) (α' : ℝ)
   (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
-  (∇U : (ℝ × ℝ) → ℝ × ℝ) (∇χVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (gradU : (ℝ × ℝ) → ℝ × ℝ) (gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ)
   (B : ℝ → ℝ)
   (Cψ_pair Cψ_rem : ℝ)
   (hPairVol :
-    |∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ|
-      ≤ Cψ_pair * Real.sqrt (RS.boxEnergy ∇U σ Q))
+    |∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ|
+      ≤ Cψ_pair * Real.sqrt (RS.boxEnergy gradU σ Q))
   (hRemBound :
-    |(∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+    |(∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
       - (∫ t in I, ψ t * B t)|
-      ≤ Cψ_rem * Real.sqrt (RS.boxEnergy ∇U σ Q))
+      ≤ Cψ_rem * Real.sqrt (RS.boxEnergy gradU σ Q))
   (hCψ_nonneg : 0 ≤ Cψ_pair + Cψ_rem)
-  (hEnergy_le : RS.boxEnergy ∇U σ Q ≤ Kξ * lenI)
+  (hEnergy_le : RS.boxEnergy gradU σ Q ≤ Kξ * lenI)
   : |∫ t in I, ψ t * B t| ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (Kξ * lenI) := by
   -- Obtain the sqrt budget from the numeric Carleson inequality
   have hCarlSqrt :
-      Real.sqrt (RS.boxEnergy ∇U σ Q) ≤ Real.sqrt (Kξ * lenI) := by
-    exact RS.sqrt_boxEnergy_bound_of_ConcreteHalfPlaneCarleson hCar ∇U σ Q hEnergy_le
+      Real.sqrt (RS.boxEnergy gradU σ Q) ≤ Real.sqrt (Kξ * lenI) := by
+    exact RS.sqrt_boxEnergy_bound_of_ConcreteHalfPlaneCarleson hCar gradU σ Q hEnergy_le
   -- Apply the CR–Green link
-  exact RS.CRGreen_link U W ψ χ I α' σ Q ∇U ∇χVψ B
+  exact RS.CRGreen_link U W ψ χ I α' σ Q gradU gradChiVpsi B
     Cψ_pair Cψ_rem hPairVol hRemBound Kξ lenI hCψ_nonneg hCarlSqrt
 
 
@@ -175,37 +173,37 @@ theorem local_pairing_bound_from_IBP_and_Carleson
   (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
   (I : Set ℝ) (α' : ℝ)
   (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
-  (∇U : (ℝ × ℝ) → ℝ × ℝ) (∇χVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (gradU : (ℝ × ℝ) → ℝ × ℝ) (gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ)
   (B : ℝ → ℝ)
   (Cψ_pair Cψ_rem : ℝ)
   -- Volume pairing bound (e.g. by L² Cauchy–Schwarz on σ|Q):
   (hPairVol :
-    |∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ|
-      ≤ Cψ_pair * Real.sqrt (RS.boxEnergy ∇U σ Q))
+    |∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ|
+      ≤ Cψ_pair * Real.sqrt (RS.boxEnergy gradU σ Q))
   -- Rectangle IBP decomposition with vanishing side/top and an interior bound:
   (Rside Rtop Rint : ℝ)
   (hEqDecomp :
-    (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+    (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
       = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint)
   (hSideZero : Rside = 0) (hTopZero : Rtop = 0)
-  (hRintBound : |Rint| ≤ Cψ_rem * Real.sqrt (RS.boxEnergy ∇U σ Q))
+  (hRintBound : |Rint| ≤ Cψ_rem * Real.sqrt (RS.boxEnergy gradU σ Q))
   (hCψ_nonneg : 0 ≤ Cψ_pair + Cψ_rem)
-  (hEnergy_le : RS.boxEnergy ∇U σ Q ≤ Kξ * lenI)
+  (hEnergy_le : RS.boxEnergy gradU σ Q ≤ Kξ * lenI)
   : |∫ t in I, ψ t * B t| ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (Kξ * lenI) := by
   classical
   -- Sqrt-form Carleson budget
   have hCarlSqrt :
-      Real.sqrt (RS.boxEnergy ∇U σ Q) ≤ Real.sqrt (Kξ * lenI) := by
-    exact RS.sqrt_boxEnergy_bound_of_ConcreteHalfPlaneCarleson hCar ∇U σ Q hEnergy_le
+      Real.sqrt (RS.boxEnergy gradU σ Q) ≤ Real.sqrt (Kξ * lenI) := by
+    exact RS.sqrt_boxEnergy_bound_of_ConcreteHalfPlaneCarleson hCar gradU σ Q hEnergy_le
   -- Whitney analytic bound from Green+trace decomposition inputs
   have hAnalytic :
       |∫ t in I, ψ t * B t|
-        ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (RS.boxEnergy ∇U σ Q) := by
+        ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (RS.boxEnergy gradU σ Q) := by
     -- If χ vanishes a.e. on side/top boundary pieces, we can derive Rside=Rtop=0
     -- via side_top_zero_from_ae_zero and then apply the Whitney packaging.
     -- Here we assume hSideZero, hTopZero are already available in inputs.
     exact RS.CRGreen_pairing_whitney_from_green_trace
-      U W ψ χ I α' σ Q ∇U ∇χVψ B Cψ_pair Cψ_rem
+      U W ψ χ I α' σ Q gradU gradChiVpsi B Cψ_pair Cψ_rem
       hPairVol Rside Rtop Rint hEqDecomp hSideZero hTopZero hRintBound
   -- Push through the Carleson budget (monotonicity by nonnegativity)
   exact
@@ -222,13 +220,13 @@ theorem local_pairing_bound_from_IBP_aeZero_and_Carleson
   (U : ℝ × ℝ → ℝ) (W ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
   (I : Set ℝ) (α' : ℝ)
   (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
-  (∇U : (ℝ × ℝ) → ℝ × ℝ) (∇χVψ : (ℝ × ℝ) → ℝ × ℝ)
+  (gradU : (ℝ × ℝ) → ℝ × ℝ) (gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ)
   (B : ℝ → ℝ)
   (Cψ_pair Cψ_rem : ℝ)
   -- Volume pairing bound (e.g. by L² Cauchy–Schwarz on σ|Q):
   (hPairVol :
-    |∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ|
-      ≤ Cψ_pair * Real.sqrt (RS.boxEnergy ∇U σ Q))
+    |∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ|
+      ≤ Cψ_pair * Real.sqrt (RS.boxEnergy gradU σ Q))
   -- Side/top boundary representations and a.e. vanish of χ on those pieces:
   (μ_side μ_top : Measure (ℝ × ℝ))
   (F_side F_top : (ℝ × ℝ) → ℝ)
@@ -239,11 +237,11 @@ theorem local_pairing_bound_from_IBP_aeZero_and_Carleson
   (hTopAE   : (fun x => χ x) =ᵐ[μ_top] 0)
   -- IBP decomposition and interior remainder bound:
   (hEqDecomp :
-    (∫ x in Q, (∇U x) ⋅ (∇χVψ x) ∂σ)
+    (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
       = (∫ t in I, ψ t * B t) + Rside + Rtop + Rint)
-  (hRintBound : |Rint| ≤ Cψ_rem * Real.sqrt (RS.boxEnergy ∇U σ Q))
+  (hRintBound : |Rint| ≤ Cψ_rem * Real.sqrt (RS.boxEnergy gradU σ Q))
   (hCψ_nonneg : 0 ≤ Cψ_pair + Cψ_rem)
-  (hEnergy_le : RS.boxEnergy ∇U σ Q ≤ Kξ * lenI)
+  (hEnergy_le : RS.boxEnergy gradU σ Q ≤ Kξ * lenI)
   : |∫ t in I, ψ t * B t| ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (Kξ * lenI) := by
   classical
   -- a.e. vanish ⇒ side/top integrals vanish
@@ -251,8 +249,11 @@ theorem local_pairing_bound_from_IBP_aeZero_and_Carleson
   have hSideZero : Rside = 0 := hZero.1
   have hTopZero  : Rtop  = 0 := hZero.2
   -- Use the IBP adapter with explicit zeros
-  exact local_pairing_bound_from_IBP_and_Carleson hCar U W ψ χ I α' σ Q ∇U ∇χVψ B Cψ_pair Cψ_rem
-    hPairVol 0 0 Rint hEqDecomp (by simpa [hSideZero]) (by simpa [hTopZero]) hRintBound hCψ_nonneg hEnergy_le
+  have hEqDecomp' : (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
+      = (∫ t in I, ψ t * B t) + 0 + 0 + Rint := by
+    rw [hEqDecomp, hSideZero, hTopZero, add_zero, add_zero]
+  exact local_pairing_bound_from_IBP_and_Carleson hCar U W ψ χ I α' σ Q gradU gradChiVpsi B Cψ_pair Cψ_rem
+    hPairVol 0 0 Rint hEqDecomp' (by simp) (by simp) hRintBound hCψ_nonneg hEnergy_le
 
 /-- Abstract half–plane Poisson transport: if `(P+)` holds on the boundary for `F`,
 then `Re F ≥ 0` on the interior `Ω`. This is a statement‑level predicate that can
@@ -411,9 +412,9 @@ lemma hasHalfPlanePoissonTransport_from_rep_Jpinch
 
 /-- Convenience export: Poisson transport for the pinch field from a representation witness. -/
 theorem hasHalfPlanePoissonTransport_pinch
-    (det2 O : ℂ → ℂ)
-    (hRep : HasPoissonRepresentation (fun z => (2 : ℂ) * J_pinch det2 O z)) :
-    HasHalfPlanePoissonTransport (fun z => (2 : ℂ) * J_pinch det2 O z) :=
+    (O : ℂ → ℂ)
+    (hRep : HasPoissonRepresentation (fun z => (2 : ℂ) * J_pinch RH.RS.det2 O z)) :
+    HasHalfPlanePoissonTransport (fun z => (2 : ℂ) * J_pinch RH.RS.det2 O z) :=
   hasHalfPlanePoissonTransport_from_rep_Jpinch O hRep
 
 /-- Interior nonnegativity on `Ω \\ Z(ξ_ext)` for the pinch field
