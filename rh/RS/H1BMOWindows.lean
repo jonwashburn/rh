@@ -79,8 +79,12 @@ theorem windowed_phase_bound_of_carleson
     (hC : CarlesonBoxBound α Cbox u)
     : Mpsi ψ u ≤ H1_BMO_window_constant ψ α * Real.sqrt Cbox := by
   -- Trivial inequality since Mpsi ≡ 0 in this lightweight adapter
-  simp [Mpsi]
-  exact mul_nonneg (H1_BMO_window_constant_nonneg ψ α) (Real.sqrt_nonneg _)
+  simp [Mpsi, H1_BMO_window_constant, one_div]
+  have h1 : 0 ≤ (Real.sqrt (WindowKernelData.c0 (ψ := ψ)))⁻¹ := by
+    have : 0 < Real.sqrt (WindowKernelData.c0 (ψ := ψ)) :=
+      Real.sqrt_pos.mpr (WindowKernelData.c0_pos (ψ := ψ))
+    exact inv_nonneg.mpr (le_of_lt this)
+  exact mul_nonneg h1 (Real.sqrt_nonneg _)
 
 end RS
 
@@ -117,9 +121,9 @@ theorem windowed_phase_bound_param
     ≤ (1 / Real.sqrt md.c0) * Real.sqrt ed.Cbox := by
   -- Trivial inequality since MpsiParam ≡ 0 in this lightweight adapter
   simp [MpsiParam]
-  have : 0 ≤ (1 / Real.sqrt md.c0) := by
+  have h1 : 0 ≤ (Real.sqrt md.c0)⁻¹ := by
     have : 0 < Real.sqrt md.c0 := Real.sqrt_pos.mpr md.c0_pos
-    exact le_of_lt (one_div_pos.mpr this)
-  exact mul_nonneg this (Real.sqrt_nonneg _)
+    exact inv_nonneg.mpr (le_of_lt this)
+  simpa [one_div] using mul_nonneg h1 (Real.sqrt_nonneg _)
 
 end RS
