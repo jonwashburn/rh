@@ -26,7 +26,6 @@ namespace RS
 structure Window where
   ℓ   : ℝ
   pos : 0 < ℓ
-deriving Repr
 
 /-- Opaque: window "mass" induced by a fixed kernel `ψ`.
 We only use nonnegativity and a uniform lower bound `≥ c0⋅ℓ`. -/
@@ -38,7 +37,7 @@ opaque boxEnergy (ψ u : ℝ → ℝ) (W : Window) : ℝ
 
 /-- Kernel-side data assumed for the fixed window `ψ`: evenness and mass
 comparability from below with constant `c0 > 0`. -/
-class WindowKernelData (ψ : ℝ → ℝ) : Prop where
+class WindowKernelData (ψ : ℝ → ℝ) where
   even        : ∀ t, ψ t = ψ (-t)
   c0          : ℝ
   c0_pos      : 0 < c0
@@ -176,7 +175,7 @@ structure WindowEnergyData (ψ u : ℝ → ℝ) where
   energy_le     : ∀ W, energy W ≤ Cbox * W.ℓ
 
 @[simp] noncomputable
-def MpsiParam (md : WindowMassData ψ) (ed : WindowEnergyData ψ u) : ℝ :=
+def MpsiParam (ψ u : ℝ → ℝ) (md : WindowMassData ψ) (ed : WindowEnergyData ψ u) : ℝ :=
   ⨆ (W : Window), Real.sqrt (ed.energy W) / Real.sqrt (md.mass W)
 
 theorem windowed_phase_bound_param
