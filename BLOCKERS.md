@@ -1,3 +1,16 @@
+RS boundary-wedge (Whitney–plateau) blockers:
+
+1) Global Whitney–plateau coercivity sum: need a proved lemma that from CR–Green pairing + plateau window + concrete half–plane Carleson budget, there exists a finite Whitney selection S with
+   Σ_{Q∈S} ∬_Q δ ∇W·∇(χ V_ψ) ≥ c₀ Σ_{Q∈S} E(Q) − η E_tot,
+   with small η and absolute c₀>0. Not present in mathlib or the repo.
+
+2) Carleson capture (Whitney stopping): need a formal stopping-time/Whitney covering lemma in the half-plane tents capturing ≥(1−ε) of the weighted energy on a finite selection.
+
+3) Shadow–energy comparability: need a proved inequality κ Σ_{Q∈S} E(Q) ≤ Σ_{Q∈S} |I_Q| for the fixed Whitney geometry and plateau window.
+
+4) Bad-set ⇒ boundary negativity selection: from failure of (P+) produce a Vitali/Whitney family of shadows with uniform negative boundary pairing margin, quantified via the plateau.
+
+Per project policy, these deep analytic lemmas are required to replace the current stubs and finish the unconditional `(P+)` proof in `rh/RS/BoundaryWedge.lean`.
 RS: ZetaNoZerosOnRe1FromSchur requires a ζ→Θ/N analytic bridge (Θ Schur on Ω, N analytic nonvanishing on closure); missing in codebase/mathlib, so export is blocked.
 RS-ASSIGN: Producing `assign : Re=1 → LocalPinchData` from ζ→Θ/N needs a local removable-extension lemma ensuring an analytic `g` with `g(ρ)=1` agreeing with `Θ` on punctured neighborhoods; not present in mathlib at this specificity.
 RS: Explicit Θ,N via Cayley with F:=2J and J:=det₂/(outer·ξ), ζ = Θ/N off zeros, and the pinned limit at ξ-zeros require a formal det₂/outer/ξ interface; not available—provide statement-level interface only.

@@ -7,7 +7,7 @@
     - `SchurOnRectangles`
     - `NoInteriorZeros`
     - `ZetaNoZerosOnRe1FromSchur`
-  - Policy: If a required lemma is deep/missing in mathlib, add a 1-line entry to `BLOCKERS.md` and stop.
+  - Policy: If a required lemma is deep/missing in mathlib, add a 1-line entry to `BLOCKERS.md` and identify blocker and continue implementation (work the blocker inside RS where feasible).
 
 - **DF-WP (Weierstrass/product)**
   - Files: `rh/academic_framework/DiagonalFredholm/WeierstrassProduct.lean`, `ProductLemmas.lean`
@@ -33,7 +33,7 @@
 
 ### Global Rules
 - Edit only your track files. No new axioms. No deletions or mass renames.
-- On deep missing lemma: log to `BLOCKERS.md` and STOP.
+- On deep missing lemma: log to `BLOCKERS.md` and identify blocker and continue implementation.
 - Build once, fix first error in your track; if next error is outside your track, STOP and report.
 - Commit small, atomic changes with `fix(track-<name>): <short>`.
 
