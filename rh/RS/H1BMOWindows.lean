@@ -1,4 +1,5 @@
 import Mathlib.Data.Real.Basic
+import Mathlib.Data.Real.Complete
 import Mathlib.Analysis.SpecialFunctions.Sqrt
 
 /-!
