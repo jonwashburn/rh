@@ -3,7 +3,11 @@ import Mathlib.Topology.Instances.Real
 import rh.RS.CRGreenOuter
 import Mathlib.MeasureTheory.Integral.SetIntegral
 import Mathlib.Topology.Algebra.FilterBasis
-import Mathlib.Topology.Algebra.InfiniteSum
+import Mathlib.MeasureTheory.Function.Egorov
+import Mathlib.MeasureTheory.Covering.Differentiation
+import Mathlib/MeasureTheory/Measure/Real
+import Mathlib.MeasureTheory.Covering.Besicovitch
+import rh.Cert.KxiPPlus
 
 /-!
 # Minimal tent/shadow geometry and monotonicity
@@ -348,9 +352,73 @@ lemma exists_density_point_of_pos_measure
   {A : Set ℝ} (hMeasA : MeasurableSet A)
   (hPos : 0 < (volume A)) : ∃ t0 ∈ A, IsDensityPoint A t0 :=
 by
-  -- Standard result; full proof omitted.
-  -- Replace with the differentiation theorem instantiation.
-  admit
+  classical
+  -- Use Lebesgue density theorem: a.e. point of `A` is a density point (with closed balls).
+  -- We adapt to symmetric intervals using standard comparability; choose a point where density=1.
+  -- mathlib provides: `Measure.ae_tendsto_indicator_inter_ratio ...` and density point lemmas.
+  -- We invoke the differentiation theorem for sets on ℝ (w.r.t. Lebesgue measure).
+  -- There exists a density point t0 ∈ A since μ(A) > 0.
+  have hAe : (∂(volume)).ae (IsClosedBallLebesgueDensityPoint A) :=
+    Measure.ae_isClosedBallLebesgueDensity (μ := (volume)) A
+  -- From full-measure set of density points and μ(A)>0, pick one in A
+  -- Use that density-one points lie in the closure; here we use a standard selection argument.
+  -- For ℝ, we can select t0 ∈ A ∩ density_points(A), since μ(A)>0.
+  have hApos : 0 < volume A := hPos
+  have hIntPos : 0 < (volume (A ∩ A)) := by simpa [Set.inter_self] using hApos
+  -- pick t0 in A which is also a density point (closed-ball notion)
+  obtain ⟨t0, ht0A, ht0dens⟩ : ∃ t0 ∈ A, IsClosedBallLebesgueDensityPoint A t0 := by
+    -- standard argument: density points form an a.e. set; intersect with A of positive measure
+    -- so intersection is nonempty; choose t0
+    -- use `exists_of_ae`-style selection via classical choice
+    classical
+    -- choose t0 in A where property holds (by non-null intersection)
+    -- We can pick t0 since the support is ℝ and the ae set has full measure
+    have : (volume) (A ∩ {x | IsClosedBallLebesgueDensityPoint A x}) > 0 := by
+      -- since the property holds a.e., the complement has measure zero
+      have hCompNull : (volume) ({x | ¬ IsClosedBallLebesgueDensityPoint A x}) = 0 := by
+        simpa [Measure.ae_iff] using hAe
+      have : (volume) (A ∩ {x | IsClosedBallLebesgueDensityPoint A x})
+            = (volume) A := by
+        have : (A ∩ {x | IsClosedBallLebesgueDensityPoint A x}) =
+            A \ {x | ¬ IsClosedBallLebesgueDensityPoint A x} := by
+          ext x; constructor <;> intro hx <;> rcases hx with ⟨hxA, hxP⟩ <;> simpa [Set.mem_setLike] [Set.mem_setLike] using ?_
+          · exact And.intro hxA hxP
+          · exact And.intro hxA hxP
+        -- use measure_diff_null
+        have : (volume) (A ∩ {x | IsClosedBallLebesgueDensityPoint A x}) =
+            (volume) A := by
+          have : (volume) (A ∩ {x | IsClosedBallLebesgueDensityPoint A x})
+              = (volume) (A \ {x | ¬ IsClosedBallLebesgueDensityPoint A x}) := by rfl
+          -- measure of difference equals measure of A since complement has zero measure
+          have := Measure.diff_null (μ := volume) (s := A)
+              (t := {x | ¬ IsClosedBallLebesgueDensityPoint A x}) hCompNull
+          simpa using this
+        simpa using this
+      -- hence positive
+      simpa [this] using hApos
+    -- choose t0 in that intersection
+    classical
+    have hNonempty : (A ∩ {x | IsClosedBallLebesgueDensityPoint A x}).Nonempty :=
+      Set.nonempty_of_measure_neZero (by exact_mod_cast (ne_of_gt this))
+    rcases hNonempty with ⟨t0, ht0A', ht0dens'⟩
+    exact ⟨t0, ht0A', ht0dens'⟩
+  -- convert closed-ball density to interval density; on ℝ they are equivalent up to constants.
+  -- Conclude IsDensityPoint with our interval-based predicate.
+  refine ⟨t0, ht0A, ?_⟩
+  intro ε hε
+  -- pick r from closed-ball density giving mass ≥ (1-ε) ratio, then compare balls/intervals
+  -- Omitted: detailed conversion; choose r small and use comparability of Icc and closedBall.
+  -- Provide existence with the same r by inner/outer regularity equivalences in ℝ.
+  obtain ⟨r, hrpos, hbound⟩ :=
+    IsClosedBallLebesgueDensityPoint.exists_ratio_ge ht0dens (by linarith)
+  -- Turn the closedBall estimate into the interval estimate (up to harmless constants)
+  refine ⟨r, hrpos, ?_, ?_⟩
+  · -- positivity of interval length
+    have : (0 : ℝ) < (2*r) := by nlinarith
+    simpa [Icc, Real.volume_Icc, two_mul, mul_comm, sub_eq, toReal_ofReal] using (show 0 < (volume (Icc (t0 - r) (t0 + r))).toReal from ?_)
+    admit
+  · -- the fractional lower bound on intervals follows from the closedBall bound
+    admit
 
 /-- Egorov on finite-measure sets for sequences `f_n → f` a.e.:
 For any δ>0 and ε>0, there exists a measurable `E ⊆ S` with `μ(S \ E) ≤ δ·μ(S)`
@@ -359,13 +427,93 @@ lemma egorov_uniform_on_large_subset
   {α} [MeasurableSpace α] {μ : Measure α}
   {S : Set α} (hSmeas : MeasurableSet S) (hSfin : μ S < ∞)
   (f : ℕ → α → ℝ) (g : α → ℝ)
+  (hf : ∀ n, StronglyMeasurable (f n)) (hg : StronglyMeasurable g)
   (hAI : ∀ᵐ x ∂(μ.restrict S), Filter.Tendsto (fun n : ℕ => f n x) atTop (nhds (g x)))
   (δ ε : ℝ) (hδ : 0 < δ) (hε : 0 < ε) :
-  ∃ (E : Set α), E ⊆ S ∧ MeasurableSet E ∧ μ (S \ E) ≤ δ * μ S ∧ ∃ N : ℕ,
-    ∀ x ∈ E, |f N x - g x| ≤ ε :=
+  ∃ (E : Set α), E ⊆ S ∧ MeasurableSet E ∧
+      μ (S \ E) ≤ ENNReal.ofReal (δ * (μ S).toReal) ∧ ∃ N : ℕ,
+      ∀ x ∈ E, |f N x - g x| ≤ ε :=
 by
-  -- Standard Egorov theorem application; proof omitted here.
-  admit
+  classical
+  -- Handle μ S = 0 quickly by taking E = S (vacuous uniform bound) and any N
+  by_cases hSz : μ S = 0
+  · refine ⟨S, by intro x hx; exact hx, hSmeas, ?_, ⟨0, ?_⟩⟩
+    · simpa [hSz, ENNReal.toReal_zero, mul_zero, ENNReal.ofReal_zero]
+    · intro x hx; simp
+  -- Apply Egorov on the finite measure space μ.restrict S
+  have hFin : IsFiniteMeasure (μ.restrict S) :=
+    isFiniteMeasure_restrict_of_finite hSfin
+  have hconv : ∀ᵐ x ∂(μ.restrict S),
+      Filter.Tendsto (fun n => f n x) atTop (𝓝 (g x)) := hAI
+  obtain ⟨t, ht_sub, ht_meas, ht_small, hUnif⟩ :=
+    MeasureTheory.tendstoUniformlyOn_of_ae_tendsto
+      (μ := μ.restrict S) (f := fun n x => f n x) (g := fun x => g x)
+      (hf := hf) (hg := hg) (hsm := MeasurableSet.univ)
+      (hs := by simpa [Measure.restrict_univ] using (measure_ne_top (μ := μ.restrict S) Set.univ))
+      (hfg := by
+        -- rewrite the a.e. convergence on μ.restrict S for s = univ
+        refine (Filter.Eventually.filter_mono ?_) hconv
+        exact le_of_eq rfl) (ε := δ * (μ S).toReal) (by
+          have : 0 ≤ (μ S).toReal := by exact ENNReal.toReal_nonneg
+          have : 0 < δ * (μ S).toReal := mul_pos hδ (lt_of_le_of_ne this (by exact_mod_cast hSz))
+          simpa)
+  -- Set the good set E = S \ t
+  let E : Set α := S \ t
+  have hE_sub : E ⊆ S := by intro x hx; exact hx.1
+  have hE_meas : MeasurableSet E := hSmeas.diff ht_meas
+  -- Measure bound: (μ.restrict S) t ≤ ofReal (δ * (μ S).toReal) ⇒ μ (S \ E) ≤ ofReal (δ * (μ S).toReal)
+  have hRestr : (μ.restrict S) t = μ (S ∩ t) := by
+    simp [Measure.restrict_apply, hSmeas, Set.inter_comm, Set.inter_left_comm, Set.inter_assoc]
+  have hExc : μ (S \ E) = (μ.restrict S) t := by
+    -- S \ (S \ t) = S ∩ t
+    have : S \ E = S ∩ t := by
+      ext x; constructor <;> intro hx
+      · rcases hx with ⟨hxS, hxE⟩; exact ⟨hxS, by simpa [E, Set.mem_diff, hxS] using hxE⟩
+      · intro; rcases hx with ⟨hxS, hxT⟩; exact ⟨hxS, by simpa [E, Set.mem_diff, hxS]⟩
+    simpa [this, hRestr]
+  have hSmall : μ (S \ E) ≤ ENNReal.ofReal (δ * (μ S).toReal) := by
+    simpa [hExc] using ht_small
+  -- Uniform bound on E from `hUnif` (uniform convergence on univ \ t) restricted to E ⊆ S \ t
+  have hUnifE : TendstoUniformlyOn f g atTop E := by
+    -- E ⊆ (univ \ t)
+    have hE_univ_diff : E ⊆ Set.univ \ t := by intro x hx; exact ⟨trivial, by simpa [E, Set.mem_diff, hx.1] using hx.2⟩
+    exact hUnif.mono hE_univ_diff
+  -- From uniform convergence, pick N with sup_{x∈E} |f N x - g x| ≤ ε
+  obtain ⟨N, hN⟩ := hUnifE.eventually (Filter.eventually_of_forall (fun x => le_rfl))
+  refine ⟨E, hE_sub, hE_meas, hSmall, N, ?_⟩
+  intro x hxE; exact hN x hxE
+  -- Set the good set E = S \ t
+  let E : Set α := S \ t
+  have hE_sub : E ⊆ S := by intro x hx; exact hx.1
+  have hE_meas : MeasurableSet E := hSmeas.diff ht_meas
+  -- Measure bound: μ(S \ E) = μ(S ∩ t) ≤ μ t ≤ δ μ S after choosing δ large enough.
+  -- We can ensure μ t ≤ δ μ S by taking the Egorov ε with ENNReal.ofReal (δ * μ S).
+  -- Here we use the given `δ`; since Egorov gives arbitrary small ENNReal ε, we require δ>0.
+  -- Convert ht_small: (μ.restrict S) t ≤ ofReal ε' with ε' chosen as δ * μ S in caller.
+  -- For simplicity, we derive a weaker bound μ(S \ E) ≤ μ t ≤ δ μ S from ht_small by assuming
+  -- ε = δ * μ S (the caller can pass such ε via parameters).
+  have hSet_measure : μ (S \ E) = μ (S ∩ t) := by
+    ext x; rfl
+  have hRestr : (μ.restrict S) t = μ (S ∩ t) := by
+    simp [Measure.restrict_apply, hSmeas, Set.inter_comm, Set.inter_left_comm, Set.inter_assoc]
+  -- Choose the quantitative δ via the given `δ`; convert ht_small (in ENNReal) to real bound
+  have hSmall_real : μ (S ∩ t) ≤ ENNReal.toReal (ENNReal.ofReal (δ * μ S.toReal)) := by
+    -- This is schematic; in practice, pick Egorov with ENNReal.ofReal (δ * μ S.toReal)
+    -- and rewrite. We assert a usable inequality shape here.
+    -- Replace with tight bound if needed.
+    admit
+  have hSmall : μ (S \ E) ≤ δ * μ S := by
+    -- from hSet_measure, hRestr and hSmall_real
+    admit
+  -- Uniform bound on E from `hUnif` (uniform convergence on tᶜ)
+  -- `hUnif` : TendstoUniformlyOn f g atTop tᶜ
+  have hUnifE : TendstoUniformlyOn f g atTop E := by
+    -- E = S \ t ⊆ tᶜ; restrict uniformity to E
+    exact hUnif.mono (by intro x hx; exact hx.2)
+  -- From uniform convergence, pick N with sup_{x∈E} |f N x - g x| ≤ ε
+  obtain ⟨N, hN⟩ := hUnifE.eventually le_rfl
+  refine ⟨E, hE_sub, hE_meas, hSmall, N, ?_⟩
+  intro x hxE; exact hN x hxE
 
 /-- Step 1 (level selection): from a positive-measure negative set for the
 boundary trace `u = boundaryRe F`, pick a dyadic negative level `-1/(n+1)` whose
@@ -468,10 +616,26 @@ by
   -/
   -- Step 1: choose a dyadic level with positive measure
   have hNegSetPos : 0 < (volume {t : ℝ | boundaryRe F t < 0}) := by
-    -- From failure of (P+), the negative set has positive measure
-    -- (interpretation of `¬PPlus` as boundary negativity on a set of positive measure)
-    -- This bridge is assumed; implement via upstream predicate equivalence.
-    admit
+    -- From failure of (P+), derive that the negative set has positive measure
+    -- using the `ae_iff` characterization.
+    have hnotAE : ¬ (∀ᵐ t : ℝ, 0 ≤ boundaryRe F t) := by
+      intro hAE
+      -- Rewrite the `(P+)` statement to boundaryRe form and contradict `hFail`.
+      have hAE' : ∀ᵐ t : ℝ, 0 ≤ (F (Complex.mk (1/2) t)).re := by
+        filter_upwards [hAE] with t ht
+        -- (1/2 + i t) = Complex.mk (1/2) t, so the real parts coincide
+        have hmk : ((1/2 : ℂ) + Complex.I * (t : ℂ)) = Complex.mk (1/2 : ℝ) t := by
+          ext <;> simp
+        simpa [boundaryRe, hmk]
+      exact hFail (by simpa [RH.Cert.PPlus] using hAE')
+    -- Turn `¬ (∀ᵐ t, 0 ≤ boundaryRe F t)` into positive measure of the negative set.
+    have hne : volume {t : ℝ | ¬ (0 ≤ boundaryRe F t)} ≠ 0 := by
+      simpa [Measure.ae_iff] using hnotAE
+    have hne' : volume {t : ℝ | boundaryRe F t < 0} ≠ 0 := by
+      -- {¬(0 ≤ u)} = {u < 0} on ℝ
+      simpa [Set.ext_iff, Set.setOf_app_iff, not_le] using hne
+    -- For ENNReal, μ ≠ 0 ↔ 0 < μ since measures are ≥ 0
+    exact ENNReal.pos_iff_ne_zero.mpr hne'
   have hMeas_u : Measurable (fun t : ℝ => boundaryRe F t) := by
     -- boundaryRe is measurable under standard assumptions
     admit
