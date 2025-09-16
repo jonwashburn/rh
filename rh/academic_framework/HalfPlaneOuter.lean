@@ -4,6 +4,7 @@ import Mathlib.Topology.Basic
 import rh.academic_framework.CompletedXi
 import Mathlib.MeasureTheory.Integral.Bochner
 import rh.RS.Cayley
+import rh.academic_framework.DiskHardy
 
 /-!
 # Half‑plane outers (interface)
@@ -71,6 +72,11 @@ at the Prop level, without committing to a particular analytic implementation. -
 
 /-- Boundary parametrization of the line Re s = 1/2. -/
 @[simp] def boundary (t : ℝ) : ℂ := (1 / 2 : ℂ) + Complex.I * (t : ℂ)
+
+@[simp] lemma boundary_mk_eq (t : ℝ) : boundary t = Complex.mk (1/2) t := by
+  refine Complex.ext ?hre ?him
+  · simp [boundary]
+  · simp [boundary]
 
 /-- Placeholder: `u ∈ BMO(ℝ)` (used as an interface predicate only). -/
 @[simp] def BMO_on_ℝ (_u : ℝ → ℝ) : Prop := True
@@ -148,12 +154,12 @@ lemma poissonKernel_nonneg {z : ℂ} (hz : (1/2 : ℝ) < z.re) (t : ℝ) :
 
 -- Boundary nonnegativity predicate for `F` on `Re = 1/2`.
 def PPlus (F : ℂ → ℂ) : Prop :=
-  (0 ≤ᵐ[volume] fun t : ℝ => (F (boundary t)).re)
+  (∀ᵐ t : ℝ, 0 ≤ (F (Complex.mk (1/2) t)).re)
 
 lemma P_nonneg_of_ae_nonneg
     {u : ℝ → ℝ}
     (hInt : ∀ {z : ℂ}, z ∈ Ω → Integrable (fun t : ℝ => u t * poissonKernel z t))
-    (hu_nonneg : 0 ≤ᵐ[volume] fun t : ℝ => u t) :
+    (hu_nonneg : ∀ᵐ t : ℝ, 0 ≤ u t) :
     ∀ ⦃z : ℂ⦄, z ∈ Ω → 0 ≤ P u z := by
   intro z hz
   have hker :
@@ -162,7 +168,7 @@ lemma P_nonneg_of_ae_nonneg
     exact poissonKernel_nonneg (by simpa [Ω, Set.mem_setOf_eq] using hz) t
   have hprod :
       0 ≤ᵐ[volume] fun t : ℝ => u t * poissonKernel z t := by
-    refine (hu_nonneg.and hker).mono ?_
+    refine ((hu_nonneg).and hker).mono ?_
     intro t ht; rcases ht with ⟨hu, hk⟩; exact mul_nonneg hu hk
   have hI : Integrable (fun t : ℝ => u t * poissonKernel z t) := hInt hz
   -- integrability is not needed by integral_nonneg_of_ae; keep it for callers
@@ -183,13 +189,26 @@ theorem HasHalfPlanePoissonTransport
     (hRep : HasHalfPlanePoissonRepresentation F) :
     PPlus F → ∀ ⦃z : ℂ⦄, z ∈ Ω → 0 ≤ (F z).re := by
   intro hBoundary z hz
+  -- Convert boundary a.e. nonnegativity to the `boundary` parametrization
+  have hBoundary' : ∀ᵐ t : ℝ, 0 ≤ (F (boundary t)).re := by
+    simpa [PPlus, boundary_mk_eq]
+      using (hBoundary : ∀ᵐ t : ℝ, 0 ≤ (F (Complex.mk (1/2) t)).re)
   have hpos :=
     P_nonneg_of_ae_nonneg
       (u := fun t : ℝ => (F (boundary t)).re)
       (hInt := by intro w hw; simpa using hRep.integrable w hw)
-      (hu_nonneg := hBoundary)
+      (hu_nonneg := hBoundary')
       hz
   simpa [hRep.re_eq z hz] using hpos
+
+theorem HasHalfPlanePoissonTransport_re
+    {F : ℂ → ℂ}
+    (hRep : HasHalfPlanePoissonRepresentation F) :
+    PPlus F → ∀ z : ℂ, z.re > (1/2 : ℝ) → 0 ≤ (F z).re := by
+  intro hP z hz
+  have h := HasHalfPlanePoissonTransport (F := F) hRep hP
+  have hz' : z ∈ Ω := by simpa [Ω, Set.mem_setOf_eq] using hz
+  exact h hz'
 
 open RH.AcademicFramework.CompletedXi
 
@@ -203,6 +222,16 @@ theorem HasHalfPlanePoissonTransport_Jpinch
       ∀ ⦃z : ℂ⦄, z ∈ Ω → 0 ≤ ((F_pinch det2 O) z).re := by
   intro hP z hz
   exact HasHalfPlanePoissonTransport (F := F_pinch det2 O) hRep hP hz
+
+theorem HasHalfPlanePoissonTransport_Jpinch_re
+    {det2 O : ℂ → ℂ}
+    (hRep : HasHalfPlanePoissonRepresentation (F_pinch det2 O)) :
+    PPlus (F_pinch det2 O) →
+      ∀ z : ℂ, z.re > (1/2 : ℝ) → 0 ≤ ((F_pinch det2 O) z).re := by
+  intro hP z hz
+  have h := HasHalfPlanePoissonTransport_Jpinch (det2 := det2) (O := O) hRep hP
+  have hz' : z ∈ Ω := by simpa [Ω, Set.mem_setOf_eq] using hz
+  exact h hz'
 
 end HalfPlaneOuter
 end AcademicFramework

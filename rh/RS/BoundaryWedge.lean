@@ -3,6 +3,7 @@ import rh.RS.SchurGlobalization
 import rh.RS.H1BMOWindows
 import rh.RS.CRGreenOuter
 import rh.RS.Cayley
+import rh.academic_framework.HalfPlaneOuter
 import rh.RS.PoissonPlateau
 import rh.academic_framework.CompletedXi
 import rh.Cert.KxiWhitney
@@ -269,6 +270,43 @@ theorem schur_off_zeros_of_PPlus
     IsSchurOn (fun z => (F z - 1) / (F z + 1)) S := by
   -- Delegate to the general Cayley/Schur helper
   exact SchurOnRectangles F S hRe
+
+/-- Align RS/Cert `(P+)` with AF `(P+)` (both mean a.e. boundary nonnegativity). -/
+@[simp] lemma PPlus_rs_to_af (F : ℂ → ℂ) :
+  RH.Cert.PPlus F ↔ RH.AcademicFramework.HalfPlaneOuter.PPlus F := by
+  constructor
+  · intro h
+    -- Align boundary parametrizations: mk (1/2,t) = (1/2) + I t
+    have hb (t : ℝ) : (Complex.mk (1/2) t) = ((1/2 : ℂ) + Complex.I * (t : ℂ)) := by
+      refine Complex.ext ?hre ?him
+      · simp
+      · simp
+    simpa [RH.Cert.PPlus,
+           RH.AcademicFramework.HalfPlaneOuter.PPlus,
+           RH.AcademicFramework.HalfPlaneOuter.boundary_mk_eq, hb]
+      using h
+  · intro h
+    have hb (t : ℝ) : (Complex.mk (1/2) t) = ((1/2 : ℂ) + Complex.I * (t : ℂ)) := by
+      refine Complex.ext ?hre ?him
+      · simp
+      · simp
+    simpa [RH.Cert.PPlus,
+           RH.AcademicFramework.HalfPlaneOuter.PPlus,
+           RH.AcademicFramework.HalfPlaneOuter.boundary_mk_eq, hb]
+      using h
+
+/-- Transport wrapper: if `(P+)` holds for `F` on the boundary and we have a
+half‑plane Poisson representation, then interior positivity follows. -/
+theorem interior_re_nonneg_of_PPlus_and_rep
+    (F : ℂ → ℂ)
+    (hRep : RH.AcademicFramework.HalfPlaneOuter.HasHalfPlanePoissonRepresentation F)
+    (hP : RH.Cert.PPlus F) :
+    ∀ z : ℂ, z.re > (1/2 : ℝ) → 0 ≤ (F z).re := by
+  intro z hz
+  have hPAF : RH.AcademicFramework.HalfPlaneOuter.PPlus F :=
+    (PPlus_rs_to_af F).mp hP
+  exact RH.AcademicFramework.HalfPlaneOuter.HasHalfPlanePoissonTransport_re
+    (F := F) hRep hPAF z hz
 
 /-- Wiring adapter: use `CRGreen_link` together with a concrete Carleson budget,
 plus the local geometric energy inequality, to produce the boundary pairing bound
