@@ -81,6 +81,17 @@ Format:
   - Stubs: none
 
 - MATH-BLOCKER: Half‑plane Poisson transport: (P+) ⇒ interior nonnegativity for F := (2:ℂ)·J_pinch det2 O (prove `HasHalfPlanePoissonTransport`); requires half‑plane Hardy/Smirnov boundary theory not currently in mathlib.
+ - MATH-BLOCKER: Half‑plane Poisson transport (Hardy/Smirnov): For analytic F on Ω = {Re>1/2}, need `HasHalfPlanePoissonRepresentation F` (Poisson representation of Re F with integrability) to derive `HasHalfPlanePoissonTransport`. This half‑plane Hardy theory is not in mathlib.
+
+- MATH-BLOCKER: Disk Poisson/Herglotz representation (positivity)
+  - Location: academic layer (AF) – used to instantiate `HasHalfPlanePoissonRepresentation` via Cayley
+  - Lean goal / statement: For holomorphic F̃ on 𝔻 with a.e. boundary trace ũ := Re F̃|∂𝔻 ∈ L¹_loc (bounded in our application), prove `Re F̃(z) = ∫ ũ(ζ) P_𝔻(z,ζ) dθ`; in particular if ũ ≥ 0 a.e. then `Re F̃ ≥ 0` in 𝔻. Transport to Ω through the Cayley map to obtain the half‑plane representation/positivity.
+  - Proposed approach: Use classical disk Poisson/Herglotz representation (Carathéodory/Herglotz) and conformal covariance of Poisson kernels under Möbius maps. Not currently available in mathlib.
+
+- MATH-BLOCKER: Disk outer existence with prescribed boundary modulus
+  - Location: academic layer (AF) – used to construct `O` on Ω with `|O| = |det₂/ξ|` on the boundary
+  - Lean goal / statement: Given `g : ∂𝔻 → (0,∞)` with `log g ∈ L¹`, construct an outer function `Ō` on 𝔻 with `|Ō| = g` a.e. (via Poisson integral of `log g` and harmonic conjugate), then pull back to Ω by Cayley. Ensures outer cancellation in CR–Green.
+  - Proposed approach: Standard Hardy–Smirnov outer construction on 𝔻 (Poisson extension + harmonic conjugate), then compose with Cayley to Ω. Not currently available in mathlib.
 
 - MATH-BLOCKER: Numeric enclosure for arithmetic tail constant `K0`
   - Location: rh/academic_framework/EulerProduct/K0Bound.lean
