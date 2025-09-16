@@ -13,10 +13,10 @@ import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Analysis.Calculus.FDeriv.Basic
 import Mathlib.Topology.Support
 import Mathlib.Data.Real.Sqrt
-import RH.Cert.KxiPPlus
-import RH.RS.PoissonPlateau
-import RH.RS.CRGreenOuter
-import RH.RS.PPlusFromCarleson
+import rh.Cert.KxiPPlus
+import rh.RS.PoissonPlateau
+import rh.RS.CRGreenOuter
+import rh.RS.PPlusFromCarleson
 
 /-!
 # Direct Bridge for Local Wedge (Avoiding H¹-BMO)
