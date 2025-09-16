@@ -8,6 +8,7 @@ import Mathlib.MeasureTheory.Covering.Differentiation
 import Mathlib/MeasureTheory/Measure/Real
 import Mathlib.MeasureTheory.Covering.Besicovitch
 import rh.Cert.KxiPPlus
+import Mathlib.Analysis.SpecificLimits.Basic
 
 /-!
 # Minimal tent/shadow geometry and monotonicity
@@ -293,6 +294,27 @@ def boundaryRe (F : ℂ → ℂ) (t : ℝ) : ℝ :=
 /-- Poisson smoothed boundary real part at height `b>0` and horizontal `x`. -/
 def poissonSmooth (F : ℂ → ℂ) (b x : ℝ) : ℝ :=
   ∫ t, RH.RS.poissonKernel b (x - t) * boundaryRe F t ∂(volume)
+
+/-- From a.e. convergence of the Poisson smoothing as height `b → 0+`, deduce
+sequence convergence along `b_n = 1/(n+1)` a.e. on ℝ. -/
+lemma ae_tendsto_poisson_seq_of_AI
+  (F : ℂ → ℂ)
+  (hAI : ∀ᵐ x : ℝ,
+    Tendsto (fun b : ℝ => poissonSmooth F b x)
+      (nhdsWithin (0 : ℝ) (Ioi (0 : ℝ))) (nhds (boundaryRe F x))) :
+  ∀ᵐ x : ℝ,
+    Tendsto (fun n : ℕ => poissonSmooth F (1 / (n.succ : ℝ)) x)
+      atTop (nhds (boundaryRe F x)) :=
+by
+  -- b_n := 1/(n+1) tends to 0 in ℝ, hence also to the within-filter at 0 from the right
+  have hbn : Tendsto (fun n : ℕ => (1 : ℝ) / (n.succ : ℝ)) atTop (𝓝 (0 : ℝ)) :=
+    tendsto_one_div_add_atTop_nhds_zero_nat
+  have hbn0 :
+      Tendsto (fun n : ℕ => (1 : ℝ) / (n.succ : ℝ)) atTop (nhdsWithin (0 : ℝ) (Ioi 0)) :=
+    hbn.mono_right nhdsWithin_le_nhds
+  refine hAI.mono ?_;
+  intro x hx
+  exact hx.comp hbn0
 
 /-- Brick 4a (assumption‑driven): If the boundary real part fails `(P+)` and the
 Poisson averages approximate the boundary a.e. as `b → 0+`, then for any fixed
@@ -668,10 +690,12 @@ by
     admit
   let f : ℕ → ℝ → ℝ := fun n x => poissonSmooth F (1 / (n.succ : ℝ)) x
   let g : ℝ → ℝ := fun x => boundaryRe F x
-  -- Extract convergence on S from `hAI`
-  have hAI' : ∀ᵐ x ∂(Measure.restrict volume S), Filter.Tendsto (fun n : ℕ => f n x) atTop (nhds (g x)) := by
-    -- Use the a.e. Poisson convergence on ℝ and restrict to S
-    admit
+  -- Extract sequence convergence on ℝ from `hAI`, then restrict to `S`
+  have hAI_seq : ∀ᵐ x : ℝ, Filter.Tendsto (fun n : ℕ => f n x) atTop (nhds (g x)) := by
+    simpa [f, g] using ae_tendsto_poisson_seq_of_AI (F := F) hAI
+  have hAI' : ∀ᵐ x ∂(Measure.restrict volume S),
+      Filter.Tendsto (fun n : ℕ => f n x) atTop (nhds (g x)) :=
+    ae_restrict_of_ae hAI_seq
   -- Apply Egorov: pick E ⊆ S with large measure and uniform closeness at some index N
   obtain ⟨E, hE_subS, hE_meas, hE_big, N, hUniform⟩ :=
     egorov_uniform_on_large_subset (μ := volume) (S := S) hSmeas hSfin f g hAI' (δ := (1/2)) (ε := (1 / (2 * (m.succ : ℝ)))) (by norm_num) (by
