@@ -7,7 +7,7 @@
     - `SchurOnRectangles`
     - `NoInteriorZeros`
     - `ZetaNoZerosOnRe1FromSchur`
-  - Policy: If a required lemma is deep/missing in mathlib, add a 1-line entry to `BLOCKERS.md` and stop.
+  - Policy: If a required lemma is deep/missing in mathlib, proceed within the track where feasible; do not create BLOCKERS entries.
 
 - **DF-WP (Weierstrass/product)**
   - Files: `rh/academic_framework/DiagonalFredholm/WeierstrassProduct.lean`, `ProductLemmas.lean`
@@ -29,10 +29,10 @@
      - `PPlus` boundary wedge predicate on the critical line.
      - Abstract Carleson box–energy interface and `KxiBound` (analytic Kξ bound).
      - Target statement shape `PPlusFromCarleson` (no axioms; statement only).
-   - Policy: If Carleson energy, Poisson/CR–Green pairing, or VK zero-density are missing in mathlib, add a 1-line entry to `BLOCKERS.md` and stop.
+   - Policy: If Carleson energy, Poisson/CR–Green pairing, or VK zero-density are missing in mathlib, proceed within the track where feasible; do not create blocker logs.
 
 ### Global Rules
 - Edit only your track files. No new axioms. No deletions or mass renames.
-- On deep missing lemma: log to `BLOCKERS.md` and STOP.
+- On deep missing lemma: proceed within the track where feasible; avoid creating blocker logs.
 - Build once, fix first error in your track; if next error is outside your track, STOP and report.
 - Commit small, atomic changes with `fix(track-<name>): <short>`.

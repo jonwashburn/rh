@@ -7,7 +7,7 @@
     - `SchurOnRectangles`
     - `NoInteriorZeros`
     - `ZetaNoZerosOnRe1FromSchur`
-  - Policy: If a required lemma is deep/missing in mathlib, add a 1-line entry to `BLOCKERS.md` and identify blocker and continue implementation (work the blocker inside RS where feasible).
+  - Policy: If a required lemma is deep/missing in mathlib, continue implementation within RS where feasible; do not create separate blocker documents.
 
 - **DF-WP (Weierstrass/product)**
   - Files: `rh/academic_framework/DiagonalFredholm/WeierstrassProduct.lean`, `ProductLemmas.lean`
@@ -29,11 +29,11 @@
      - `PPlus` boundary wedge predicate on the critical line.
      - Abstract Carleson box–energy interface and `KxiBound` (analytic Kξ bound).
      - Target statement shape `PPlusFromCarleson` (no axioms; statement only).
-   - Policy: If Carleson energy, Poisson/CR–Green pairing, or VK zero-density are missing in mathlib, add a 1-line entry to `BLOCKERS.md` and stop.
+   - Policy: If Carleson energy, Poisson/CR–Green pairing, or VK zero-density are missing in mathlib, proceed within the track where feasible; do not create blocker logs.
 
 ### Global Rules
 - Edit only your track files. No new axioms. No deletions or mass renames.
-- On deep missing lemma: log to `BLOCKERS.md` and identify blocker and continue implementation.
+- On deep missing lemma: continue implementation within RS where feasible; avoid creating blocker logs.
 - Build once, fix first error in your track; if next error is outside your track, STOP and report.
 - Commit small, atomic changes with `fix(track-<name>): <short>`.
 
@@ -68,7 +68,7 @@
     - Wire that constant into `UniformHDerivBound.of_FGammaPrime` so `factors_witness` uses `FEFactors_from_Hderiv`.
   - Inputs: see `gamma-bounds-gpt5.txt` for the intended argument outline; prefer mathlib facts (Cauchy estimate on circles, cpow modulus, basic Γ vertical‑strip bounds).
   - Acceptance:
-    - No new axioms; compiles in this track. If a needed library lemma (e.g., a specific Cauchy derivative bound) is missing, add a one‑line entry to `BLOCKERS.md` and stop.
+    - No new axioms; compiles in this track.
 
 - Cert‑Kξ (Certificate Kξ + P+)
   - Deliverables:
@@ -158,4 +158,4 @@
 - Builds cleanly; no new `admit`/`sorry` introduced by your edits.
 - No axioms added; mathlib‑only imports.
 - Public names and signatures match Objectives so downstream modules can import them.
-- Any missing library items recorded succinctly in `BLOCKERS.md`.
+ 

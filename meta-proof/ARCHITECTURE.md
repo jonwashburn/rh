@@ -28,7 +28,7 @@
 
 ### Global Rules
 - No new axioms. No deletions or mass renames. Edit only your track files.
-- On deep missing lemma: append to `BLOCKERS.md` with file:line, Lean goal, minimal context, proposed approach; then stop.
+- On deep missing lemma: continue within the track where feasible; avoid creating blocker logs.
 - Build cadence: `scripts/clean_build.sh` on macOS if hidden files interfere; otherwise `lake build`.
 - After each local fix: rebuild; if next error is outside your track, stop and report.
 - Commit style: `git add <files> && git commit -m "fix(track-XYZ): <short>"`.

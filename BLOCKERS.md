@@ -11,7 +11,7 @@ RS boundary-wedge (Whitney–plateau) blockers:
 4) Bad-set ⇒ boundary negativity selection: from failure of (P+) produce a Vitali/Whitney family of shadows with uniform negative boundary pairing margin, quantified via the plateau.
 
 Per project policy, these deep analytic lemmas are required to replace the current stubs and finish the unconditional `(P+)` proof in `rh/RS/BoundaryWedge.lean`.
-RS: ZetaNoZerosOnRe1FromSchur requires a ζ→Θ/N analytic bridge (Θ Schur on Ω, N analytic nonvanishing on closure); missing in codebase/mathlib, so export is blocked.
+RS: ZetaNoZerosOnRe1FromSchur requires a ζ→Θ/N analytic bridge (Θ Schur on Ω, N analytic nonvanishing off zeros) with pinned-removable assignment; the wedge route remains blocked pending CR–Green/plateau closure.
 RS-ASSIGN: Producing `assign : Re=1 → LocalPinchData` from ζ→Θ/N needs a local removable-extension lemma ensuring an analytic `g` with `g(ρ)=1` agreeing with `Θ` on punctured neighborhoods; not present in mathlib at this specificity.
 RS: Explicit Θ,N via Cayley with F:=2J and J:=det₂/(outer·ξ), ζ = Θ/N off zeros, and the pinned limit at ξ-zeros require a formal det₂/outer/ξ interface; not available—provide statement-level interface only.
 - MATH-BLOCKER: Boundary assignment via pinned removable set
@@ -42,6 +42,18 @@ Format:
   - Lean goal / statement: Provide a proof of `exists_uniform_bound_H_deriv_on_strip σ0` (σ0∈(1/2,1]) — existence of C,m ≥ 0 with `‖(π^{-s/2}Γ(s/2))'‖ ≤ C·(1+|Im s|)^m` for σ∈[σ0,1].
   - Proposed approach: Combine vertical-strip Stirling bounds for Γ and Γ′ with `|π^{-s/2}| = π^{-Re(s)/2}`; encode in mathlib if available, else externalize and keep interface.
   - Stub: `RH.AcademicFramework.GammaBounds.exists_uniform_bound_H_deriv_on_strip`
+
+- MATH-BLOCKER: Boundary negativity selection (density-window)
+  - Location: `rh/RS/BoundaryWedge.lean`
+  - Lean goal / statement: From failure of `(P+)`, construct an interval `I`, height `b∈(0,1]`, and measurable `E⊂I` with `|E|≥κ|I|` where `Re F(·+ib)≤-κ`.
+  - Proposed approach: Standard Lebesgue density and window selection; needs measure-theory scaffolding (Whitney windows). Keep as blocker until formalized.
+  - Stub: `RS.Window.bad_set_negativity_selection`
+
+- MATH-BLOCKER: CR–Green + plateau coercivity on a shadow
+  - Location: `rh/RS/BoundaryWedge.lean`
+  - Lean goal / statement: If plateau `c0(ψ)>0` and boundary negativity on `E⊂I` at height `b`, then for any Whitney piece with shadow in `I`, `∫_I ψ·B ≥ (c0·κ/2)|shadow|`.
+  - Proposed approach: Combine Poisson lower bound with CR–Green identity and sign on `E`; requires assembled Green trace bounds. Keep as blocker.
+  - Stub: `RS.Window.coercivity_from_plateau_on_shadow`
 
 - MATH-BLOCKER: Carleson box energy framework on half-plane (Whitney boxes)
   - Location: meta-proof/rh/Cert/KxiPPlus.lean (interface needed)

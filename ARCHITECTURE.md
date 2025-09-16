@@ -11,7 +11,7 @@
     - `SchurOnRectangles` (Poisson/Herglotz + Cayley ⇒ analytic Θ on Ω, |Θ| ≤ 1, and 1+J ≠ 0)
     - `NoInteriorZeros` (strict boundary margin ⇒ no interior zeros by maximum modulus)
     - `ZetaNoZerosOnRe1FromSchur` (if ζ = Θ/N, N analytic nonvanishing on closure, then ζ zero-free on Re=1)
-  - Rule: If a deep missing lemma arises, add a one-line note to `BLOCKERS.md` and stop.
+  - Rule: If a deep missing lemma arises, proceed within the track where feasible; do not create blocker logs.
 
 - **Agent DF (Weierstrass/product)**
   - Files: `rh/academic_framework/DiagonalFredholm/WeierstrassProduct.lean`, `ProductLemmas.lean`
@@ -28,7 +28,7 @@
 
 ### Global Rules
 - No new axioms. No deletions or mass renames. Edit only your track files.
-- On deep missing lemma: append to `BLOCKERS.md` with file:line, Lean goal, minimal context, proposed approach; then stop.
+- On deep missing lemma: proceed within the track where feasible; avoid creating blocker logs.
 - Build cadence: `scripts/clean_build.sh` on macOS if hidden files interfere; otherwise `lake build`.
 - After each local fix: rebuild; if next error is outside your track, stop and report.
 - Commit style: `git add <files> && git commit -m "fix(track-XYZ): <short>"`.

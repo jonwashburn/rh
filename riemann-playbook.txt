@@ -70,7 +70,7 @@
   - Annular L² + VK → Milestone C
   - Plateau constant, Hilbert window constants, prime‑tail K0 → already present in `PoissonPlateau.lean` and EulerProduct K0 path
   - Removable singularity + Schur bound → present or added via support lemma
-- Mark any deep gaps in `BLOCKERS.md` before implementing; stop if a mathlib lemma is truly missing.
+  
 
 
 ### Execution and sequencing

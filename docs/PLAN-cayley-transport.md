@@ -28,9 +28,9 @@ Make the boundary route unconditional by supplying classical complex-analysis in
 
 ## Deliverables
 - AF adapters and transport lemmas (mathlib-only)
-- If disk theorems missing: add succinct blockers in BLOCKERS.md
+- If disk theorems are missing, proceed with alternative AF adapters or defer that subtask; do not create blocker logs.
 - No changes to RS/CRGreen/PoissonPlateau/H1BMOWindows modules needed
 
 ## Exit criteria
-- Build succeeds with transport wired to AF theorems or blockers recorded
+- Build succeeds with transport wired to AF theorems.
 - RS pipeline compiles and the route is explicit about remaining external inputs

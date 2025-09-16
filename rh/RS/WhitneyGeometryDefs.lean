@@ -63,9 +63,9 @@ structure fixed_geometry (Q : Set (ℝ × ℝ)) : Prop where
   aspect_lower : height ≥ width / 4
   aspect_upper : height ≤ 4 * width
   -- Q is essentially a rectangle around center
-  subset_rect : Q ⊆ {p : ℝ × ℝ | |p.1 - center.1| ≤ width / 2 ∧ 
+  subset_rect : Q ⊆ {p : ℝ × ℝ | |p.1 - center.1| ≤ width / 2 ∧
                                    |p.2 - center.2| ≤ height / 2}
-  rect_subset : {p : ℝ × ℝ | |p.1 - center.1| < width / 2 ∧ 
+  rect_subset : {p : ℝ × ℝ | |p.1 - center.1| < width / 2 ∧
                               0 < p.2 ∧ p.2 < center.2 + height / 2} ⊆ Q
   -- Height is bounded by shadow length
   height_shadow : height ≤ 2 * shadowLen Q
@@ -87,6 +87,10 @@ def shadowOverlapConst : ℝ := 10
 
 /-! ### Basic properties -/
 
+lemma length_mono {I J : Set ℝ} (h : I ⊆ J) : length I ≤ length J := by
+  unfold length
+  exact ENNReal.toReal_mono (ne_top_of_lt volume_finite) (volume.mono h)
+
 lemma tent_mono {I J : Set ℝ} (h : I ⊆ J) (α : ℝ) : tent I α ⊆ tent J α := by
   intro p hp
   simp only [tent, Set.mem_setOf] at hp ⊢
@@ -96,15 +100,55 @@ lemma tent_mono {I J : Set ℝ} (h : I ⊆ J) (α : ℝ) : tent I α ⊆ tent J 
   apply mul_le_mul_of_nonneg_left _ (le_trans (le_of_lt hp1) hp2)
   exact length_mono h
 
-lemma boxEnergy_mono {gradU : (ℝ × ℝ) → ℝ × ℝ} {σ : Measure (ℝ × ℝ)} 
+lemma boxEnergy_mono {gradU : (ℝ × ℝ) → ℝ × ℝ} {σ : Measure (ℝ × ℝ)}
     {P Q : Set (ℝ × ℝ)} (h : P ⊆ Q) :
     boxEnergy gradU σ P ≤ boxEnergy gradU σ Q := by
   unfold boxEnergy
-  sorry -- Standard: integral over subset ≤ integral over set for nonnegative integrand
+  -- For nonnegative integrand, integral over subset ≤ integral over superset
+  have integrand_nonneg : ∀ p, 0 ≤ ‖gradU p‖² * p.2 := by
+    intro p
+    apply mul_nonneg (sq_nonneg _) (le_refl _)
+  apply ENNReal.toReal_mono
+  · -- Show Q integral is finite (needed for toReal_mono)
+    sorry -- Would need integrability assumption on gradU
+  · -- Show P integral ≤ Q integral
+    apply MeasureTheory.integral_mono_set
+    · sorry -- P is measurable
+    · sorry -- Q is measurable
+    · exact integrand_nonneg
+    · exact h
 
 lemma fixed_geometry_subset_tent (Q : Set (ℝ × ℝ)) (h : fixed_geometry Q) :
     Q ⊆ tent (shadow Q) := by
-  sorry -- Follows from the height_shadow bound in fixed_geometry
+  intro p hp
+  -- Unpack the fixed geometry structure
+  obtain ⟨center, width, height, hcenter, hwidth, hheight,
+          haspect_lo, haspect_hi, hQsub, hQsup, hheight_shadow⟩ := h
+  simp only [tent, Set.mem_setOf]
+
+  -- From hQsub, p is in the rectangle around center
+  have hp_rect : |p.1 - center.1| ≤ width / 2 ∧ |p.2 - center.2| ≤ height / 2 :=
+    hQsub hp
+
+  -- p.1 is in the shadow by definition
+  have hp1_shadow : p.1 ∈ shadow Q := by
+    use p.2
+    constructor
+    · -- Need p.2 > 0
+      sorry -- This should follow from the structure of Q
+    · exact hp
+
+  refine ⟨hp1_shadow, ?_, ?_⟩
+  · -- Show p.2 > 0
+    sorry -- Should follow from fixed_geometry structure
+  · -- Show p.2 ≤ standardAperture * length (shadow Q)
+    calc p.2
+        ≤ center.2 + height / 2 := by
+          sorry -- From hp_rect
+    _ ≤ height := by
+          sorry -- Since center.2 ≥ height/2 for Whitney boxes
+    _ ≤ 2 * shadowLen Q := hheight_shadow
+    _ = standardAperture * shadowLen Q := by rfl
 
 end Whitney
 

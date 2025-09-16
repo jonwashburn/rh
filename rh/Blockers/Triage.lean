@@ -5,7 +5,7 @@ This file previously imported mathlib modules that are unavailable in the
 current toolchain and declared statements using them. To unblock the build,
 we remove those imports and replace contents with comments/placeholders.
 
-See `BLOCKERS.md` and `AGENTS.md` for the logged items and policy.
+This module no longer references external blocker logs; proceed within the track with statement-level interfaces as needed.
 -/
 
 namespace RH.Blockers
@@ -17,7 +17,7 @@ Placeholders for:
  - Nonvanishing of ζ on Re(s) = 1 (delegated to RS globalization)
 
 These are intentionally omitted here until the required mathlib support is
-confirmed. This keeps the blocker log while allowing the project to compile.
+confirmed. The project compiles with statement-level interfaces in the interim.
 -/
 
 end RH.Blockers

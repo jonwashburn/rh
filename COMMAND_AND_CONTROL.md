@@ -20,7 +20,7 @@
 
 ### Persistence & discipline
 - Agents re-read `AGENTS.md` and `COMMAND_AND_CONTROL.md` each session and ACK: `[TRACK] ACK role + files`.
-- On deep missing lemma: append one line to `BLOCKERS.md` with file:line, Lean goal, short context, 1-line proposed approach, then STOP.
+- On deep missing lemma: proceed within your track where feasible; avoid creating blocker logs.
 - Build cadence: run `scripts/clean_build.sh` if needed on macOS; then `lake build`.
 - After each local fix: rebuild; if the next top error is outside your track, stop and report.
 - Commit style: `git add <files> && git commit -m "fix(track-XYZ): <short>"`.

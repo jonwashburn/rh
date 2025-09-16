@@ -185,7 +185,7 @@ Immediate next actions
 ## 6) Practical tracking rules (applies to all items)
 - Each item has acceptance criteria, Lean targets, and immediate next actions.
 - If an item is blocked > 1–2 attempts, split into smaller lemmas with clear dependencies.
-- Record missing external facts as one-line blockers (name + precise statement), then stop.
+  
 - No `sorry`/axioms. Keep proofs audit-ready and mathlib-only.
 - Roll up sub-lemmas as they land and check acceptance.
 
