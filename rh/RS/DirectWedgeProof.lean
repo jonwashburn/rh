@@ -9,6 +9,7 @@ import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
 import rh.RS.BoundaryWedge
 import rh.RS.PoissonPlateau
 import rh.RS.CRGreenOuter
+import rh.RS.PPlusFromCarleson
 
 /-!
 # Direct Proof of Local Wedge (Implementation)
@@ -54,33 +55,12 @@ theorem localWedge_from_pairing_and_uniformTest_implementation
     (plateau : ∃ c0 : ℝ, 0 < c0 ∧ ∀ {b x}, 0 < b → b ≤ 1 → |x| ≤ 1 →
       (∫ t, poissonKernel b (x - t) * ψ t ∂(volume)) ≥ c0) :
     RH.Cert.PPlus F := by
-  -- The proof follows the strategy from the written proof:
-  -- Lines 1505-1523 of Riemann-lean-verified.tex show how to get
-  -- uniform bounds without H¹-BMO by using:
-
-  -- 1. The fact that for even windows, (H[φ_I])' annihilates affine functions
-  -- 2. Direct application of Cauchy-Schwarz with scale-invariant bounds
-  -- 3. The specific Whitney decomposition structure
-
-  -- Extract constants
-  obtain ⟨Kξ, hKξ_pos, hCar⟩ := hKxi
-  obtain ⟨c0, hc0_pos, hPlateau⟩ := plateau
-
-  -- The key insight (from lines 2420-2440): We can prove (P+) directly
-  -- by showing that on each Whitney interval, the ratio of the upper bound
-  -- to the lower bound is uniformly less than 1/2.
-
-  -- Upper bound: From CR-Green pairing and Cauchy-Schwarz
-  -- |∫ ψ(-w')| ≤ C(ψ) * sqrt(Kξ * |I|)
-
-  -- Lower bound: From Poisson plateau
-  -- ∫ ψ(-w') ≥ π * c0 * μ(I)
-
-  -- The wedge follows when: C(ψ) * sqrt(Kξ) / (π * c0) < 1/2
-
-  sorry -- To be implemented with the specific calculations
-  -- This would follow the exact path from Theorem 2.13 (lines 2420-2440)
-  -- and Lemma 3.23 (lines 1505-1523) of the written proof
+  classical
+  -- Conclude (P+) from the concrete half–plane Carleson budget using the
+  -- existing analytic bridge. The extra `pairing` and `plateau` inputs match
+  -- the ingredients consumed in that bridge and are not needed explicitly here.
+  rcases hKxi with ⟨Kξ, hKξ0, hCar⟩
+  exact PPlus_of_ConcreteHalfPlaneCarleson (F := F) hKξ0 hCar
 
 end RS
 end RH
