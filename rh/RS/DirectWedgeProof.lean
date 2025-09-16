@@ -6,7 +6,6 @@ Authors: ----
 import Mathlib.Analysis.SpecialFunctions.Complex.Log
 import rh.Cert.KxiPPlus
 import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
-import rh.RS.BoundaryWedge
 import rh.RS.PoissonPlateau
 import rh.RS.CRGreenOuter
 import rh.RS.PPlusFromCarleson
