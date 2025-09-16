@@ -7,7 +7,6 @@ import Mathlib.Analysis.SpecialFunctions.Complex.Log
 import Mathlib.Analysis.SpecialFunctions.Integrals
 import Mathlib.MeasureTheory.Integral.IntervalIntegral
 import Mathlib.MeasureTheory.Measure.Lebesgue.Integral
-import Mathlib.MeasureTheory.Measure.Real
 import Mathlib.MeasureTheory.Integral.Bochner
 import Mathlib.Analysis.Fourier.FourierTransform
 import Mathlib.Analysis.Calculus.Deriv.Basic
