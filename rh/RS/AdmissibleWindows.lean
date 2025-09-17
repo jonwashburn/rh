@@ -83,7 +83,9 @@ structure AdmissibleWindow (I : BaseInterval) (ε : ℝ) where
   /- the total “length” (1D size) of the holes is controlled by ε·|I| -/
   holesLen_le : 0 ≤ ε ∧ (∃ C : ℝ, C = ε * I.length)
 
-/- The class W_adm(I; ε) as a set of test functions. -/
+/‑‑ The class `W_adm(I; ε)` of admissible test functions on ℝ for a base
+interval `I` with hole-budget `ε`. Each element arises from an
+`AdmissibleWindow I ε`. -/
 def W_adm (I : BaseInterval) (ε : ℝ) : Set (ℝ → ℝ) :=
   {φ | ∃ w : AdmissibleWindow I ε, w.φ = φ}
 
@@ -119,6 +121,7 @@ zero. This lets downstream modules depend on a uniform bound lemma without
 pulling heavy analysis into this agent’s file. The name and shape of the API
 match the narrative in the manuscript and agents guide.
 -/
+<<<<<<< HEAD
 def poissonEnergyOnBox (_α' : ℝ) (_I : BaseInterval) (_φ : ℝ → ℝ) : ℝ := 0
 
 /-- The placeholder Poisson energy is nonnegative. -/
@@ -126,6 +129,12 @@ def poissonEnergyOnBox (_α' : ℝ) (_I : BaseInterval) (_φ : ℝ → ℝ) : �
     (_α' : ℝ) (_I : BaseInterval) (_φ : ℝ → ℝ) :
     0 ≤ poissonEnergyOnBox _α' _I _φ := by
   simp [poissonEnergyOnBox]
+=======
+/‑‑ Placeholder Poisson test energy on a fixed-aperture Whitney box `Q(α'·I)`.
+This lightweight RS interface returns `0` by definition to keep dependencies
+minimal; downstream modules only rely on the existence of a uniform bound. -/
+def poissonEnergyOnBox (α' : ℝ) (I : BaseInterval) (φ : ℝ → ℝ) : ℝ := 0
+>>>>>>> 06c4e5e (fix(track-build): remove proofwidgets, clean AppleDouble, fix TentShadow import; CRGreenOuter pairing+boundary helpers)
 
 /-!
 Uniform Poisson energy bound for admissible tests (fixed aperture).

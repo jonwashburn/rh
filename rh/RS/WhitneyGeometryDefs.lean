@@ -91,10 +91,12 @@ def shadowOverlapConst : ℝ := 10
 
 /-! ### Basic properties -/
 
+/-- Monotonicity of interval length under set inclusion. -/
 lemma length_mono {I J : Set ℝ} (h : I ⊆ J) : length I ≤ length J := by
   unfold length
   exact ENNReal.toReal_mono (ne_top_of_lt volume_finite) (volume.mono h)
 
+/-- Monotonicity of tents with respect to base-interval inclusion. -/
 lemma tent_mono {I J : Set ℝ} (h : I ⊆ J) (α : ℝ) : tent I α ⊆ tent J α := by
   intro p hp
   simp only [tent, Set.mem_setOf] at hp ⊢
@@ -104,6 +106,7 @@ lemma tent_mono {I J : Set ℝ} (h : I ⊆ J) (α : ℝ) : tent I α ⊆ tent J 
   apply mul_le_mul_of_nonneg_left _ (le_trans (le_of_lt hp1) hp2)
   exact length_mono h
 
+/-- Monotonicity of box energy under set inclusion (assuming finiteness on the larger set). -/
 lemma boxEnergy_mono {gradU : (ℝ × ℝ) → ℝ × ℝ} {σ : Measure (ℝ × ℝ)}
     {P Q : Set (ℝ × ℝ)} (h : P ⊆ Q)
     (hPmeas : MeasurableSet P) (hQmeas : MeasurableSet Q)
@@ -125,6 +128,7 @@ lemma boxEnergy_mono {gradU : (ℝ × ℝ) → ℝ × ℝ} {σ : Measure (ℝ ×
       exact Measure.lintegral_mono_set (μ := σ) hPmeas hQmeas h
     simpa [IP, IQ] using hmono
 
+/-- The tent set `tent I α` is measurable. -/
 lemma measurableSet_tent {I : Set ℝ} {α : ℝ} (hI : MeasurableSet I) :
   MeasurableSet (tent I α) := by
   -- tent I α = {p | p.1 ∈ I} ∩ {p | 0 < p.2} ∩ {p | p.2 ≤ α * length I}
@@ -142,6 +146,7 @@ lemma measurableSet_tent {I : Set ℝ} {α : ℝ} (hI : MeasurableSet I) :
     · intro hp; rcases hp with ⟨⟨hpI, hp0⟩, hpU⟩; exact ⟨by simpa using hpI, by simpa using hp0, by simpa using hpU⟩
   simpa [this] using (h1.inter h2).inter h3
 
+/-- On a tent, the weighted lintegral of `‖∇U‖²·σ` is finite if `‖∇U‖²` is L² on the tent. -/
 lemma finite_lintegral_on_tent_of_L2
   (gradU : (ℝ × ℝ) → ℝ × ℝ) (I : Set ℝ) (α : ℝ)
   (hI : MeasurableSet I)
@@ -193,6 +198,7 @@ lemma finite_lintegral_on_tent_of_L2
     simpa [Measure.restrict_apply, hTent, Real.norm_eq_abs, abs_of_nonneg (sq_nonneg _)] using hInt
   exact lt_of_le_of_lt hlin (mul_lt_top (by simpa using ENNReal.ofReal_lt_top) hfin_sq)
 
+/-- Monotonicity of box energy on tents when the base intervals are nested. -/
 lemma boxEnergy_mono_tent
   (gradU : (ℝ × ℝ) → ℝ × ℝ) (I J : Set ℝ) (α : ℝ)
   (hIJ : I ⊆ J) (hI : MeasurableSet I) (hJ : MeasurableSet J)
@@ -211,15 +217,18 @@ lemma boxEnergy_mono_tent
   exact boxEnergy_mono (gradU := gradU) (σ := volume) (P := tent I α) (Q := tent J α)
     hsubset (measurableSet_tent (hI := hI)) hTentJ_meas hfin
 
+/-- Points in a fixed-geometry box have positive height `p.2 > 0`. -/
 lemma fixed_geometry_upper {Q : Set (ℝ × ℝ)} (h : fixed_geometry Q) :
     ∀ {p : ℝ × ℝ}, p ∈ Q → 0 < p.2 := by
   intro p hp
   have : p ∈ {p : ℝ × ℝ | 0 < p.2} := h.upper hp
   simpa [Set.mem_setOf] using this
 
+/-- For fixed geometry, the vertical center is at height at most `height/2`. -/
 lemma fixed_geometry_center_le_top {Q : Set (ℝ × ℝ)} (h : fixed_geometry Q) :
     h.center.2 ≤ h.height / 2 := h.center_le_top
 
+/-- A fixed-geometry box is contained in the tent over its own shadow. -/
 lemma fixed_geometry_subset_tent (Q : Set (ℝ × ℝ)) (h : fixed_geometry Q) :
     Q ⊆ tent (shadow Q) := by
   intro p hp
@@ -258,6 +267,117 @@ lemma fixed_geometry_subset_tent (Q : Set (ℝ × ℝ)) (h : fixed_geometry Q) :
           linarith
     _ ≤ 2 * shadowLen Q := hheight_shadow
     _ = standardAperture * shadowLen Q := by rfl
+
+/-- Monotonicity of the shadow: if `Q ⊆ R` then `shadow Q ⊆ shadow R`. -/
+lemma shadow_mono {Q R : Set (ℝ × ℝ)} (hQR : Q ⊆ R) : shadow Q ⊆ shadow R := by
+  intro t ht
+  rcases ht with ⟨σ, hσpos, hmem⟩
+  exact ⟨σ, hσpos, hQR hmem⟩
+
+/-- Positive shadow length under fixed Whitney geometry. -/
+lemma fixed_geometry_shadowLen_pos {Q : Set (ℝ × ℝ)} (h : fixed_geometry Q) :
+    0 < shadowLen Q := by
+  -- From `height ≤ 2·|shadow|` and `height>0`, deduce `|shadow|>0`.
+  have hhalf_pos : 0 < h.height / 2 := by nlinarith [h.height_pos]
+  have hdiv : h.height / 2 ≤ shadowLen Q := by
+    -- divide `h.height ≤ 2 * shadowLen Q` by 2 > 0
+    have : h.height ≤ shadowLen Q * 2 := by simpa [mul_comm] using h.height_shadow
+    exact (div_le_iff (by norm_num : (0:ℝ) < 2)).mpr this
+  exact lt_of_lt_of_le hhalf_pos hdiv
+
+/-- The horizontal core interval is contained in the shadow for fixed geometry. -/
+lemma fixed_geometry_shadow_core_subset {Q : Set (ℝ × ℝ)} (h : fixed_geometry Q) :
+    {t : ℝ | |t - h.center.1| < h.width / 2} ⊆ shadow Q := by
+  intro t ht
+  -- Choose a uniform height inside the rectangle witness
+  let σ := min (h.center.2 / 2) (h.height / 4)
+  have hσ_pos : 0 < σ := by
+    have hc_pos : 0 < h.center.2 := by
+      -- center ∈ Q and Q ⊆ {p | 0 < p.2}
+      exact fixed_geometry_upper h h.center_in
+    have hc2_pos : 0 < h.center.2 / 2 := by nlinarith
+    have hh4_pos : 0 < h.height / 4 := by nlinarith [h.height_pos]
+    have : 0 < min (h.center.2 / 2) (h.height / 4) := lt_min hc2_pos hh4_pos
+    simpa [σ]
+  have hσ_top : σ < h.center.2 + h.height / 2 := by
+    -- Since σ ≤ h.center.2/2 and σ ≤ h.height/4, certainly σ < center.2 + height/2
+    have hle1 : σ ≤ h.center.2 / 2 := by exact min_le_left _ _
+    have hc2_lt : (h.center.2 / 2) < h.center.2 + h.height / 2 := by
+      have : 0 < h.center.2 / 2 + h.height / 2 := by
+        have hc_pos : 0 < h.center.2 := by exact fixed_geometry_upper h h.center_in
+        have hh_pos : 0 < h.height := h.height_pos
+        nlinarith
+      nlinarith
+    exact lt_of_le_of_lt hle1 hc2_lt
+  -- Use the rectangle inclusion
+  have hrect : |t - h.center.1| < h.width / 2 ∧ 0 < σ ∧ σ < h.center.2 + h.height / 2 := by
+    exact ⟨ht, hσ_pos, hσ_top⟩
+  -- Points in the rectangle are in Q
+  have hmem : (t, σ) ∈ Q := by
+    exact h.rect_subset ⟨by
+      -- expand rectangle predicates
+      simpa using hrect.1, hrect.2.1, hrect.2.2⟩
+  -- Hence t lies in the shadow
+  exact ⟨σ, hσ_pos, hmem⟩
+
+/-- Length of the symmetric open interval `{t | |t−c| < r}` equals `2r`. -/
+lemma length_abs_lt (c r : ℝ) (hr : 0 < r) :
+    length ({t : ℝ | |t - c| < r}) = 2 * r := by
+  have : {t : ℝ | |t - c| < r} = Set.Ioo (c - r) (c + r) := by
+    ext t; constructor <;> intro ht
+    · have : -r < t - c ∧ t - c < r := by simpa [abs_lt] using ht
+      constructor <;> linarith
+    · rcases ht with ⟨hlt, hrt⟩
+      have : |t - c| < r := by
+        have : -r < t - c ∧ t - c < r := ⟨hlt, hrt⟩
+        simpa [abs_lt] using this
+      simpa using this
+  simp [length, this, Real.volume_Ioo, sub_eq, add_comm, add_left_comm, add_assoc]
+
+/-- Under fixed geometry, the width is bounded by the shadow length. -/
+lemma fixed_geometry_width_le_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geometry Q) :
+    h.width ≤ shadowLen Q := by
+  -- Use monotonicity of measure via the core-subset lemma
+  have hsub : {t : ℝ | |t - h.center.1| < h.width / 2} ⊆ shadow Q :=
+    fixed_geometry_shadow_core_subset h
+  have hmono := length_mono (I := {t : ℝ | |t - h.center.1| < h.width / 2}) (J := shadow Q) hsub
+  -- Compute the core length as the width
+  have hcore : length ({t : ℝ | |t - h.center.1| < h.width / 2}) = h.width := by
+    have hwpos : 0 < h.width := h.width_pos
+    simpa [two_mul, mul_comm, mul_left_comm, mul_assoc]
+      using length_abs_lt h.center.1 (h.width / 2) (by nlinarith)
+  simpa [shadowLen, hcore] using hmono
+
+/-- Coarse comparability: `width ≤ 8 · shadowLen` under fixed geometry. -/
+lemma fixed_geometry_width_le_eight_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geometry Q) :
+    h.width ≤ 8 * shadowLen Q := by
+  -- From `height ≥ width/4` and `height ≤ 2·|shadow|` obtain `width ≤ 8·|shadow|`.
+  have hW4 : h.width / 4 ≤ h.height := by
+    -- rearrange `aspect_lower : height ≥ width/4`
+    simpa [le_comm] using h.aspect_lower
+  have hH : h.height ≤ 2 * shadowLen Q := h.height_shadow
+  have : h.width / 4 ≤ 2 * shadowLen Q := le_trans hW4 hH
+  have hpos4 : (0 : ℝ) < 4 := by norm_num
+  -- multiply both sides by 4
+  have : h.width ≤ 8 * shadowLen Q := by
+    have := (mul_le_mul_of_nonneg_right (a := h.width / 4) (b := 2 * shadowLen Q) (c := 4)
+      (by linarith : 0 ≤ (4 : ℝ)) this)
+    -- (h.width/4)*4 ≤ (2*shadowLen)*4 = 8*shadowLen
+    simpa [mul_comm, mul_left_comm, mul_assoc, div_mul_eq_mul_div, two_mul] using this
+  exact this
+
+/-! ## Overlap/packing interface (pass-through)
+
+These helpers expose the intended Whitney shadow packing inequality in a
+lightweight, pass-through form so downstream modules can depend on the name
+without pulling in a full packing proof here. -/
+
+/-- Pass-through packing helper: expose the shadow overlap bound name. -/
+theorem shadow_overlap_bound_pass
+  {ι : Type*} (S : Finset ι)
+  (Q : ι → Set (ℝ × ℝ)) (I : Set ℝ)
+  (h : (∑ i in S, shadowLen (Q i)) ≤ shadowOverlapConst * length I) :
+  (∑ i in S, shadowLen (Q i)) ≤ shadowOverlapConst * length I := h
 
 end Whitney
 

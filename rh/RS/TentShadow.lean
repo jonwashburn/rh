@@ -352,6 +352,54 @@ namespace RS
 open Filter Set MeasureTheory
 open scoped Topology MeasureTheory
 
+<<<<<<< HEAD
+=======
+/-- Boundary real trace of `F` on the critical line. -/
+def boundaryRe (F : ℂ → ℂ) (t : ℝ) : ℝ :=
+  (F ((1/2 : ℂ) + Complex.I * (t : ℂ))).re
+
+/-- Normalize a symmetric interval around `t0` to have length ≤ 1 by shrinking the radius. -/
+lemma shrink_interval_to_unit
+  (t0 r : ℝ) (hr : 0 < r) :
+  ∃ r' : ℝ, 0 < r' ∧ r' ≤ r ∧ RS.length (Icc (t0 - r') (t0 + r')) ≤ 1 := by
+  classical
+  -- Choose `r' = min r (1/2)`
+  refine ⟨min r (1/2), ?_, ?_, ?_⟩
+  · have hpos₁ : 0 < r := hr
+    have hpos₂ : 0 < (1/2 : ℝ) := by norm_num
+    exact lt_min hpos₁ hpos₂
+  · exact min_le_left _ _
+  · -- length(Icc(t0−r', t0+r')) = 2 r' ≤ 1 since r' ≤ 1/2
+    have hlen : RS.length (Icc (t0 - min r (1/2)) (t0 + min r (1/2))) = 2 * (min r (1/2)) := by
+      simp [RS.length, Real.volume_Icc, two_mul]
+    have hr'le : min r (1/2) ≤ (1/2 : ℝ) := min_le_right _ _
+    have : 2 * (min r (1/2)) ≤ 1 := by nlinarith
+    simpa [hlen]
+
+/-- Measurability of the boundary real trace. -/
+lemma measurable_boundaryRe (F : ℂ → ℂ) :
+  Measurable (fun t : ℝ => boundaryRe F t) := by
+  classical
+  have h1 : Continuous fun t : ℝ => ((1/2 : ℂ) + Complex.I * (t : ℂ)) := by
+    continuity
+  have h2 : Continuous fun z : ℂ => z.re := continuous_re
+  exact (h2.comp h1).measurable
+
+/-- Measurable sublevel sets of the boundary real trace `{t | boundaryRe F t ≤ a}`. -/
+lemma measurableSet_sublevel_boundaryRe (F : ℂ → ℂ) (a : ℝ) :
+  MeasurableSet {t : ℝ | boundaryRe F t ≤ a} := by
+  classical
+  -- Treat `a` as a constant measurable function and use the standard `≤`-closedness schema
+  have hconst : Measurable fun _ : ℝ => a := measurable_const
+  have hmeas : Measurable (fun t : ℝ => boundaryRe F t) := measurable_boundaryRe F
+  -- `{u ≤ a}` is measurable since `Iic a` is closed
+  exact hmeas.isClosed_le hconst isClosed_Iic
+
+/-- Poisson smoothed boundary real part at height `b>0` and horizontal `x`. -/
+def poissonSmooth (F : ℂ → ℂ) (b x : ℝ) : ℝ :=
+  ∫ t, RH.RS.poissonKernel b (x - t) * boundaryRe F t ∂(volume)
+
+>>>>>>> 06c4e5e (fix(track-build): remove proofwidgets, clean AppleDouble, fix TentShadow import; CRGreenOuter pairing+boundary helpers)
 /-- From a.e. convergence of the Poisson smoothing as height `b → 0+`, deduce
 sequence convergence along `b_n = 1/(n+1)` a.e. on ℝ. -/
 lemma ae_tendsto_poisson_seq_of_AI
@@ -492,8 +540,9 @@ by
   -- Provide existence with the same r by inner/outer regularity equivalences in ℝ.
   obtain ⟨r, hrpos, hbound⟩ :=
     IsClosedBallLebesgueDensityPoint.exists_ratio_ge ht0dens (by linarith)
-  -- Turn the closedBall estimate into the interval estimate (up to harmless constants)
+  -- Turn the closedBall estimate into the interval estimate using equality on ℝ
   refine ⟨r, hrpos, ?_, ?_⟩
+<<<<<<< HEAD
   · -- positivity of interval length
     have : (0 : ℝ) < (2*r) := by nlinarith
     -- volume(Icc(t0-r,t0+r)) = 2r in ℝ
@@ -533,6 +582,29 @@ lemma shrink_interval_to_unit (t0 r : ℝ) (hrpos : 0 < r) :
     have hnonneg : 0 ≤ (2 : ℝ) := by norm_num
     exact mul_le_of_le_one_left hnonneg this
   exact ⟨r_unit, hr_unit_pos, hr_unit_le_r, hlen_le_1⟩
+=======
+  · -- positivity: volume(Icc(t0−r,t0+r)) = 2r > 0
+    have : (0 : ℝ) < 2 * r := by nlinarith
+    have : (0 : ℝ≥0∞) < volume (Icc (t0 - r) (t0 + r)) := by
+      simpa [Real.volume_Icc, two_mul] using ENNReal.coe_pos.mpr this
+    exact (ENNReal.toReal_pos_iff.mpr ⟨this.ne', le_of_lt this⟩)
+  · -- On ℝ, closed balls are symmetric closed intervals
+    have hCB_eq_Icc : Metric.closedBall t0 r = Icc (t0 - r) (t0 + r) := by
+      ext x; constructor <;> intro hx
+      · -- dist x t0 ≤ r ⇒ |x−t0| ≤ r ⇒ x ∈ [t0−r, t0+r]
+        have : |x - t0| ≤ r := by
+          simpa [Metric.closedBall, Real.dist_eq, sub_eq_add_neg] using hx
+        have : -r ≤ x - t0 ∧ x - t0 ≤ r := by exact abs_le.mp this
+        constructor <;> linarith
+      · -- x ∈ [t0−r, t0+r] ⇒ |x−t0| ≤ r ⇒ dist x t0 ≤ r
+        rcases hx with ⟨hxL, hxU⟩
+        have : |x - t0| ≤ r := by
+          have : -r ≤ x - t0 ∧ x - t0 ≤ r := by constructor <;> linarith
+          exact (abs_le.mpr this)
+        simpa [Metric.closedBall, Real.dist_eq, sub_eq_add_neg] using this
+    -- Transfer the ratio inequality exactly via set equality
+    simpa [hCB_eq_Icc, one_mul, sub_eq, mul_comm, mul_left_comm, mul_assoc] using hbound
+>>>>>>> 06c4e5e (fix(track-build): remove proofwidgets, clean AppleDouble, fix TentShadow import; CRGreenOuter pairing+boundary helpers)
 
 /-- Egorov on finite-measure sets for sequences `f_n → f` a.e.:
 For any δ>0 and ε>0, there exists a measurable `E ⊆ S` with `μ(S \ E) ≤ δ·μ(S)`
@@ -740,25 +812,13 @@ by
     · have : (min θ (1/2 : ℝ)) ≤ θ := min_le_left _ _; exact lt_of_le_of_lt this (by linarith)
   obtain ⟨t0, ht0A, hDen⟩ := exists_density_point_of_pos_measure (A := A) hMeasA (by simpa using hAm_pos)
   obtain ⟨r, hrpos, hFrac⟩ := interval_mass_from_density (A := A) (t0 := t0) (θ := min θ (1/2 : ℝ)) hDen hθ'
-  let I : Set ℝ := Icc (t0 - r) (t0 + r)
+  -- Normalize to a unit-length window (shrink if necessary)
+  obtain ⟨r', hr'pos, hr'le, hI_len_le⟩ := RS.shrink_interval_to_unit t0 r hrpos
+  let I : Set ℝ := Icc (t0 - r') (t0 + r')
   have hI_meas : MeasurableSet I := by exact isClosed_Icc.measurableSet
   have hI_len_pos : 0 < (volume I).toReal := by
-    have : 0 < (2 * r) := by nlinarith
+    have : 0 < (2 * r') := by nlinarith
     simpa [I, Real.volume_Icc, two_mul] using this
-  -- If needed, shrink I to ensure length ≤ 1 (omitted; can reduce r)
-  have hI_len_le : RS.length I ≤ 1 := by
-    -- choose r so that 2r ≤ 1; otherwise shrink r (harmless for existence)
-    -- For this existence lemma, we can enforce r ≤ 1/2
-    have : (volume I).toReal = 2 * r := by simpa [I, Real.volume_Icc, two_mul]
-    by_cases hr : r ≤ 1/2
-    · simpa [RS.length, this] using (mul_le_of_le_one_left (by linarith) hr)
-    · -- if not, replace r by 1/2; existence is unaffected (we can shrink)
-      -- We coarsen to the trivial bound RS.length I ≤ (volume I).toReal ≤ 2*r
-      have : RS.length I ≤ 2 * r := by simpa [RS.length, this]
-      have : RS.length I ≤ 1 := by
-        have : 1 ≤ 2 * r := by nlinarith
-        exact le_trans this (by linarith)
-      exact this
   -- Step 3: Egorov on S = A ∩ I for f_n(x) = poissonSmooth F (1/n) x
   let S : Set ℝ := A ∩ I
   have hSmeas : MeasurableSet S := hMeasA.inter hI_meas

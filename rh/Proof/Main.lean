@@ -683,6 +683,11 @@ theorem RiemannHypothesis_final (C : RH.RS.PinchCertificateExt) : RiemannHypothe
 
 -- (legacy convenience alias removed to avoid name shadowing)
 
+/-- Top-level RH theorem (certificate-driven alias).
+Given a pinch certificate `C`, conclude `RiemannHypothesis`. -/
+theorem RH (C : RH.RS.PinchCertificateExt) : RiemannHypothesis :=
+  RiemannHypothesis_final C
+
 /-- Clean pinch-ingredients route: given
 1) outer existence for `|det₂/ξ_ext|` on Ω,
 2) interior positivity `0 ≤ Re(2·J_pinch)` on `Ω \ Z(ξ_ext)`, and

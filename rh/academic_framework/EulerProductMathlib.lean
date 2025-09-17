@@ -26,8 +26,13 @@ theorem zeta_nonzero_re_gt_one
     {s : ℂ} (hs : 1 < s.re) : riemannZeta s ≠ 0 := by
   simpa using riemannZeta_ne_zero_of_one_lt_re hs
 
-/-- Boundary-line nonvanishing, delegated to the RS export via a boundary bridge.
-Callers should supply a `ZetaSchurBoundaryBridge` offering local pinch data. -/
+/-- Boundary-line nonvanishing on `Re = 1`, delegated to the RS export.
+
+Given an RS boundary bridge `B : RH.RS.ZetaSchurBoundaryBridge`, this theorem
+states `riemannZeta z ≠ 0` for any complex `z` with `z.re = 1`, by invoking
+`RH.RS.ZetaNoZerosOnRe1FromSchur`.
+
+Callers are expected to provide the RS-side bridge bundling the pinch data. -/
 theorem zeta_nonzero_re_eq_one
     (z : ℂ) (hz : z.re = 1) (B : RH.RS.ZetaSchurBoundaryBridge) :
     riemannZeta z ≠ 0 :=
