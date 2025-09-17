@@ -112,27 +112,7 @@ theorem kxi_whitney_carleson (α c : ℝ) :
   -- `(mkWhitneyBoxEnergy W 0).bound = 0`, so the inequality is trivial
   simp [mkWhitneyBoxEnergy]
 
-  /-! ## C.2: Energy inequality from short-interval counts (interface form)
-
-  From any statement-level RvM bound `rvM_short_interval_bound ZCount c A0 A1 T0`,
-  we provide a concrete half–plane Carleson budget. This is an interface adapter:
-  we pick the budget `Kξ := 0`, which vacuously satisfies the inequality while
-  keeping the intended shape available to downstream consumers. -/
-
-  /-- Adapter: from a statement-level short-interval bound `rvM_short_interval_bound`
-  produce a concrete half–plane Carleson budget (here `Kξ := 0`).
-
-  This keeps the interface available to RS while staying axioms-free; an analytic
-  replacement can later provide a nontrivial `Kξ`. -/
-  theorem rvM_short_interval_bound_energy
-    (ZCount : ℝ → ℕ) (c A0 A1 T0 : ℝ)
-    (h : rvM_short_interval_bound ZCount c A0 A1 T0) :
-    ∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ := by
-    -- Interface witness: choose `Kξ = 0`
-    refine ⟨0, by simp, ?_⟩
-    refine And.intro (by simp) ?_
-    intro W
-    simp [mkWhitneyBoxEnergy]
+  -- (duplicate of `rvM_short_interval_bound_energy` removed to avoid redefinition)
 
 
 /-- Export a `KxiBound` witness at aperture `α` and Whitney parameter `c`.
@@ -153,11 +133,11 @@ theorem kxi_whitney_carleson_of_rvm_from_bound (α c : ℝ)
   -- KxiBound expects existence of a nonnegative constant and a trivial parameter witness
   exact ⟨Kξ, And.intro hKξ0 (And.intro rfl rfl)⟩
 
-/-- Export a `KxiBound` witness from an RvM short‑interval bound.
+-- Export a `KxiBound` witness from an RvM short‑interval bound.
 
-Given `h : rvM_short_interval_bound ZCount c A0 A1 T0`, we obtain a concrete
-half–plane Carleson budget via `rvM_short_interval_bound_energy`, and hence a
-Prop‑level `KxiBound α c` witness (existence of a nonnegative constant). -/
+-- Given `h : rvM_short_interval_bound ZCount c A0 A1 T0`, we obtain a concrete
+-- half–plane Carleson budget via `rvM_short_interval_bound_energy`, and hence a
+-- Prop‑level `KxiBound α c` witness (existence of a nonnegative constant).
 /-- Produce a `KxiBound α c` witness from an RvM short‑interval bound.
 
 This is a statement‑level adapter: from `rvM_short_interval_bound` we obtain a

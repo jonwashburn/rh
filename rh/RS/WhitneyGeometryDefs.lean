@@ -332,7 +332,13 @@ lemma length_abs_lt (c r : ℝ) (hr : 0 < r) :
         have : -r < t - c ∧ t - c < r := ⟨hlt, hrt⟩
         simpa [abs_lt] using this
       simpa using this
-  simp [length, this, Real.volume_Ioo, sub_eq, add_comm, add_left_comm, add_assoc]
+  -- Compute volume of Ioo and rewrite r + r = 2r
+  have hvol : (volume (Set.Ioo (c - r) (c + r))) = ENNReal.ofReal ((c + r) - (c - r)) := by
+    simpa [Real.volume_Ioo]
+  have htoReal : (volume (Set.Ioo (c - r) (c + r))).toReal = ((c + r) - (c - r)) := by
+    simpa [hvol, ENNReal.toReal_ofReal]
+  have : ((c + r) - (c - r)) = 2 * r := by ring
+  simp [length, this, htoReal]
 
 /-- Under fixed geometry, the width is bounded by the shadow length. -/
 lemma fixed_geometry_width_le_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geometry Q) :
@@ -344,8 +350,9 @@ lemma fixed_geometry_width_le_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geomet
   -- Compute the core length as the width
   have hcore : length ({t : ℝ | |t - h.center.1| < h.width / 2}) = h.width := by
     have hwpos : 0 < h.width := h.width_pos
-    simpa [two_mul, mul_comm, mul_left_comm, mul_assoc]
-      using length_abs_lt h.center.1 (h.width / 2) (by nlinarith)
+    have := length_abs_lt h.center.1 (h.width / 2) (by nlinarith)
+    -- length = 2 * (width/2) = width
+    simpa [two_mul, mul_comm, mul_left_comm, mul_assoc, div_eq_mul_inv] using this
   simpa [shadowLen, hcore] using hmono
 
 /-- Coarse comparability: `width ≤ 8 · shadowLen` under fixed geometry. -/
@@ -354,7 +361,7 @@ lemma fixed_geometry_width_le_eight_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_
   -- From `height ≥ width/4` and `height ≤ 2·|shadow|` obtain `width ≤ 8·|shadow|`.
   have hW4 : h.width / 4 ≤ h.height := by
     -- rearrange `aspect_lower : height ≥ width/4`
-    simpa [le_comm] using h.aspect_lower
+    simpa using h.aspect_lower
   have hH : h.height ≤ 2 * shadowLen Q := h.height_shadow
   have : h.width / 4 ≤ 2 * shadowLen Q := le_trans hW4 hH
   have hpos4 : (0 : ℝ) < 4 := by norm_num
@@ -424,10 +431,26 @@ theorem Whitney.shadow_overlap_sum_of_indicator_bound
         = C * (volume I).toReal := by
     simp [integral_mul_left, integral_indicator, hmeasI]
   -- integrate the a.e. inequality
+  -- Provide measurability/integrability side conditions for both sides
+  have hmeasL : Measurable (fun t => (∑ i in S, Set.indicator (Whitney.shadow (Q i)) (fun _ => (1 : ℝ)) t)) := by
+    refine Measurable.finset_sum _ ?_; intro i hi; exact (hmeasSh i hi).indicator measurable_const
+  have hmeasR : Measurable (fun t => C * Set.indicator I (fun _ => (1 : ℝ)) t) := by
+    simpa using ((hmeasI.indicator measurable_const).const_mul C)
   have hint :
       ∫ t, (∑ i in S, Set.indicator (Whitney.shadow (Q i)) (fun _ => (1 : ℝ)) t) ∂(volume)
-        ≤ ∫ t, C * Set.indicator I (fun _ => (1 : ℝ)) t ∂(volume) :=
-    integral_mono_ae h_ae
+        ≤ ∫ t, C * Set.indicator I (fun _ => (1 : ℝ)) t ∂(volume) := by
+    refine integral_mono_ae ?_ ?_ ?_ h_ae
+    · -- integrable LHS (finite sum of indicators)
+      have : ∀ i ∈ S, Integrable (fun t => Set.indicator (Whitney.shadow (Q i)) (fun _ => (1 : ℝ)) t) := by
+        intro i hi; exact (hmeasSh i hi).indicator.integrable_of_bounded (by
+          refine Filter.eventually_of_forall (fun t => ?_) ; simp)
+      simpa using (Integrable.finset_sum fun i hi => this i hi)
+    · -- integrable RHS (constant times indicator)
+      have hconst : Integrable (fun t => (1 : ℝ)) := by simpa using integrable_const (μ := volume) (c := (1 : ℝ))
+      have : Integrable (fun t => Set.indicator I (fun _ => (1 : ℝ)) t) :=
+        hmeasI.indicator.integrable_of_bounded (by refine Filter.eventually_of_forall (fun t => ?_) ; simp)
+      simpa using this.const_mul C
+    · exact hmeasL
   -- rewrite both sides using the identities above
   simpa [Whitney.length, Whitney.shadowLen, hlin_left, hlin_right]
     using hint

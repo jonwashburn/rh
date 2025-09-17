@@ -66,8 +66,26 @@ lemma shadow_mono {Q R : Set (ℝ × ℝ)} (hQR : Q ⊆ R) : shadow Q ⊆ shadow
 def length (I : Set ℝ) : ℝ := (volume I).toReal
 
 /-- Boundary real trace of `F` on the critical line. -/
-def boundaryRe (F : ℂ → ℂ) (t : ℝ) : ℝ :=
+@[simp] def boundaryRe (F : ℂ → ℂ) (t : ℝ) : ℝ :=
   (F ((1/2 : ℂ) + Complex.I * (t : ℂ))).re
+
+/-- Normalize a symmetric interval around `t0` to have length ≤ 1 by shrinking the radius. -/
+lemma shrink_interval_to_unit
+  (t0 r : ℝ) (hr : 0 < r) :
+  ∃ r' : ℝ, 0 < r' ∧ r' ≤ r ∧ RS.length (Icc (t0 - r') (t0 + r')) ≤ 1 := by
+  classical
+  -- Choose `r' = min r (1/2)`
+  refine ⟨min r (1/2), ?_, ?_, ?_⟩
+  · have hpos₁ : 0 < r := hr
+    have hpos₂ : 0 < (1/2 : ℝ) := by norm_num
+    exact lt_min hpos₁ hpos₂
+  · exact min_le_left _ _
+  · -- length(Icc(t0−r', t0+r')) = 2 r' ≤ 1 since r' ≤ 1/2
+    have hlen : RS.length (Icc (t0 - min r (1/2)) (t0 + min r (1/2))) = 2 * (min r (1/2)) := by
+      simp [RS.length, Real.volume_Icc, two_mul]
+    have hr'le : min r (1/2) ≤ (1/2 : ℝ) := min_le_right _ _
+    have : 2 * (min r (1/2)) ≤ 1 := by nlinarith
+    simpa [hlen]
 
 /-- Measurability of the boundary real trace. -/
 lemma measurable_boundaryRe (F : ℂ → ℂ) :
@@ -75,18 +93,21 @@ lemma measurable_boundaryRe (F : ℂ → ℂ) :
   classical
   have h1 : Continuous fun t : ℝ => ((1/2 : ℂ) + Complex.I * (t : ℂ)) := by
     continuity
-  have h2 : Continuous fun z : ℂ => z.re := continuous_re
+  have h2 : Continuous fun z : ℂ => z.re := Complex.continuous_re
   exact (h2.comp h1).measurable
 
-/-- Measurability of the sublevel set `{t | boundaryRe F t ≤ a}`. -/
+/-- Measurable sublevel sets of the boundary real trace `{t | boundaryRe F t ≤ a}`. -/
 lemma measurableSet_sublevel_boundaryRe (F : ℂ → ℂ) (a : ℝ) :
   MeasurableSet {t : ℝ | boundaryRe F t ≤ a} := by
   classical
-  have h : Measurable (fun t : ℝ => boundaryRe F t) := measurable_boundaryRe F
-  exact h.measurableSet_le measurable_const
+  -- Treat `a` as a constant measurable function and use the standard `≤`-closedness schema
+  have hconst : Measurable fun _ : ℝ => a := measurable_const
+  have hmeas : Measurable (fun t : ℝ => boundaryRe F t) := measurable_boundaryRe F
+  -- `{u ≤ a}` is measurable since `Iic a` is closed
+  exact hmeas.isClosed_le hconst isClosed_Iic
 
 /-- Poisson smoothed boundary real part at height `b>0` and horizontal `x`. -/
-def poissonSmooth (F : ℂ → ℂ) (b x : ℝ) : ℝ :=
+@[simp] def poissonSmooth (F : ℂ → ℂ) (b x : ℝ) : ℝ :=
   ∫ t, RH.RS.poissonKernel b (x - t) * boundaryRe F t ∂(volume)
 
 /-- Minimal energy monotonicity helper: if the box energy on a tent is bounded
@@ -352,10 +373,8 @@ namespace RS
 open Filter Set MeasureTheory
 open scoped Topology MeasureTheory
 
-<<<<<<< HEAD
-=======
 /-- Boundary real trace of `F` on the critical line. -/
-def boundaryRe (F : ℂ → ℂ) (t : ℝ) : ℝ :=
+@[simp] def boundaryRe (F : ℂ → ℂ) (t : ℝ) : ℝ :=
   (F ((1/2 : ℂ) + Complex.I * (t : ℂ))).re
 
 /-- Normalize a symmetric interval around `t0` to have length ≤ 1 by shrinking the radius. -/
@@ -382,7 +401,7 @@ lemma measurable_boundaryRe (F : ℂ → ℂ) :
   classical
   have h1 : Continuous fun t : ℝ => ((1/2 : ℂ) + Complex.I * (t : ℂ)) := by
     continuity
-  have h2 : Continuous fun z : ℂ => z.re := continuous_re
+  have h2 : Continuous fun z : ℂ => z.re := Complex.continuous_re
   exact (h2.comp h1).measurable
 
 /-- Measurable sublevel sets of the boundary real trace `{t | boundaryRe F t ≤ a}`. -/
@@ -396,10 +415,9 @@ lemma measurableSet_sublevel_boundaryRe (F : ℂ → ℂ) (a : ℝ) :
   exact hmeas.isClosed_le hconst isClosed_Iic
 
 /-- Poisson smoothed boundary real part at height `b>0` and horizontal `x`. -/
-def poissonSmooth (F : ℂ → ℂ) (b x : ℝ) : ℝ :=
+@[simp] def poissonSmooth (F : ℂ → ℂ) (b x : ℝ) : ℝ :=
   ∫ t, RH.RS.poissonKernel b (x - t) * boundaryRe F t ∂(volume)
 
->>>>>>> 06c4e5e (fix(track-build): remove proofwidgets, clean AppleDouble, fix TentShadow import; CRGreenOuter pairing+boundary helpers)
 /-- From a.e. convergence of the Poisson smoothing as height `b → 0+`, deduce
 sequence convergence along `b_n = 1/(n+1)` a.e. on ℝ. -/
 lemma ae_tendsto_poisson_seq_of_AI
@@ -542,47 +560,6 @@ by
     IsClosedBallLebesgueDensityPoint.exists_ratio_ge ht0dens (by linarith)
   -- Turn the closedBall estimate into the interval estimate using equality on ℝ
   refine ⟨r, hrpos, ?_, ?_⟩
-<<<<<<< HEAD
-  · -- positivity of interval length
-    have : (0 : ℝ) < (2*r) := by nlinarith
-    -- volume(Icc(t0-r,t0+r)) = 2r in ℝ
-    simpa [Real.volume_Icc, two_mul] using (by
-      have : (0 : ℝ≥0∞) < volume (Icc (t0 - r) (t0 + r)) := by
-        simpa [Real.volume_Icc, two_mul] using ENNReal.coe_pos.mpr this
-      exact (ENNReal.toReal_pos_iff.mpr ⟨this.ne', le_of_lt this⟩))
-  · -- the fractional lower bound on intervals follows from the closedBall bound
-    -- Standard comparability of closed balls and symmetric intervals on ℝ
-    -- We use that for small r the interval mass lower bound transfers.
-    -- Here we provide a coarse bound sufficient for downstream use.
-    have : (volume (A ∩ Icc (t0 - r) (t0 + r))).toReal
-            ≥ (1 - (1 - ε)) * (volume (Icc (t0 - r) (t0 + r))).toReal := by
-      -- take the same ratio as closedBall; constants are interchangeable on ℝ
-      -- since this is only used qualitatively, we supply the bound directly
-      have hε' : 0 ≤ (1 - ε) := by linarith
-      have hratio := hbound
-      -- Convert via monotonicity (Icc ⊆ closedBall and viceversa up to null sets). Omitted; accept ratio.
-      -- Provide the same inequality shape:
-      simpa
-    simpa [one_mul, sub_eq_add_neg, mul_comm, mul_left_comm, mul_assoc] using this
-
-/-- Normalize an interval around `t0` to have length ≤ 1 by shrinking the radius. -/
-lemma shrink_interval_to_unit (t0 r : ℝ) (hrpos : 0 < r) :
-  ∃ r' : ℝ, 0 < r' ∧ r' ≤ r ∧ RS.length (Icc (t0 - r') (t0 + r')) ≤ 1 := by
-  classical
-  let r_unit := min r (1/2 : ℝ)
-  have hr_unit_pos : 0 < r_unit := by
-    have : 0 < (1/2 : ℝ) := by norm_num
-    exact lt_min hrpos this
-  have hr_unit_le_r : r_unit ≤ r := min_le_left _ _
-  have hlen_le_1 : RS.length (Icc (t0 - r_unit) (t0 + r_unit)) ≤ 1 := by
-    have : RS.length (Icc (t0 - r_unit) (t0 + r_unit)) = 2 * r_unit := by
-      simp [RS.length, Real.volume_Icc, sub_eq_add_neg, two_mul]
-    rw [this]
-    have : r_unit ≤ 1/2 := min_le_right _ _
-    have hnonneg : 0 ≤ (2 : ℝ) := by norm_num
-    exact mul_le_of_le_one_left hnonneg this
-  exact ⟨r_unit, hr_unit_pos, hr_unit_le_r, hlen_le_1⟩
-=======
   · -- positivity: volume(Icc(t0−r,t0+r)) = 2r > 0
     have : (0 : ℝ) < 2 * r := by nlinarith
     have : (0 : ℝ≥0∞) < volume (Icc (t0 - r) (t0 + r)) := by
@@ -604,7 +581,6 @@ lemma shrink_interval_to_unit (t0 r : ℝ) (hrpos : 0 < r) :
         simpa [Metric.closedBall, Real.dist_eq, sub_eq_add_neg] using this
     -- Transfer the ratio inequality exactly via set equality
     simpa [hCB_eq_Icc, one_mul, sub_eq, mul_comm, mul_left_comm, mul_assoc] using hbound
->>>>>>> 06c4e5e (fix(track-build): remove proofwidgets, clean AppleDouble, fix TentShadow import; CRGreenOuter pairing+boundary helpers)
 
 /-- Egorov on finite-measure sets for sequences `f_n → f` a.e.:
 For any δ>0 and ε>0, there exists a measurable `E ⊆ S` with `μ(S \ E) ≤ δ·μ(S)`
@@ -799,7 +775,7 @@ by
     classical
     have h1 : Continuous fun t : ℝ => ((1/2 : ℂ) + Complex.I * (t : ℂ)) := by
       continuity
-    have h2 : Continuous fun z : ℂ => z.re := continuous_re
+    have h2 : Continuous fun z : ℂ => z.re := Complex.continuous_re
     exact (h2.comp h1).measurable
   obtain ⟨m, hAm_pos⟩ := exists_neg_level_with_pos_measure F hMeas_u hNegSetPos
   let A : Set ℝ := {t : ℝ | boundaryRe F t ≤ - (1 / (m.succ : ℝ))}
