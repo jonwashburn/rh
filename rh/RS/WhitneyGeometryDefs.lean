@@ -93,21 +93,22 @@ def shadowOverlapConst : ℝ := 10
 
 /-- Monotonicity of interval length under set inclusion. -/
 lemma length_mono
-  {I J : Set ℝ} (hIJ : I ⊆ J) (hJfin : volume J ≠ ∞) : length I ≤ length J := by
+  {I J : Set ℝ} (hIJ : I ⊆ J) (hJfin : volume J ≠ ⊤) : length I ≤ length J := by
   unfold length
   have hμ : volume I ≤ volume J := measure_mono hIJ
-  -- toReal is order preserving on [0, ∞) with finite RHS
-  exact ENNReal.toReal_le_toReal hJfin hμ
+  -- toReal is order-preserving under finiteness of the RHS
+  have hiff := ENNReal.toReal_le_toReal (hb := hJfin)
+  exact (hiff.mpr hμ)
 
 lemma length_nonneg (I : Set ℝ) : 0 ≤ length I := by
   unfold length; exact ENNReal.toReal_nonneg
 
 /-- Monotonicity of tents with respect to base-interval inclusion. -/
 lemma tent_mono
-  {I J : Set ℝ} (hIJ : I ⊆ J) (α : ℝ) (hα : 0 ≤ α) (hJfin : volume J ≠ ∞)
+  {I J : Set ℝ} (hIJ : I ⊆ J) (α : ℝ) (hα : 0 ≤ α) (hJfin : volume J ≠ ⊤)
   : tent I α ⊆ tent J α := by
   intro p hp
-  simp only [tent, Set.mem_setOf] at hp ⊢
+  simp only [tent, Set.mem_setOf_eq] at hp ⊢
   obtain ⟨hI, hp1, hp2⟩ := hp
   refine ⟨hIJ hI, hp1, ?_⟩
   apply le_trans hp2
@@ -118,7 +119,7 @@ lemma tent_mono
 lemma boxEnergy_mono {gradU : (ℝ × ℝ) → ℝ × ℝ} {σ : Measure (ℝ × ℝ)}
     {P Q : Set (ℝ × ℝ)} (h : P ⊆ Q)
     (hPmeas : MeasurableSet P) (hQmeas : MeasurableSet Q)
-    (hfinQ : (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ) < ∞) :
+    (hfinQ : (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ) < ⊤) :
     boxEnergy gradU σ P ≤ boxEnergy gradU σ Q := by
   -- Work at the level of lintegrals with nonnegative integrand and then apply toReal_mono
   unfold boxEnergy
@@ -126,15 +127,15 @@ lemma boxEnergy_mono {gradU : (ℝ × ℝ) → ℝ × ℝ} {σ : Measure (ℝ ×
   set IQ : ℝ≥0∞ := ∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ
   change IP.toReal ≤ IQ.toReal
   -- Monotonicity after ensuring finiteness of the larger integral
-  apply ENNReal.toReal_mono
-  · -- finiteness provided by hypothesis
-    simpa [IQ] using hfinQ
-  · -- Lintegral monotonicity on measurable sets
-    have hmono :
-        (∫⁻ p in P, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ)
-          ≤ (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ) := by
-      exact Measure.lintegral_mono_set (μ := σ) hPmeas hQmeas h
-    simpa [IP, IQ] using hmono
+  -- Use `toReal_le_toReal` with finiteness of the RHS and monotonicity of the lintegral
+  have hmono :
+      (∫⁻ p in P, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ)
+        ≤ (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ) :=
+    Measure.lintegral_mono_set (μ := σ) hPmeas hQmeas h
+  have hiff := ENNReal.toReal_le_toReal (hb := (by simpa [IQ] using (ne_of_lt hfinQ)))
+  exact (by
+    have : IP ≤ IQ := by simpa [IP, IQ] using hmono
+    simpa [IP, IQ] using (hiff.mpr this))
 
 /-- The tent set `tent I α` is measurable. -/
 lemma measurableSet_tent {I : Set ℝ} {α : ℝ} (hI : MeasurableSet I) :
@@ -165,7 +166,7 @@ lemma finite_lintegral_on_tent_of_L2
   (gradU : (ℝ × ℝ) → ℝ × ℝ) (I : Set ℝ) (α : ℝ)
   (hI : MeasurableSet I)
   (hL2 : IntegrableOn (fun p => ‖gradU p‖^2) (tent I α) volume) :
-  (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2 * p.2)) < ∞ := by
+  (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2 * p.2)) < ⊤ := by
   -- On tents, 0 < p.2 ≤ α * length I, so p.2 is essentially bounded by a constant C.
   -- Hence ofReal (‖gradU‖^2 * p.2) ≤ ENNReal.ofReal C * ofReal (‖gradU‖^2),
   -- and finiteness follows from the L² bound of ‖gradU‖.
@@ -174,7 +175,7 @@ lemma finite_lintegral_on_tent_of_L2
   have hCnonneg : 0 ≤ C := le_max_right _ _
   -- a.e. bound σ ≤ C on the tent
   have hBound_base : ∀ᵐ p ∂volume, p ∈ tent I α → p.2 ≤ C := by
-    refine Filter.eventually_of_forall ?_;
+    refine Filter.Eventually.of_forall ?_
     intro p hp
     have hpU : p.2 ≤ α * length I := by simpa [tent, Set.mem_setOf_eq] using hp.2.2
     exact le_trans hpU (le_max_left _ _)
@@ -185,28 +186,35 @@ lemma finite_lintegral_on_tent_of_L2
       (∀ᵐ p ∂(Measure.restrict volume (tent I α)),
         ENNReal.ofReal (‖gradU p‖^2 * p.2)
           ≤ ENNReal.ofReal C * ENNReal.ofReal (‖gradU p‖^2)) := by
-    refine hBound_ae.mono ?_;
+    refine hBound_ae.mono ?_
     intro p hpC
     have hmul : ‖gradU p‖^2 * p.2 ≤ ‖gradU p‖^2 * C :=
       mul_le_mul_of_nonneg_left hpC (by exact sq_nonneg _)
-    have : ENNReal.ofReal (‖gradU p‖^2 * p.2)
-            ≤ ENNReal.ofReal (‖gradU p‖^2 * C) :=
-      ENNReal.ofReal_le_ofReal_iff.mpr hmul
+    have hstep : ENNReal.ofReal (‖gradU p‖^2 * p.2)
+            ≤ ENNReal.ofReal (‖gradU p‖^2 * C) := ENNReal.ofReal_le_ofReal hmul
     -- rewrite RHS as constant * ofReal(‖gradU‖^2)
-    simpa [ENNReal.ofReal_mul hCnonneg (sq_nonneg _), mul_comm, mul_left_comm, mul_assoc]
-      using this
+    have hgrad_nonneg : 0 ≤ ‖gradU p‖^2 := by exact sq_nonneg _
+    have hmul_ofReal : ENNReal.ofReal (‖gradU p‖^2 * C)
+            = ENNReal.ofReal (‖gradU p‖^2) * ENNReal.ofReal C := by
+      simpa using ENNReal.ofReal_mul hgrad_nonneg hCnonneg
+    -- combine and commute factors
+    have : ENNReal.ofReal (‖gradU p‖^2 * p.2)
+            ≤ ENNReal.ofReal (‖gradU p‖^2) * ENNReal.ofReal C := by
+      simpa [hmul_ofReal, mul_comm] using hstep
+    -- target RHS ordering: ofReal C * ofReal (‖gradU p‖^2)
+    simpa [mul_comm] using this
   -- Integrate both sides over the tent (restricted measure)
   have hlin :
       (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2 * p.2))
         ≤ ENNReal.ofReal C * (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2)) := by
     have hconst :
-        (∫⁻ p in tent I α, (fun _ => ENNReal.ofReal C) * ENNReal.ofReal (‖gradU p‖^2))
+        (∫⁻ p in tent I α, ENNReal.ofReal C * ENNReal.ofReal (‖gradU p‖^2))
           = ENNReal.ofReal C * (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2)) := by
-      simp [Measure.restrict_apply, hTent]
-    refine le_trans (Measure.lintegral_mono_ae hpoint_ae) ?_;
+      simp [Measure.restrict_apply, hTent, mul_comm, mul_left_comm, mul_assoc]
+    refine le_trans (Measure.lintegral_mono_ae hpoint_ae) ?_
     simpa [hconst]
   -- Use L²-integrability to conclude finiteness of the RHS
-  have hfin_sq : (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2)) < ∞ := by
+  have hfin_sq : (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2)) < ⊤ := by
     -- Standard: IntegrableOn f ⇒ lintegral (ofReal |f|) < ∞
     have hInt := hL2.hasFiniteIntegral
     simpa [Measure.restrict_apply, hTent, Real.norm_eq_abs, abs_of_nonneg (sq_nonneg _)] using hInt
@@ -216,7 +224,7 @@ lemma finite_lintegral_on_tent_of_L2
 lemma boxEnergy_mono_tent
   (gradU : (ℝ × ℝ) → ℝ × ℝ) (I J : Set ℝ) (α : ℝ)
   (hIJ : I ⊆ J) (hI : MeasurableSet I) (hJ : MeasurableSet J)
-  (hα : 0 ≤ α) (hJfin : volume J ≠ ∞)
+  (hα : 0 ≤ α) (hJfin : volume J ≠ ⊤)
   (hL2 : IntegrableOn (fun p => ‖gradU p‖^2) (tent J α) volume) :
   boxEnergy gradU volume (tent I α) ≤ boxEnergy gradU volume (tent J α) := by
   -- Reduce to the general monotonicity using tent_mono and discharge finiteness via finite_lintegral_on_tent_of_L2
@@ -224,11 +232,9 @@ lemma boxEnergy_mono_tent
     tent_mono (hIJ := hIJ) (α := α) (hα := hα) (hJfin := hJfin)
   -- Use the general lemma; provide measurability and finiteness to close admits
   have hTentJ_meas : MeasurableSet (tent J α) := measurableSet_tent (hI := hJ)
-  have hfin : (∫⁻ p in tent J α, ENNReal.ofReal (‖gradU p‖^2 * p.2)) < ∞ :=
+  have hfin : (∫⁻ p in tent J α, ENNReal.ofReal (‖gradU p‖^2 * p.2)) < ⊤ :=
     finite_lintegral_on_tent_of_L2 (gradU := gradU) (I := J) (α := α) (hI := hJ)
-      (by
-        -- L² on J implies L² on J for the same set (identity)
-        simpa using hL2)
+      (by simpa using hL2)
   -- Apply the strengthened monotonicity with measurability and finiteness
   exact boxEnergy_mono (gradU := gradU) (σ := volume) (P := tent I α) (Q := tent J α)
     hsubset (measurableSet_tent (hI := hI)) hTentJ_meas hfin
@@ -251,23 +257,22 @@ lemma fixed_geometry_subset_tent (Q : Set (ℝ × ℝ)) (h : fixed_geometry Q) :
   -- Unpack the fixed geometry structure
   obtain ⟨center, width, height, hcenter, hwidth, hheight,
           haspect_lo, haspect_hi, hQsub, hQsup, hupper, hcenter_top, hheight_shadow⟩ := h
-  simp only [tent, Set.mem_setOf]
+  simp only [tent, Set.mem_setOf_eq]
 
   -- From hQsub, p is in the rectangle around center
   have hp_rect : |p.1 - center.1| ≤ width / 2 ∧ |p.2 - center.2| ≤ height / 2 :=
     hQsub hp
 
   -- p.1 is in the shadow by definition
+  have hp_pos : 0 < p.2 := by
+    have : p ∈ {p : ℝ × ℝ | 0 < p.2} := hupper hp
+    simpa [Set.mem_setOf_eq] using this
   have hp1_shadow : p.1 ∈ shadow Q := by
-    use p.2
-    constructor
-    · -- Need p.2 > 0
-      exact fixed_geometry_upper h hp
-    · exact hp
+    refine ⟨p.2, hp_pos, hp⟩
 
   refine ⟨hp1_shadow, ?_, ?_⟩
   · -- Show p.2 > 0
-    exact fixed_geometry_upper h hp
+    exact hp_pos
   · -- Show p.2 ≤ standardAperture * length (shadow Q)
     calc p.2
         ≤ center.2 + height / 2 := by
@@ -279,7 +284,7 @@ lemma fixed_geometry_subset_tent (Q : Set (ℝ × ℝ)) (h : fixed_geometry Q) :
           linarith
     _ ≤ height := by
           -- Using center.2 ≤ height/2
-          have := (fixed_geometry_center_le_top h)
+          have : center.2 ≤ height / 2 := hcenter_top
           linarith
     _ ≤ 2 * shadowLen Q := hheight_shadow
     _ = standardAperture * shadowLen Q := by rfl
@@ -342,17 +347,23 @@ lemma length_abs_lt (c r : ℝ) (hr : 0 < r) :
   have hset : {t : ℝ | |t - c| < r} = Set.Ioo (c - r) (c + r) := by
     ext t; constructor
     · intro ht
-      rcases (abs_lt.mp ht) with ⟨hlt, hrt⟩
+      have habs : |t - c| < r := by simpa using ht
+      rcases (abs_lt.mp habs) with ⟨hlt, hrt⟩
       constructor <;> linarith
     · intro ht
       rcases ht with ⟨hlt, hrt⟩
       have : -r < t - c ∧ t - c < r := by constructor <;> linarith
       simpa [abs_lt] using this
-  -- Compute volume and toReal
-  have : (volume (Set.Ioo (c - r) (c + r))).toReal = (c + r) - (c - r) := by
-    simpa [Real.volume_Ioo, ENNReal.toReal_ofReal]
+  -- Compute volume and toReal on the open interval
+  have hlt : (c - r) < (c + r) := by linarith
+  have hnonneg : 0 ≤ (c + r) - (c - r) := by linarith [le_of_lt hr]
+  have hvol : volume (Set.Ioo (c - r) (c + r)) = ENNReal.ofReal ((c + r) - (c - r)) := by
+    simpa [Real.volume_Ioo, (le_of_lt hlt)]
+  have htoReal : (volume (Set.Ioo (c - r) (c + r))).toReal = (c + r) - (c - r) := by
+    simpa [hvol, ENNReal.toReal_ofReal, hnonneg]
   have hring : (c + r) - (c - r) = 2 * r := by ring
-  simp [length, hset, this, hring]
+  have hr0 : 0 ≤ r := le_of_lt hr
+  simp [length, hset, htoReal, hring, hr0]
 
 /-- Under fixed geometry, the width is bounded by the shadow length. -/
 lemma fixed_geometry_width_le_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geometry Q) :
@@ -373,10 +384,10 @@ lemma fixed_geometry_width_le_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geomet
     · -- upper bound: t ≤ h.center.1 + h.width/2
       have : t - h.center.1 ≤ (h.width / 2) := hpair.right
       linarith
-  have hJfin : volume (shadow Q) ≠ ∞ := by
+  have hJfin : volume (shadow Q) ≠ ⊤ := by
     have hle : (h.center.1 - h.width / 2) ≤ (h.center.1 + h.width / 2) := by nlinarith [le_of_lt h.width_pos]
     -- finite measure on bounded intervals
-    have hfinIcc : volume (Set.Icc (h.center.1 - h.width / 2) (h.center.1 + h.width / 2)) < ∞ := by
+    have hfinIcc : volume (Set.Icc (h.center.1 - h.width / 2) (h.center.1 + h.width / 2)) < ⊤ := by
       have hlen : 0 ≤ (h.center.1 + h.width / 2) - (h.center.1 - h.width / 2) := by nlinarith [le_of_lt h.width_pos]
       simpa [Real.volume_Icc, hle, hlen]
     -- monotonicity: shadow Q ⊆ Icc ⇒ μ(shadow Q) ≤ μ(Icc) < ∞

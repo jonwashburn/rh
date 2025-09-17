@@ -65,9 +65,15 @@ lemma shadow_mono {Q R : Set (ℝ × ℝ)} (hQR : Q ⊆ R) : shadow Q ⊆ shadow
 /-- Length (Lebesgue measure) of a boundary set. -/
 def length (I : Set ℝ) : ℝ := (volume I).toReal
 
+/-/ Boundary map and real trace on the critical line. -/
+def boundaryMap (t : ℝ) : ℂ := (1/2 : ℂ) + Complex.I * (t : ℂ)
+
+@[simp] lemma boundaryMap_re (t : ℝ) : (boundaryMap t).re = (1/2 : ℝ) := by
+  simp [boundaryMap]
+
 /-- Boundary real trace of `F` on the critical line. -/
 @[simp] def boundaryRe (F : ℂ → ℂ) (t : ℝ) : ℝ :=
-  (F ((1/2 : ℂ) + Complex.I * (t : ℂ))).re
+  (F (boundaryMap t)).re
 
 /-- Normalize a symmetric interval around `t0` to have length ≤ 1 by shrinking the radius. -/
 lemma shrink_interval_to_unit
@@ -80,31 +86,48 @@ lemma shrink_interval_to_unit
     have hpos₂ : 0 < (1/2 : ℝ) := by norm_num
     exact lt_min hpos₁ hpos₂
   · exact min_le_left _ _
-  · -- length(Icc(t0−r', t0+r')) = 2 r' ≤ 1 since r' ≤ 1/2
-    have hlen : RS.length (Icc (t0 - min r (1/2)) (t0 + min r (1/2))) = 2 * (min r (1/2)) := by
-      simp [RS.length, Real.volume_Icc, two_mul]
-    have hr'le : min r (1/2) ≤ (1/2 : ℝ) := min_le_right _ _
-    have : 2 * (min r (1/2)) ≤ 1 := by nlinarith
-    simpa [hlen]
+  · -- Clean computation: let m = min r (1/2). Then length(Icc(t0−m, t0+m)) = 2m ≤ 1.
+    set m : ℝ := min r (1/2) with hm
+    have hr0 : 0 ≤ r := le_of_lt hr
+    have hm0 : 0 ≤ m := by
+      have h12 : 0 ≤ (1/2 : ℝ) := by norm_num
+      by_cases hrle : r ≤ (1/2 : ℝ)
+      · have hm_eq : m = r := by simp [hm, hrle]
+        simpa [hm_eq] using hr0
+      · have hrge : (1/2 : ℝ) ≤ r := le_of_lt (not_le.mp hrle)
+        have hm_eq : m = (1/2 : ℝ) := by
+          -- min r (1/2) = 1/2 when 1/2 ≤ r
+          have : min r (1/2 : ℝ) = (1/2 : ℝ) := by exact min_eq_right hrge
+          simpa [hm] using this
+        simpa [hm_eq] using h12
+    have hx : t0 - m ≤ t0 + m := by linarith [hm0]
+    have vol_eq : volume (Icc (t0 - m) (t0 + m)) = ENNReal.ofReal (2 * m) := by
+      have : (t0 + m) - (t0 - m) = 2 * m := by ring
+      simpa [Real.volume_Icc, hx, this]
+    have hlen : RS.length (Icc (t0 - m) (t0 + m)) = 2 * m := by
+      have h2m : 0 ≤ 2 * m := by nlinarith [hm0]
+      simpa [RS.length, vol_eq, ENNReal.toReal_ofReal, h2m]
+    have hm_le : m ≤ (1/2 : ℝ) := by simpa [hm] using (min_le_right r (1/2 : ℝ))
+    have : 2 * m ≤ 1 := by nlinarith
+    simpa [hm, hlen]
 
 /-- Measurability of the boundary real trace. -/
-lemma measurable_boundaryRe (F : ℂ → ℂ) :
+lemma measurable_boundaryRe (F : ℂ → ℂ)
+  (hF : Measurable (fun t : ℝ => F (boundaryMap t))) :
   Measurable (fun t : ℝ => boundaryRe F t) := by
   classical
-  have h1 : Continuous fun t : ℝ => ((1/2 : ℂ) + Complex.I * (t : ℂ)) := by
-    continuity
-  have h2 : Continuous fun z : ℂ => z.re := Complex.continuous_re
-  exact (h2.comp h1).measurable
+  -- boundaryRe F = (Complex.re) ∘ (fun t => F (boundaryMap t))
+  have h2 : Measurable fun z : ℂ => z.re := Complex.continuous_re.measurable
+  simpa [boundaryRe] using h2.comp hF
 
 /-- Measurable sublevel sets of the boundary real trace `{t | boundaryRe F t ≤ a}`. -/
-lemma measurableSet_sublevel_boundaryRe (F : ℂ → ℂ) (a : ℝ) :
+lemma measurableSet_sublevel_boundaryRe (F : ℂ → ℂ) (a : ℝ)
+  (hF : Measurable (fun t : ℝ => F (boundaryMap t))) :
   MeasurableSet {t : ℝ | boundaryRe F t ≤ a} := by
   classical
-  -- Treat `a` as a constant measurable function and use the standard `≤`-closedness schema
-  have hconst : Measurable fun _ : ℝ => a := measurable_const
-  have hmeas : Measurable (fun t : ℝ => boundaryRe F t) := measurable_boundaryRe F
-  -- `{u ≤ a}` is measurable since `Iic a` is closed
-  exact hmeas.isClosed_le hconst isClosed_Iic
+  have hmeas : Measurable (fun t : ℝ => boundaryRe F t) := measurable_boundaryRe F hF
+  -- {t | boundaryRe F t ≤ a} = preimage of Iic a under boundaryRe F
+  simpa [Set.preimage, Set.mem_Iic] using (hmeas measurableSet_Iic)
 
 /-- Poisson smoothed boundary real part at height `b>0` and horizontal `x`. -/
 @[simp] def poissonSmooth (F : ℂ → ℂ) (b x : ℝ) : ℝ :=
@@ -311,7 +334,8 @@ lemma partial_sum_capture_of_hasSum
   (hT : 0 ≤ T) (ε : ℝ) (hε : 0 < ε) :
   ∃ N : ℕ, (∑ i in Finset.range N, a i) ≥ (1 - ε) * T :=
 by
-  have h_tend : Tendsto (fun N => ∑ i in Finset.range N, a i) atTop (nhds T) := hSum.tendsto_sum_nat
+  have h_tend : Tendsto (fun N => ∑ i in Finset.range N, a i) atTop (nhds T) :=
+    hSum.tendsto_sum_nat
   -- Handle T = 0 case: any N works since partial sums are ≥ 0
   by_cases hT0 : T = 0
   · refine ⟨0, ?_⟩
@@ -319,17 +343,20 @@ by
   -- T > 0: choose N so |S_N - T| < ε T ⇒ S_N ≥ (1-ε)T
   have hTpos : 0 < T := lt_of_le_of_ne hT hT0.symm
   have hεT : 0 < ε * T := mul_pos hε hTpos
-  have h_ev : ∀ᶠ N in atTop, |(∑ i in Finset.range N, a i) - T| < ε * T :=
-    (tendsto_atTop_iff_seq_tendsto.mp h_tend) (ε * T) hεT
+  have h_ev : ∀ᶠ N in atTop, |(∑ i in Finset.range N, a i) - T| < ε * T := by
+    -- Use neighborhoods of T directly: pick a ball of radius εT
+    have : {x : ℝ | |x - T| < ε * T} ∈ nhds T := by
+      simpa using Metric.ball_mem_nhds T hεT
+    exact (tendsto_atTop.1 h_tend) _ this
   rcases (eventually_atTop.1 h_ev) with ⟨N, hN⟩
   refine ⟨N, ?_⟩
   have hb := hN N (le_refl _)
   have : (∑ i in Finset.range N, a i) ≥ T - ε * T := by
     have hlt : |(∑ i in Finset.range N, a i) - T| < ε * T := hb
     have hge : -(ε * T) ≤ (∑ i in Finset.range N, a i) - T := by
-      have : -(ε * T) ≤ |(∑ i in Finset.range N, a i) - T| := by
-        exact neg_le_abs.mpr (le_of_lt hlt)
-      exact this.trans (le_of_lt hlt)
+      have : -(ε * T) ≤ |(∑ i in Finset.range N, a i) - T| :=
+        neg_le_abs.mpr (le_of_lt hlt)
+      exact le_trans this (le_of_lt hlt)
     linarith
   simpa [one_mul, sub_eq_add_neg, mul_comm, mul_left_comm, mul_assoc] using this
 
@@ -372,51 +399,7 @@ namespace RS
 
 open Filter Set MeasureTheory
 open scoped Topology MeasureTheory
-
-/-- Boundary real trace of `F` on the critical line. -/
-@[simp] def boundaryRe (F : ℂ → ℂ) (t : ℝ) : ℝ :=
-  (F ((1/2 : ℂ) + Complex.I * (t : ℂ))).re
-
-/-- Normalize a symmetric interval around `t0` to have length ≤ 1 by shrinking the radius. -/
-lemma shrink_interval_to_unit
-  (t0 r : ℝ) (hr : 0 < r) :
-  ∃ r' : ℝ, 0 < r' ∧ r' ≤ r ∧ RS.length (Icc (t0 - r') (t0 + r')) ≤ 1 := by
-  classical
-  -- Choose `r' = min r (1/2)`
-  refine ⟨min r (1/2), ?_, ?_, ?_⟩
-  · have hpos₁ : 0 < r := hr
-    have hpos₂ : 0 < (1/2 : ℝ) := by norm_num
-    exact lt_min hpos₁ hpos₂
-  · exact min_le_left _ _
-  · -- length(Icc(t0−r', t0+r')) = 2 r' ≤ 1 since r' ≤ 1/2
-    have hlen : RS.length (Icc (t0 - min r (1/2)) (t0 + min r (1/2))) = 2 * (min r (1/2)) := by
-      simp [RS.length, Real.volume_Icc, two_mul]
-    have hr'le : min r (1/2) ≤ (1/2 : ℝ) := min_le_right _ _
-    have : 2 * (min r (1/2)) ≤ 1 := by nlinarith
-    simpa [hlen]
-
-/-- Measurability of the boundary real trace. -/
-lemma measurable_boundaryRe (F : ℂ → ℂ) :
-  Measurable (fun t : ℝ => boundaryRe F t) := by
-  classical
-  have h1 : Continuous fun t : ℝ => ((1/2 : ℂ) + Complex.I * (t : ℂ)) := by
-    continuity
-  have h2 : Continuous fun z : ℂ => z.re := Complex.continuous_re
-  exact (h2.comp h1).measurable
-
-/-- Measurable sublevel sets of the boundary real trace `{t | boundaryRe F t ≤ a}`. -/
-lemma measurableSet_sublevel_boundaryRe (F : ℂ → ℂ) (a : ℝ) :
-  MeasurableSet {t : ℝ | boundaryRe F t ≤ a} := by
-  classical
-  -- Treat `a` as a constant measurable function and use the standard `≤`-closedness schema
-  have hconst : Measurable fun _ : ℝ => a := measurable_const
-  have hmeas : Measurable (fun t : ℝ => boundaryRe F t) := measurable_boundaryRe F
-  -- `{u ≤ a}` is measurable since `Iic a` is closed
-  exact hmeas.isClosed_le hconst isClosed_Iic
-
-/-- Poisson smoothed boundary real part at height `b>0` and horizontal `x`. -/
-@[simp] def poissonSmooth (F : ℂ → ℂ) (b x : ℝ) : ℝ :=
-  ∫ t, RH.RS.poissonKernel b (x - t) * boundaryRe F t ∂(volume)
+-- (duplicate basic defs/lemmas removed; use those from the earlier section)
 
 /-- From a.e. convergence of the Poisson smoothing as height `b → 0+`, deduce
 sequence convergence along `b_n = 1/(n+1)` a.e. on ℝ. -/
@@ -449,7 +432,7 @@ smoothed boundary real part is ≤ −κ.
 
 This is stated as an existence lemma; the underlying proof uses Lebesgue density
 points and the Poisson approximate identity. -/
-/-! Negativity window predicate (assumption‑level) and extractor. -/
+/-! Negativity window predicate (assumption-level) and extractor. -/
 
 /-- Existence of a Poisson negativity window with some margin κ ∈ (0,1]. -/
 def HasNegativityWindowPoisson (F : ℂ → ℂ) : Prop :=
@@ -764,12 +747,13 @@ by
       exact hFail (by simpa [RH.Cert.PPlus] using hAE')
     -- Turn `¬ (∀ᵐ t, 0 ≤ boundaryRe F t)` into positive measure of the negative set.
     have hne : volume {t : ℝ | ¬ (0 ≤ boundaryRe F t)} ≠ 0 := by
-      simpa [Measure.ae_iff] using hnotAE
+      -- ae[¬P] ≠ 0 from ¬(ae[P])
+      simpa [ae_iff] using hnotAE
     have hne' : volume {t : ℝ | boundaryRe F t < 0} ≠ 0 := by
       -- {¬(0 ≤ u)} = {u < 0} on ℝ
-      simpa [Set.ext_iff, Set.setOf_app_iff, not_le] using hne
-    -- For ENNReal, μ ≠ 0 ↔ 0 < μ since measures are ≥ 0
-    exact ENNReal.pos_iff_ne_zero.mpr hne'
+      simpa [Set.setOf_app_iff, not_le] using hne
+    -- μ ≠ 0 ⇒ 0 < μ for nonnegative measures
+    exact (lt_of_le_of_ne bot_le (Ne.symm hne'))
   have hMeas_u : Measurable (fun t : ℝ => boundaryRe F t) := by
     -- measurability from composition of continuous functions
     classical
@@ -780,7 +764,8 @@ by
   obtain ⟨m, hAm_pos⟩ := exists_neg_level_with_pos_measure F hMeas_u hNegSetPos
   let A : Set ℝ := {t : ℝ | boundaryRe F t ≤ - (1 / (m.succ : ℝ))}
   have hMeasA : MeasurableSet A := by
-    exact (hMeas_u.comp measurable_id).isClosed_le measurable_const isClosed_Iic
+    have : Measurable (fun t : ℝ => boundaryRe F t) := hMeas_u
+    simpa [A, Set.preimage, Set.mem_Iic] using (this measurableSet_Iic)
   -- Step 2: pick a density point and an interval I with |A ∩ I| ≥ θ|I|
   have hθ' : 0 < min θ (1/2 : ℝ) ∧ min θ (1/2 : ℝ) < 1 := by
     have : 0 < θ := hθ.1; have : θ ≤ 1 := hθ.2; constructor
