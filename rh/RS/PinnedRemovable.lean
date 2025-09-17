@@ -37,7 +37,7 @@ Fields:
 - `g ρ = 1`
 - there exists a point in `U` where `g ≠ 1` (nontriviality witness)
 -/
-structure RemovablePinned (Θ : ℂ → ℂ) (U : Set ℂ) (ρ : ℂ) : Prop where
+structure RemovablePinned (Θ : ℂ → ℂ) (U : Set ℂ) (ρ : ℂ) where
   U_open  : IsOpen U
   ρ_mem   : ρ ∈ U
   g       : ℂ → ℂ
@@ -57,14 +57,14 @@ Inputs:
 
 Output: a `RemovablePinned` structure witnessing the removable extension `g`.
 -/
-theorem removable_pinned_from_u_trick
+def removable_pinned_from_u_trick
     (Θ u : ℂ → ℂ)
     (U : Set ℂ) (ρ : ℂ)
     (hUopen : IsOpen U) (hρU : ρ ∈ U)
     (hΘU : AnalyticOn ℂ Θ (U \ {ρ}))
     (huA : AnalyticOn ℂ u U)
     (hEq : EqOn Θ (fun z => (1 - u z) / (1 + u z)) (U \ {ρ}))
-    (hu0 : Tendsto u (nhdsWithin ρ (U \ {ρ})) (𝓝 (0 : ℂ)))
+    (hu0 : Tendsto u (nhdsWithin ρ (U \ {ρ})) (nhds (0 : ℂ)))
     (z0 : ℂ) (hz0U : z0 ∈ U) (hz0ne : z0 ≠ ρ) (hΘz0ne : Θ z0 ≠ 1)
     : RemovablePinned Θ U ρ := by
   -- Build analytic extension g := update Θ ρ 1 using the pinned removable lemma
@@ -75,7 +75,9 @@ theorem removable_pinned_from_u_trick
   -- Off ρ, the update agrees with Θ
   have hEqOn : EqOn Θ (Function.update Θ ρ (1 : ℂ)) (U \ {ρ}) := by
     intro z hz
-    simp [Function.update, hz.2]  -- z ≠ ρ on the punctured set
+    by_cases hzρ : z = ρ
+    · exfalso; exact hz.2 hzρ
+    · simp [Function.update, hzρ]
   -- Define the witness structure
   refine {
     U_open := hUopen
@@ -84,7 +86,7 @@ theorem removable_pinned_from_u_trick
     , g_analytic := hgU
     , eq_off := hEqOn
     , g_at := by simp [Function.update]
-    , exists_ne1 := ?_ } 
+    , exists_ne1 := ?_ }
   -- Nontriviality passes to g at z0 since z0 ≠ ρ ⇒ g z0 = Θ z0
   have hgz0 : (Function.update Θ ρ (1 : ℂ)) z0 = Θ z0 := by
     simp [Function.update, hz0ne]
@@ -92,5 +94,3 @@ theorem removable_pinned_from_u_trick
 
 end RS
 end RH
-
-

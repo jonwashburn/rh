@@ -339,27 +339,20 @@ lemma fixed_geometry_shadow_core_subset {Q : Set (ℝ × ℝ)} (h : fixed_geomet
 /-- Length of the symmetric open interval `{t | |t−c| < r}` equals `2r`. -/
 lemma length_abs_lt (c r : ℝ) (hr : 0 < r) :
     length ({t : ℝ | |t - c| < r}) = 2 * r := by
-  have : {t : ℝ | |t - c| < r} = Set.Ioo (c - r) (c + r) := by
-    ext t; constructor <;> intro ht
-    · have : -r < t - c ∧ t - c < r := by simpa [abs_lt] using ht
+  have hset : {t : ℝ | |t - c| < r} = Set.Ioo (c - r) (c + r) := by
+    ext t; constructor
+    · intro ht
+      rcases (abs_lt.mp ht) with ⟨hlt, hrt⟩
       constructor <;> linarith
-    · rcases ht with ⟨hlt, hrt⟩
-      have : |t - c| < r := by
-        have : -r < t - c ∧ t - c < r := ⟨hlt, hrt⟩
-        simpa [abs_lt] using this
-      simpa using this
-  -- Compute volume of Ioo and rewrite r + r = 2r
-  have hvol : (volume (Set.Ioo (c - r) (c + r))) = ENNReal.ofReal ((c + r) - (c - r)) := by
-    have : 0 ≤ (c + r) - (c - r) := by
-      have : 0 ≤ r := le_of_lt hr
-      linarith
-    simpa [Real.volume_Ioo]
-  have htoReal : (volume (Set.Ioo (c - r) (c + r))).toReal = ((c + r) - (c - r)) := by
-    -- RHS is nonnegative since r>0
-    have : 0 ≤ (c + r) - (c - r) := by linarith [le_of_lt hr]
-    simpa [hvol, ENNReal.toReal_ofReal, this]
-  have : ((c + r) - (c - r)) = 2 * r := by ring
-  simp [length, this, htoReal]
+    · intro ht
+      rcases ht with ⟨hlt, hrt⟩
+      have : -r < t - c ∧ t - c < r := by constructor <;> linarith
+      simpa [abs_lt] using this
+  -- Compute volume and toReal
+  have : (volume (Set.Ioo (c - r) (c + r))).toReal = (c + r) - (c - r) := by
+    simpa [Real.volume_Ioo, ENNReal.toReal_ofReal]
+  have hring : (c + r) - (c - r) = 2 * r := by ring
+  simp [length, hset, this, hring]
 
 /-- Under fixed geometry, the width is bounded by the shadow length. -/
 lemma fixed_geometry_width_le_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geometry Q) :
@@ -367,27 +360,28 @@ lemma fixed_geometry_width_le_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geomet
   -- Use monotonicity of measure via the core-subset lemma
   have hsub : {t : ℝ | |t - h.center.1| < h.width / 2} ⊆ shadow Q :=
     fixed_geometry_shadow_core_subset h
-  have hmono := length_mono (I := {t : ℝ | |t - h.center.1| < h.width / 2}) (J := shadow Q) hsub ?hfin
-  ·
-    -- finiteness of volume of shadow Q: deduce from fixed geometry bounds
-    -- Use that `shadow Q ⊆ Icc (h.center.1 - h.width/2, h.center.1 + h.width/2)` with finite measure
-    have hbound : shadow Q ⊆ Set.Icc (h.center.1 - h.width) (h.center.1 + h.width) := by
-      intro t ht; rcases ht with ⟨σ, hσpos, hmem⟩
-      -- from rectangle bound on t
-      have : |t - h.center.1| ≤ h.width := by
-        have hrect := h.subset_rect hmem
-        have : |t - h.center.1| ≤ h.width / 2 := (and_left.mp hrect)
-        have : |t - h.center.1| ≤ h.width := by
-          have hwpos : 0 ≤ h.width := le_of_lt h.width_pos
-          have : h.width / 2 ≤ h.width := by have := half_le_self hwpos; simpa [one_div, two_mul, mul_comm, mul_left_comm, mul_assoc] using this
-          exact le_trans this this
-        -- Now convert |t-c| ≤ w ⇒ c-w ≤ t ≤ c+w
-        have := abs_sub_le_iff.mp (le_of_lt ?ltFalse)
-        admit
-    -- fallback: assert finiteness directly as an assumption (interface form)
-    exact by
-      -- In RS context we only apply to bounded shadows; expose as parameter elsewhere
-      exact (by decide : True) |> False.elim
+  -- finiteness of volume of shadow Q: it lies in a bounded interval
+  have hshadow_in_Icc : shadow Q ⊆ Set.Icc (h.center.1 - h.width / 2) (h.center.1 + h.width / 2) := by
+    intro t ht; rcases ht with ⟨σ, hσpos, hmem⟩
+    have hrect := h.subset_rect hmem
+    have habs : |t - h.center.1| ≤ h.width / 2 := (hrect.left)
+    have hpair := abs_le.mp habs
+    constructor
+    · -- lower bound: h.center.1 - h.width/2 ≤ t
+      have : -(h.width / 2) ≤ t - h.center.1 := hpair.left
+      linarith
+    · -- upper bound: t ≤ h.center.1 + h.width/2
+      have : t - h.center.1 ≤ (h.width / 2) := hpair.right
+      linarith
+  have hJfin : volume (shadow Q) ≠ ∞ := by
+    have hle : (h.center.1 - h.width / 2) ≤ (h.center.1 + h.width / 2) := by nlinarith [le_of_lt h.width_pos]
+    -- finite measure on bounded intervals
+    have hfinIcc : volume (Set.Icc (h.center.1 - h.width / 2) (h.center.1 + h.width / 2)) < ∞ := by
+      have hlen : 0 ≤ (h.center.1 + h.width / 2) - (h.center.1 - h.width / 2) := by nlinarith [le_of_lt h.width_pos]
+      simpa [Real.volume_Icc, hle, hlen]
+    -- monotonicity: shadow Q ⊆ Icc ⇒ μ(shadow Q) ≤ μ(Icc) < ∞
+    exact ne_of_lt (lt_of_le_of_lt (measure_mono hshadow_in_Icc) hfinIcc)
+  have hmono := length_mono (I := {t : ℝ | |t - h.center.1| < h.width / 2}) (J := shadow Q) hsub hJfin
   -- Compute the core length as the width
   have hcore : length ({t : ℝ | |t - h.center.1| < h.width / 2}) = h.width := by
     have hwpos : 0 < h.width := h.width_pos
@@ -400,19 +394,10 @@ lemma fixed_geometry_width_le_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geomet
 lemma fixed_geometry_width_le_eight_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geometry Q) :
     h.width ≤ 8 * shadowLen Q := by
   -- From `height ≥ width/4` and `height ≤ 2·|shadow|` obtain `width ≤ 8·|shadow|`.
-  have hW4 : h.width / 4 ≤ h.height := by
-    -- rearrange `aspect_lower : height ≥ width/4`
-    simpa using h.aspect_lower
-  have hH : h.height ≤ 2 * shadowLen Q := h.height_shadow
-  have : h.width / 4 ≤ 2 * shadowLen Q := le_trans hW4 hH
-  have hpos4 : (0 : ℝ) < 4 := by norm_num
-  -- multiply both sides by 4
-  have : h.width ≤ 8 * shadowLen Q := by
-    have := (mul_le_mul_of_nonneg_right (a := h.width / 4) (b := 2 * shadowLen Q) (c := 4)
-      (by linarith : 0 ≤ (4 : ℝ)) this)
-    -- (h.width/4)*4 ≤ (2*shadowLen)*4 = 8*shadowLen
-    simpa [mul_comm, mul_left_comm, mul_assoc, div_mul_eq_mul_div, two_mul] using this
-  exact this
+  have hW_le_4H : h.width ≤ 4 * h.height := by nlinarith [h.aspect_lower]
+  have hH_le : h.height ≤ 2 * shadowLen Q := h.height_shadow
+  have : 4 * h.height ≤ 8 * shadowLen Q := by nlinarith
+  exact le_trans hW_le_4H this
 
 /-! ## Overlap/packing interface (pass-through)
 
