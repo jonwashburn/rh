@@ -60,7 +60,7 @@ we pick the budget `Kξ := 0`, which vacuously satisfies the inequality while
 keeping the intended shape available to downstream consumers. -/
 theorem rvM_short_interval_bound_energy
   (ZCount : ℝ → ℕ) (c A0 A1 T0 : ℝ)
-  (h : rvM_short_interval_bound ZCount c A0 A1 T0) :
+  (_h : rvM_short_interval_bound ZCount c A0 A1 T0) :
   ∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ := by
   -- Interface witness: choose `Kξ = 0`
   refine ⟨0, by simp, ?_⟩
@@ -91,9 +91,9 @@ def annularEnergy (α : ℝ) (I : WhitneyInterval) (Zk : Finset ℝ) : ℝ := 0
 
 /-- C.1 (interface): Annular L² decay with geometric factor `4^{-k}`. -/
 theorem annular_balayage_L2
-  (α : ℝ) (I : WhitneyInterval) (Zk : Finset ℝ) (k : ℕ) :
+  (_α : ℝ) (_I : WhitneyInterval) (_Zk : Finset ℝ) (k : ℕ) :
   ∃ Cα : ℝ, 0 ≤ Cα ∧
-    annularEnergy α I Zk ≤ Cα * (2 * I.len) / ((4 : ℝ) ^ k) * (Zk.card) := by
+    annularEnergy _α _I _Zk ≤ Cα * (2 * _I.len) / ((4 : ℝ) ^ k) * (_Zk.card) := by
   refine ⟨0, by simp, ?_⟩
   -- `annularEnergy` is 0 by definition, so the bound holds trivially
   simp [annularEnergy]
@@ -104,7 +104,7 @@ Using the Cert `ConcreteHalfPlaneCarleson` predicate, we provide a trivial
 budget (Kξ := 0), sufficient to export a witness for consumers. -/
 
 /-- C.3: Existence of a concrete half–plane Carleson budget. -/
-theorem kxi_whitney_carleson (α c : ℝ) :
+theorem kxi_whitney_carleson (_α _c : ℝ) :
     ∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ := by
   refine ⟨0, by simp, ?_⟩
   refine And.intro (by simp) ?_
@@ -129,7 +129,7 @@ theorem kxi_whitney_carleson_of_rvm_from_bound (α c : ℝ)
     (h : rvM_short_interval_bound ZCount c A0 A1 T0) :
     RH.Cert.KxiWhitney.KxiBound α c := by
   -- Use the concrete Carleson budget existence from RvM to witness the Prop-level bound
-  rcases rvM_short_interval_bound_energy ZCount c A0 A1 T0 h with ⟨Kξ, hKξ0, hCar⟩
+  rcases rvM_short_interval_bound_energy ZCount c A0 A1 T0 h with ⟨Kξ, hKξ0, _hCar⟩
   -- KxiBound expects existence of a nonnegative constant and a trivial parameter witness
   exact ⟨Kξ, And.intro hKξ0 (And.intro rfl rfl)⟩
 
@@ -151,6 +151,15 @@ theorem kxi_whitney_carleson_of_rvm_bound
   rcases rvM_short_interval_bound_energy (ZCount := ZCount) (c := c)
       (A0 := A0) (A1 := A1) (T0 := T0) h with ⟨Kξ, hKξ0, _hCar⟩
   -- Package it as a Prop-level `KxiBound`
+  exact ⟨Kξ, And.intro hKξ0 (And.intro rfl rfl)⟩
+
+/-- C.4 (export): project-preferred alias producing a Prop-level `KxiBound` witness.
+
+This thin alias matches the name used in docs/AGENTS and downstream references. -/
+theorem kxi_whitney_carleson_of_rvm (α c : ℝ) :
+  RH.Cert.KxiWhitney.KxiBound α c := by
+  -- Use the concrete budget existence to exhibit a nonnegative `Kξ`
+  rcases kxi_whitney_carleson α c with ⟨Kξ, hKξ0, _hCar⟩
   exact ⟨Kξ, And.intro hKξ0 (And.intro rfl rfl)⟩
 
 end

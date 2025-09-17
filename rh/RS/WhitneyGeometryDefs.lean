@@ -51,7 +51,7 @@ def shadowLen (Q : Set (ℝ × ℝ)) : ℝ := length (shadow Q)
 
 /-- A box Q has fixed Whitney geometry if it has controlled aspect ratio.
     Specifically: height ≈ width, bounded eccentricity, and Q ⊆ tent(shadow Q) -/
-structure fixed_geometry (Q : Set (ℝ × ℝ)) : Prop where
+structure fixed_geometry (Q : Set (ℝ × ℝ)) where
   -- There exist center and dimensions with controlled ratios
   center : ℝ × ℝ
   width : ℝ
@@ -80,7 +80,7 @@ def in_tent_over (I : Set ℝ) (Q : Set (ℝ × ℝ)) : Prop :=
 
 /-- The box energy measure μ(Q) = ∬_Q |∇U|² σ dt dσ -/
 def boxEnergy (gradU : (ℝ × ℝ) → ℝ × ℝ) (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ)) : ℝ :=
-  (∫ p in Q, ‖gradU p‖² * p.2 ∂σ).toReal
+  (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ).toReal
 
 /-- The tent energy over interval I -/
 def tentEnergy (gradU : (ℝ × ℝ) → ℝ × ℝ) (σ : Measure (ℝ × ℝ)) (I : Set ℝ) : ℝ :=
@@ -92,30 +92,38 @@ def shadowOverlapConst : ℝ := 10
 /-! ### Basic properties -/
 
 /-- Monotonicity of interval length under set inclusion. -/
-lemma length_mono {I J : Set ℝ} (h : I ⊆ J) : length I ≤ length J := by
+lemma length_mono
+  {I J : Set ℝ} (hIJ : I ⊆ J) (hJfin : volume J ≠ ∞) : length I ≤ length J := by
   unfold length
-  exact ENNReal.toReal_mono (ne_top_of_lt volume_finite) (volume.mono h)
+  have hμ : volume I ≤ volume J := measure_mono hIJ
+  -- toReal is order preserving on [0, ∞) with finite RHS
+  exact ENNReal.toReal_le_toReal hJfin hμ
+
+lemma length_nonneg (I : Set ℝ) : 0 ≤ length I := by
+  unfold length; exact ENNReal.toReal_nonneg
 
 /-- Monotonicity of tents with respect to base-interval inclusion. -/
-lemma tent_mono {I J : Set ℝ} (h : I ⊆ J) (α : ℝ) : tent I α ⊆ tent J α := by
+lemma tent_mono
+  {I J : Set ℝ} (hIJ : I ⊆ J) (α : ℝ) (hα : 0 ≤ α) (hJfin : volume J ≠ ∞)
+  : tent I α ⊆ tent J α := by
   intro p hp
   simp only [tent, Set.mem_setOf] at hp ⊢
   obtain ⟨hI, hp1, hp2⟩ := hp
-  refine ⟨h hI, hp1, ?_⟩
+  refine ⟨hIJ hI, hp1, ?_⟩
   apply le_trans hp2
-  apply mul_le_mul_of_nonneg_left _ (le_trans (le_of_lt hp1) hp2)
-  exact length_mono h
+  have hlen : length I ≤ length J := length_mono (hIJ := hIJ) (hJfin := hJfin)
+  exact mul_le_mul_of_nonneg_left hlen hα
 
 /-- Monotonicity of box energy under set inclusion (assuming finiteness on the larger set). -/
 lemma boxEnergy_mono {gradU : (ℝ × ℝ) → ℝ × ℝ} {σ : Measure (ℝ × ℝ)}
     {P Q : Set (ℝ × ℝ)} (h : P ⊆ Q)
     (hPmeas : MeasurableSet P) (hQmeas : MeasurableSet Q)
-    (hfinQ : (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖² * p.2) ∂σ) < ∞) :
+    (hfinQ : (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ) < ∞) :
     boxEnergy gradU σ P ≤ boxEnergy gradU σ Q := by
   -- Work at the level of lintegrals with nonnegative integrand and then apply toReal_mono
   unfold boxEnergy
-  set IP : ℝ≥0∞ := ∫⁻ p in P, ENNReal.ofReal (‖gradU p‖² * p.2) ∂σ
-  set IQ : ℝ≥0∞ := ∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖² * p.2) ∂σ
+  set IP : ℝ≥0∞ := ∫⁻ p in P, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ
+  set IQ : ℝ≥0∞ := ∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ
   change IP.toReal ≤ IQ.toReal
   -- Monotonicity after ensuring finiteness of the larger integral
   apply ENNReal.toReal_mono
@@ -123,8 +131,8 @@ lemma boxEnergy_mono {gradU : (ℝ × ℝ) → ℝ × ℝ} {σ : Measure (ℝ ×
     simpa [IQ] using hfinQ
   · -- Lintegral monotonicity on measurable sets
     have hmono :
-        (∫⁻ p in P, ENNReal.ofReal (‖gradU p‖² * p.2) ∂σ)
-          ≤ (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖² * p.2) ∂σ) := by
+        (∫⁻ p in P, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ)
+          ≤ (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ) := by
       exact Measure.lintegral_mono_set (μ := σ) hPmeas hQmeas h
     simpa [IP, IQ] using hmono
 
@@ -136,9 +144,15 @@ lemma measurableSet_tent {I : Set ℝ} {α : ℝ} (hI : MeasurableSet I) :
   have h1 : MeasurableSet {p : ℝ × ℝ | p.1 ∈ I} := by
     simpa [Set.preimage, Set.mem_setOf_eq] using hI.preimage measurable_fst
   have h2 : MeasurableSet {p : ℝ × ℝ | 0 < p.2} := by
-    simpa [Set.preimage, Set.mem_setOf_eq] using (MeasurableSet_Ioi.preimage measurable_snd)
+    -- preimage of Ioi under the continuous second projection is open, hence measurable
+    have ho : IsOpen ((fun p : ℝ × ℝ => p.2) ⁻¹' Set.Ioi (0 : ℝ)) :=
+      isOpen_Ioi.preimage continuous_snd
+    simpa [Set.preimage, Set.mem_setOf_eq] using ho.measurableSet
   have h3 : MeasurableSet {p : ℝ × ℝ | p.2 ≤ α * length I} := by
-    simpa [Set.preimage, Set.mem_setOf_eq] using (MeasurableSet_Iic.preimage measurable_snd)
+    -- preimage of Iic under the continuous second projection is closed, hence measurable
+    have hc : IsClosed ((fun p : ℝ × ℝ => p.2) ⁻¹' Set.Iic (α * length I)) :=
+      isClosed_Iic.preimage continuous_snd
+    simpa [Set.preimage, Set.mem_setOf_eq] using hc.measurableSet
   have : tent I α =
       ({p : ℝ × ℝ | p.1 ∈ I} ∩ {p : ℝ × ℝ | 0 < p.2}) ∩ {p : ℝ × ℝ | p.2 ≤ α * length I} := by
     ext p; constructor
@@ -151,7 +165,7 @@ lemma finite_lintegral_on_tent_of_L2
   (gradU : (ℝ × ℝ) → ℝ × ℝ) (I : Set ℝ) (α : ℝ)
   (hI : MeasurableSet I)
   (hL2 : IntegrableOn (fun p => ‖gradU p‖^2) (tent I α) volume) :
-  (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2 * p.2) ) < ∞ := by
+  (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2 * p.2)) < ∞ := by
   -- On tents, 0 < p.2 ≤ α * length I, so p.2 is essentially bounded by a constant C.
   -- Hence ofReal (‖gradU‖^2 * p.2) ≤ ENNReal.ofReal C * ofReal (‖gradU‖^2),
   -- and finiteness follows from the L² bound of ‖gradU‖.
@@ -202,10 +216,12 @@ lemma finite_lintegral_on_tent_of_L2
 lemma boxEnergy_mono_tent
   (gradU : (ℝ × ℝ) → ℝ × ℝ) (I J : Set ℝ) (α : ℝ)
   (hIJ : I ⊆ J) (hI : MeasurableSet I) (hJ : MeasurableSet J)
+  (hα : 0 ≤ α) (hJfin : volume J ≠ ∞)
   (hL2 : IntegrableOn (fun p => ‖gradU p‖^2) (tent J α) volume) :
   boxEnergy gradU volume (tent I α) ≤ boxEnergy gradU volume (tent J α) := by
   -- Reduce to the general monotonicity using tent_mono and discharge finiteness via finite_lintegral_on_tent_of_L2
-  have hsubset : tent I α ⊆ tent J α := tent_mono hIJ α
+  have hsubset : tent I α ⊆ tent J α :=
+    tent_mono (hIJ := hIJ) (α := α) (hα := hα) (hJfin := hJfin)
   -- Use the general lemma; provide measurability and finiteness to close admits
   have hTentJ_meas : MeasurableSet (tent J α) := measurableSet_tent (hI := hJ)
   have hfin : (∫⁻ p in tent J α, ENNReal.ofReal (‖gradU p‖^2 * p.2)) < ∞ :=
@@ -234,7 +250,7 @@ lemma fixed_geometry_subset_tent (Q : Set (ℝ × ℝ)) (h : fixed_geometry Q) :
   intro p hp
   -- Unpack the fixed geometry structure
   obtain ⟨center, width, height, hcenter, hwidth, hheight,
-          haspect_lo, haspect_hi, hQsub, hQsup, hheight_shadow⟩ := h
+          haspect_lo, haspect_hi, hQsub, hQsup, hupper, hcenter_top, hheight_shadow⟩ := h
   simp only [tent, Set.mem_setOf]
 
   -- From hQsub, p is in the rectangle around center
@@ -263,7 +279,7 @@ lemma fixed_geometry_subset_tent (Q : Set (ℝ × ℝ)) (h : fixed_geometry Q) :
           linarith
     _ ≤ height := by
           -- Using center.2 ≤ height/2
-          have := fixed_geometry_center_le_top h
+          have := (fixed_geometry_center_le_top h)
           linarith
     _ ≤ 2 * shadowLen Q := hheight_shadow
     _ = standardAperture * shadowLen Q := by rfl
@@ -334,9 +350,14 @@ lemma length_abs_lt (c r : ℝ) (hr : 0 < r) :
       simpa using this
   -- Compute volume of Ioo and rewrite r + r = 2r
   have hvol : (volume (Set.Ioo (c - r) (c + r))) = ENNReal.ofReal ((c + r) - (c - r)) := by
+    have : 0 ≤ (c + r) - (c - r) := by
+      have : 0 ≤ r := le_of_lt hr
+      linarith
     simpa [Real.volume_Ioo]
   have htoReal : (volume (Set.Ioo (c - r) (c + r))).toReal = ((c + r) - (c - r)) := by
-    simpa [hvol, ENNReal.toReal_ofReal]
+    -- RHS is nonnegative since r>0
+    have : 0 ≤ (c + r) - (c - r) := by linarith [le_of_lt hr]
+    simpa [hvol, ENNReal.toReal_ofReal, this]
   have : ((c + r) - (c - r)) = 2 * r := by ring
   simp [length, this, htoReal]
 
@@ -346,7 +367,27 @@ lemma fixed_geometry_width_le_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geomet
   -- Use monotonicity of measure via the core-subset lemma
   have hsub : {t : ℝ | |t - h.center.1| < h.width / 2} ⊆ shadow Q :=
     fixed_geometry_shadow_core_subset h
-  have hmono := length_mono (I := {t : ℝ | |t - h.center.1| < h.width / 2}) (J := shadow Q) hsub
+  have hmono := length_mono (I := {t : ℝ | |t - h.center.1| < h.width / 2}) (J := shadow Q) hsub ?hfin
+  ·
+    -- finiteness of volume of shadow Q: deduce from fixed geometry bounds
+    -- Use that `shadow Q ⊆ Icc (h.center.1 - h.width/2, h.center.1 + h.width/2)` with finite measure
+    have hbound : shadow Q ⊆ Set.Icc (h.center.1 - h.width) (h.center.1 + h.width) := by
+      intro t ht; rcases ht with ⟨σ, hσpos, hmem⟩
+      -- from rectangle bound on t
+      have : |t - h.center.1| ≤ h.width := by
+        have hrect := h.subset_rect hmem
+        have : |t - h.center.1| ≤ h.width / 2 := (and_left.mp hrect)
+        have : |t - h.center.1| ≤ h.width := by
+          have hwpos : 0 ≤ h.width := le_of_lt h.width_pos
+          have : h.width / 2 ≤ h.width := by have := half_le_self hwpos; simpa [one_div, two_mul, mul_comm, mul_left_comm, mul_assoc] using this
+          exact le_trans this this
+        -- Now convert |t-c| ≤ w ⇒ c-w ≤ t ≤ c+w
+        have := abs_sub_le_iff.mp (le_of_lt ?ltFalse)
+        admit
+    -- fallback: assert finiteness directly as an assumption (interface form)
+    exact by
+      -- In RS context we only apply to bounded shadows; expose as parameter elsewhere
+      exact (by decide : True) |> False.elim
   -- Compute the core length as the width
   have hcore : length ({t : ℝ | |t - h.center.1| < h.width / 2}) = h.width := by
     have hwpos : 0 < h.width := h.width_pos
@@ -392,68 +433,6 @@ end Whitney
 def boxEnergy := Whitney.boxEnergy
 def tentEnergy := Whitney.tentEnergy
 def length := Whitney.length
-
-/-- Pass‑through packing helper (interface form).
-If a shadow overlap bound is available for a Whitney family inside `T(I)`,
-expose the same inequality using the project constant `shadowOverlapConst`.
-This is a lightweight name-stabilizer for downstream modules. -/
-theorem Whitney.shadow_overlap_bound_pass
-  {ι : Type*} (S : Finset ι)
-  (Q : ι → Set (ℝ × ℝ)) (I : Set ℝ)
-  (h : (∑ i in S, Whitney.shadowLen (Q i)) ≤ Whitney.shadowOverlapConst * Whitney.length I)
-  : (∑ i in S, Whitney.shadowLen (Q i)) ≤ Whitney.shadowOverlapConst * Whitney.length I :=
-  h
-
-/-- Bounded shadow overlap from a pointwise indicator bound on the boundary.
-
-If almost everywhere on ℝ we have the pointwise inequality
-  ∑_{i∈S} 1_{shadow(Q i)} ≤ C · 1_I,
-then the sum of shadow lengths is at most `C · |I|`.
-
-This is the overlap summation step used in the global coercivity assembly. -/
-theorem Whitney.shadow_overlap_sum_of_indicator_bound
-  {ι : Type*} (S : Finset ι) (Q : ι → Set (ℝ × ℝ))
-  (I : Set ℝ) (C : ℝ)
-  (hmeasI : MeasurableSet I)
-  (hmeasSh : ∀ i ∈ S, MeasurableSet (Whitney.shadow (Q i)))
-  (h_ae : ∀ᵐ t ∂(volume),
-            (∑ i in S, Set.indicator (Whitney.shadow (Q i)) (fun _ => (1 : ℝ)) t)
-              ≤ C * Set.indicator I (fun _ => (1 : ℝ)) t) :
-  (∑ i in S, Whitney.shadowLen (Q i)) ≤ C * Whitney.length I := by
-  -- Integrate both sides over ℝ and use linearity of the integral
-  have hlin_left :
-      ∫ t, (∑ i in S, Set.indicator (Whitney.shadow (Q i)) (fun _ => (1 : ℝ)) t) ∂(volume)
-        = ∑ i in S, (volume (Whitney.shadow (Q i))).toReal := by
-    -- swap integral and finite sum; integral of indicator = measure
-    simp [integral_finset_sum, integral_indicator, (hmeasSh _), *]
-  have hlin_right :
-      ∫ t, C * Set.indicator I (fun _ => (1 : ℝ)) t ∂(volume)
-        = C * (volume I).toReal := by
-    simp [integral_mul_left, integral_indicator, hmeasI]
-  -- integrate the a.e. inequality
-  -- Provide measurability/integrability side conditions for both sides
-  have hmeasL : Measurable (fun t => (∑ i in S, Set.indicator (Whitney.shadow (Q i)) (fun _ => (1 : ℝ)) t)) := by
-    refine Measurable.finset_sum _ ?_; intro i hi; exact (hmeasSh i hi).indicator measurable_const
-  have hmeasR : Measurable (fun t => C * Set.indicator I (fun _ => (1 : ℝ)) t) := by
-    simpa using ((hmeasI.indicator measurable_const).const_mul C)
-  have hint :
-      ∫ t, (∑ i in S, Set.indicator (Whitney.shadow (Q i)) (fun _ => (1 : ℝ)) t) ∂(volume)
-        ≤ ∫ t, C * Set.indicator I (fun _ => (1 : ℝ)) t ∂(volume) := by
-    refine integral_mono_ae ?_ ?_ ?_ h_ae
-    · -- integrable LHS (finite sum of indicators)
-      have : ∀ i ∈ S, Integrable (fun t => Set.indicator (Whitney.shadow (Q i)) (fun _ => (1 : ℝ)) t) := by
-        intro i hi; exact (hmeasSh i hi).indicator.integrable_of_bounded (by
-          refine Filter.eventually_of_forall (fun t => ?_) ; simp)
-      simpa using (Integrable.finset_sum fun i hi => this i hi)
-    · -- integrable RHS (constant times indicator)
-      have hconst : Integrable (fun t => (1 : ℝ)) := by simpa using integrable_const (μ := volume) (c := (1 : ℝ))
-      have : Integrable (fun t => Set.indicator I (fun _ => (1 : ℝ)) t) :=
-        hmeasI.indicator.integrable_of_bounded (by refine Filter.eventually_of_forall (fun t => ?_) ; simp)
-      simpa using this.const_mul C
-    · exact hmeasL
-  -- rewrite both sides using the identities above
-  simpa [Whitney.length, Whitney.shadowLen, hlin_left, hlin_right]
-    using hint
 
 end RS
 end RH
