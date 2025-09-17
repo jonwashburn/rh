@@ -4,6 +4,7 @@ import Mathlib.Topology.Basic
 import rh.academic_framework.CompletedXi
 import Mathlib.MeasureTheory.Integral.Bochner
 import rh.RS.Cayley
+import rh.RS.TentShadow
 import rh.academic_framework.DiskHardy
 
 /-!
@@ -191,8 +192,10 @@ theorem HasHalfPlanePoissonTransport
   intro hBoundary z hz
   -- Convert boundary a.e. nonnegativity to the `boundary` parametrization
   have hBoundary' : ∀ᵐ t : ℝ, 0 ≤ (F (boundary t)).re := by
-    simpa [PPlus, boundary_mk_eq]
-      using (hBoundary : ∀ᵐ t : ℝ, 0 ≤ (F (Complex.mk (1/2) t)).re)
+    have h0 : ∀ᵐ t : ℝ, 0 ≤ (F (Complex.mk (1/2) t)).re := hBoundary
+    exact h0.mono (by
+      intro t ht
+      simpa [boundary_mk_eq] using ht)
   have hpos :=
     P_nonneg_of_ae_nonneg
       (u := fun t : ℝ => (F (boundary t)).re)
@@ -209,6 +212,19 @@ theorem HasHalfPlanePoissonTransport_re
   have h := HasHalfPlanePoissonTransport (F := F) hRep hP
   have hz' : z ∈ Ω := by simpa [Ω, Set.mem_setOf_eq] using hz
   exact h hz'
+
+/-- Statement-level boundary Poisson approximate-identity from a Poisson
+representation: downstream modules can assume this to obtain the AI needed
+for the negativity selection route. -/
+def BoundaryPoissonAI (F : ℂ → ℂ) : Prop :=
+  ∀ᵐ x : ℝ,
+    Filter.Tendsto (fun b : ℝ => RH.RS.poissonSmooth F b x)
+      (nhdsWithin 0 (Ioi 0)) (nhds (RH.RS.boundaryRe F x))
+
+/-- Prop-level adapter: a Poisson representation of `F` implies the
+boundary Poisson approximate-identity `BoundaryPoissonAI F`. -/
+def boundaryPoissonAI_from_rep (F : ℂ → ℂ) : Prop :=
+  HasHalfPlanePoissonRepresentation F → BoundaryPoissonAI F
 
 open RH.AcademicFramework.CompletedXi
 
@@ -232,6 +248,21 @@ theorem HasHalfPlanePoissonTransport_Jpinch_re
   have h := HasHalfPlanePoissonTransport_Jpinch (det2 := det2) (O := O) hRep hP
   have hz' : z ∈ Ω := by simpa [Ω, Set.mem_setOf_eq] using hz
   exact h hz'
+
+/-!
+Pinch specialization of the boundary Poisson approximate-identity interface.
+Given a Poisson representation for the pinch field `F := 2 · J_pinch det2 O`,
+this Prop packages the requirement that the Poisson smoothing tends to the
+boundary trace a.e. as height goes to 0⁺.
+-/
+def BoundaryPoissonAI_Jpinch (det2 O : ℂ → ℂ) : Prop :=
+  BoundaryPoissonAI (F_pinch det2 O)
+
+/-- Prop-level adapter for the pinch field: a Poisson representation for
+`F := 2 · J_pinch det2 O` yields `BoundaryPoissonAI (F_pinch det2 O)`. -/
+def boundaryPoissonAI_from_rep_Jpinch (det2 O : ℂ → ℂ) : Prop :=
+  HasHalfPlanePoissonRepresentation (F_pinch det2 O) →
+    BoundaryPoissonAI (F_pinch det2 O)
 
 end HalfPlaneOuter
 end AcademicFramework

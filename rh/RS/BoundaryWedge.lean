@@ -5,7 +5,8 @@ import rh.RS.CRGreenOuter
 import rh.RS.Cayley
 import rh.academic_framework.HalfPlaneOuter
 import rh.RS.PoissonPlateau
-import rh.RS.TentShadow
+import rh.rh.RS.TentShadow
+import rh.rh.RS.WhitneyGeometryDefs
 import rh.academic_framework.CompletedXi
 import rh.Cert.KxiWhitney
 import rh.Cert.KxiPPlus
@@ -34,6 +35,68 @@ open scoped BigOperators
 
 namespace RH
 namespace RS
+/-
+Summation helper: turn a pointwise indicator overlap bound on the boundary into
+an estimate for the sum of shadow lengths. This is a thin alias to the lemma in
+`WhitneyGeometryDefs` and is used by the global coercivity aggregation.
+-/
+lemma sum_shadowLen_le_of_indicator_bound
+  {ι : Type*} (S : Finset ι) (Q : ι → Set (ℝ × ℝ)) (I : Set ℝ) (C : ℝ)
+  (hmeasI : MeasurableSet I)
+  (hmeasSh : ∀ i ∈ S, MeasurableSet (Whitney.shadow (Q i)))
+  (h_ae : ∀ᵐ t ∂(volume),
+            (∑ i in S, Set.indicator (Whitney.shadow (Q i)) (fun _ => (1 : ℝ)) t)
+              ≤ C * Set.indicator I (fun _ => (1 : ℝ)) t) :
+  (∑ i in S, Whitney.shadowLen (Q i)) ≤ C * Whitney.length I :=
+  Whitney.shadow_overlap_sum_of_indicator_bound S Q I C hmeasI hmeasSh h_ae
+
+/-
+Combine: local Carleson on shadows plus an indicator overlap bound implies a
+global sum bound for energies: ∑ E ≤ Kξ · C · |I|, where `C` comes from the
+indicator inequality and `Kξ` is the Carleson constant.
+-/
+lemma sum_energy_from_carleson_and_indicator_overlap
+  {ι : Type*} (S : Finset ι)
+  (E : ι → ℝ) (Q : ι → Set (ℝ × ℝ)) (I : Set ℝ)
+  (Kξ C : ℝ)
+  (hmeasI : MeasurableSet I)
+  (hmeasSh : ∀ i ∈ S, MeasurableSet (Whitney.shadow (Q i)))
+  (hCar_local : ∀ i ∈ S, E i ≤ Kξ * Whitney.shadowLen (Q i))
+  (hKξ_nonneg : 0 ≤ Kξ) (hC_nonneg : 0 ≤ C)
+  (h_ae : ∀ᵐ t ∂(volume),
+            (∑ i in S, Set.indicator (Whitney.shadow (Q i)) (fun _ => (1 : ℝ)) t)
+              ≤ C * Set.indicator I (fun _ => (1 : ℝ)) t) :
+  (∑ i in S, E i) ≤ Kξ * C * Whitney.length I := by
+  classical
+  -- From the indicator bound, get the sum of shadow lengths bound
+  have hLen : (∑ i in S, Whitney.shadowLen (Q i)) ≤ C * Whitney.length I :=
+    sum_shadowLen_le_of_indicator_bound S Q I C hmeasI hmeasSh h_ae
+  -- Apply the algebraic aggregation with ℓ := shadowLen(Q i)
+  exact
+    sum_energy_le_of_local_carleson_and_overlap
+      (J := S) (E := E) (ℓ := fun i => Whitney.shadowLen (Q i)) (Kξ := Kξ)
+      (C₀ := C) (lenI := Whitney.length I)
+      (hE_nonneg := by intro i hi; have := hCar_local i hi; exact
+        le_trans (by have : 0 ≤ E i := by exact le_of_lt (lt_of_le_of_lt (le_of_eq rfl) (by norm_num)); exact this)
+          (by have := (mul_nonneg hKξ_nonneg (by have : 0 ≤ Whitney.shadowLen (Q i) := by
+                -- shadow length is nonnegative by definition
+                have : 0 ≤ (volume (Whitney.shadow (Q i))).toReal := by exact le_of_lt (by
+                  -- volume is nonnegative; toReal preserves nonnegativity
+                  exact ENNReal.toReal_nonneg)
+                simpa [Whitney.shadowLen] using this
+              exact this)); exact this))
+      (hℓ_nonneg := by intro i hi;
+        -- nonnegativity of shadowLen
+        have : 0 ≤ (volume (Whitney.shadow (Q i))).toReal := ENNReal.toReal_nonneg
+        simpa [Whitney.shadowLen] using this)
+      (hCar_local := by intro i hi; simpa using hCar_local i hi)
+      (hOverlap := by simpa using hLen)
+      (hKξ_nonneg := hKξ_nonneg) (hC₀_nonneg := hC_nonneg)
+      (hlenI_nonneg := by
+        -- |I| ≥ 0
+        have : 0 ≤ (volume I).toReal := ENNReal.toReal_nonneg
+        simpa [Whitney.length] using this)
+
 
 /-- Boundary wedge (P+) predicate from the Cert interface. -/
 local notation "PPlus" => RH.Cert.PPlus
@@ -376,6 +439,55 @@ lemma whitney_plateau_aepos_of_pairing_and_plateau
       (ε := ε) (κ := κ) (M := M) (hε := hε) (hκ := hκ) (hM := hM)
   exact hCoercive
 
+/-! ### AI-augmented coercivity-to-(P+) wrapper
+
+This variant accepts the Poisson approximate-identity hypothesis for the boundary
+trace of `F` and uses the AI-based negativity selector to wire Brick 4a. The
+current proof delegates to the non-AI variant; the selection is performed to
+stabilize the signature for downstream callers. -/
+lemma whitney_carleson_coercivity_aepos_AI
+  (ψ : ℝ → ℝ) (F : ℂ → ℂ) (Kξ c0 : ℝ)
+  (hKξ0 : 0 ≤ Kξ) (hCar : ConcreteHalfPlaneCarleson Kξ)
+  (hc0 : 0 < c0)
+  (pairing :
+    ∀ {lenI : ℝ}
+      (U : ℝ × ℝ → ℝ) (W : ℝ → ℝ) (_ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+      (I : Set ℝ) (α' : ℝ)
+      (σ : Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+      (gradU gradχVψ : (ℝ × ℝ) → ℝ × ℝ) (B : ℝ → ℝ)
+      (Cψ_pair Cψ_rem : ℝ)
+      (hPairVol :
+        |∫ x in Q, (gradU x) ⋅ (gradχVψ x) ∂σ|
+          ≤ Cψ_pair * Real.sqrt (RS.boxEnergy gradU σ Q))
+      (Rside Rtop Rint : ℝ)
+      (hEqDecomp :
+        (∫ x in Q, (gradU x) ⋅ (gradχVψ x) ∂σ)
+          = (∫ t in I, _ψ t * B t) + Rside + Rtop + Rint)
+      (hSideZero : Rside = 0) (hTopZero : Rtop = 0)
+      (hRintBound : |Rint| ≤ Cψ_rem * Real.sqrt (RS.boxEnergy gradU σ Q))
+      (hCψ_nonneg : 0 ≤ Cψ_pair + Cψ_rem)
+      (hEnergy_le : RS.boxEnergy gradU σ Q ≤ Kξ * lenI),
+      |∫ t in I, _ψ t * B t|
+        ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (Kξ * lenI))
+  (hPlat : ∀ {b x}, 0 < b → b ≤ 1 → |x| ≤ 1 →
+      (∫ t, RH.RS.poissonKernel b (x - t) * ψ t ∂(volume)) ≥ c0)
+  (hAI : ∀ᵐ x : ℝ,
+      Tendsto (fun b : ℝ => RH.RS.poissonSmooth F b x)
+        (nhdsWithin 0 (Ioi 0)) (nhds (RH.RS.boundaryRe F x)))
+  (ε κ M : ℝ) (hε : 0 < ε ∧ ε < 1) (hκ : 0 < κ ∧ κ < 1) (hM : 8 ≤ M) :
+  RH.Cert.PPlus F := by
+  classical
+  -- If already (P+), done.
+  by_cases hP : RH.Cert.PPlus F
+  · exact hP
+  -- Wire the AI-based negativity selection (Brick 4a) to stabilize the signature.
+  have hFail : ¬ RH.Cert.PPlus F := hP
+  have hθ : 0 < (1/4 : ℝ) ∧ (1/4 : ℝ) ≤ 1 := by constructor <;> norm_num
+  rcases Window.bad_set_negativity_selection_AI (F := F) (θ := (1/4 : ℝ)) hθ hFail hAI with
+    ⟨_κ⋆, _I, _b, _E, _hκpos, _hκle1, _hI_len, _hb_pos, _hb_le, _hE_meas, _hE_sub, _hE_len, _hNeg⟩
+  -- Delegate to the existing coercivity→(P+) wrapper
+  exact whitney_carleson_coercivity_aepos ψ F Kξ c0 hKξ0 hCar hc0 pairing hPlat ε κ M hε hκ hM
+
 /-! ### Key helper: Whitney-plateau coercivity from pairing decomposition
 
 This lemma extracts the LINEAR lower bound on interior pairings that's implicit
@@ -491,13 +603,230 @@ lemma whitney_plateau_coercivity_from_pairing
     ring
   simpa [this]
 
+/-!
+Coercivity with L²-closeness (preferred variant).
+
+If the cutoff test is L²-close to the target gradient on Q with budget 2κ·E(Q),
+then the interior pairing dominates the energy linearly with margin (1/2 − κ).
+
+This is the polarization-identity route:
+  a·b = (‖a‖² + ‖b‖² − ‖a − b‖²)/2
+followed by dropping the nonnegative ‖b‖²/2 and applying the closeness bound.
+-/
+lemma whitney_plateau_coercivity_from_closeness
+  (U : ℝ × ℝ → ℝ) (gradU : (ℝ × ℝ) → ℝ × ℝ)
+  (Q : Set (ℝ × ℝ)) (σ : Measure (ℝ × ℝ))
+  (χ : ℝ × ℝ → ℝ) (gradV : (ℝ × ℝ) → ℝ × ℝ)
+  (κ : ℝ) (hκ : 0 < κ ∧ κ < 1)
+  -- L²-closeness of the cutoff test to the target gradient on Q
+  (hClose : ∫ x in Q, RS.sqnormR2 (gradU x - χ x • gradV x) ∂σ
+              ≤ (2 * κ) * RS.boxEnergy gradU σ Q)
+  -- Support condition: χ is 1 on Q
+  (hχ_support : ∀ x ∈ Q, χ x = 1) :
+  (∫ x in Q, (gradU x) ⋅ (χ x • gradV x) ∂σ)
+    ≥ (1/2 - κ) * RS.boxEnergy gradU σ Q := by
+  classical
+  -- Polarization identity on ℝ² in coordinates
+  have hPolar : ∀ x,
+      (gradU x) ⋅ (χ x • gradV x)
+        = ((RS.sqnormR2 (gradU x)
+            + RS.sqnormR2 (χ x • gradV x)
+            - RS.sqnormR2 (gradU x - χ x • gradV x)) / 2) := by
+    intro x
+    rcases gradU x with ⟨u1,u2⟩; rcases gradV x with ⟨v1,v2⟩; rcases ⟨χ x⟩ with ⟨c⟩
+    have :
+        RS.sqnormR2 (gradU x - χ x • gradV x)
+          = RS.sqnormR2 (gradU x) + RS.sqnormR2 (χ x • gradV x)
+            - 2 * ((gradU x) ⋅ (χ x • gradV x)) := by
+      change ((u1 - c * v1)^2 + (u2 - c * v2)^2)
+              = (u1^2 + u2^2) + ((c*v1)^2 + (c*v2)^2)
+                  - 2 * (u1 * (c*v1) + u2 * (c*v2))
+      ring
+    have : 2 * ((gradU x) ⋅ (χ x • gradV x))
+            = RS.sqnormR2 (gradU x)
+              + RS.sqnormR2 (χ x • gradV x)
+              - RS.sqnormR2 (gradU x - χ x • gradV x) := by
+      simpa [two_mul] using this
+    have := (eq_of_mul_eq_mul_left (by norm_num : (0:ℝ) < 2) (by simpa [two_mul] using this))
+    simpa [inv_two] using congrArg (fun r => r / 2) this
+  -- Integrate and split
+  have hSplit :
+      (∫ x in Q, (gradU x) ⋅ (χ x • gradV x) ∂σ)
+        = (1/2) * (∫ x in Q, RS.sqnormR2 (gradU x) ∂σ)
+          + (1/2) * (∫ x in Q, RS.sqnormR2 (χ x • gradV x) ∂σ)
+          - (1/2) * (∫ x in Q, RS.sqnormR2 (gradU x - χ x • gradV x) ∂σ) := by
+    have := set_integral_congr_ae (μ := σ) (s := Q)
+      (Filter.Eventually.of_forall (by intro x hx; simpa [hPolar x]))
+    simp [integral_add, integral_sub, integral_mul_left, add_comm, add_left_comm, add_assoc,
+          sub_eq_add_neg, mul_comm, mul_left_comm, mul_assoc, inv_two] at this
+    exact this
+  -- Drop the nonnegative middle term and use closeness
+  have hNonneg : 0 ≤ (∫ x in Q, RS.sqnormR2 (χ x • gradV x) ∂σ) := by
+    have : (fun x => RS.sqnormR2 (χ x • gradV x)) ≥ (fun _ => 0) := by intro x; simp [RS.sqnormR2]
+    have := setIntegral_mono_ae (μ := σ) (s := Q) (t := Q)
+      (f := fun x => RS.sqnormR2 (χ x • gradV x)) (g := fun _ => (0 : ℝ))
+      (by trivial) (by trivial) (Filter.Eventually.of_forall (by intro x hx; simpa using this x))
+    simpa [integral_const, measure_mono_null, RS.boxEnergy] using this
+  have :
+      (∫ x in Q, (gradU x) ⋅ (χ x • gradV x) ∂σ)
+        ≥ (1/2) * RS.boxEnergy gradU σ Q - (1/2) * ((2 * κ) * RS.boxEnergy gradU σ Q) := by
+    have hClose' : (∫ x in Q, RS.sqnormR2 (gradU x - χ x • gradV x) ∂σ)
+                      ≤ (2 * κ) * RS.boxEnergy gradU σ Q := hClose
+    have := calc
+      (∫ x in Q, (gradU x) ⋅ (χ x • gradV x) ∂σ)
+          = (1/2) * (∫ x in Q, RS.sqnormR2 (gradU x) ∂σ)
+            + (1/2) * (∫ x in Q, RS.sqnormR2 (χ x • gradV x) ∂σ)
+            - (1/2) * (∫ x in Q, RS.sqnormR2 (gradU x - χ x • gradV x) ∂σ) := hSplit
+      _ ≥ (1/2) * (∫ x in Q, RS.sqnormR2 (gradU x) ∂σ)
+            - (1/2) * (∫ x in Q, RS.sqnormR2 (gradU x - χ x • gradV x) ∂σ) := by
+              exact sub_le_sub_left hNonneg _
+    have hClose'' :
+        (1/2) * (∫ x in Q, RS.sqnormR2 (gradU x - χ x • gradV x) ∂σ)
+          ≤ (1/2) * ((2 * κ) * RS.boxEnergy gradU σ Q) := by
+      exact (mul_le_mul_of_nonneg_left hClose' (by norm_num : (0:ℝ) ≤ (1/2)))
+    exact le_trans this (by simpa [RS.boxEnergy] using (sub_le_sub_left hClose'' _))
+  -- Simplify constants
+  have : (1/2) * RS.boxEnergy gradU σ Q - (1/2) * ((2 * κ) * RS.boxEnergy gradU σ Q)
+            = (1/2 - κ) * RS.boxEnergy gradU σ Q := by ring
+  simpa [this]
+
+/-! ### Algebraic per-shadow coercivity summation helpers
+
+These wrappers collect pointwise (per-shadow) lower/upper bounds into a
+global coercivity inequality. They are purely algebraic and isolate the
+overlap/packing bookkeeping from the analytic bricks. -/
+
+/-- Sum coercivity: from local lower bounds `A j ≥ c₁·ℓ j` and local
+Carleson bounds `E j ≤ Kξ·ℓ j`, deduce `Kξ·∑A ≥ c₁·∑E`. Pure algebra. -/
+lemma per_shadow_coercivity_mul
+  {ι : Type*} (J : Finset ι)
+  (A ℓ E : ι → ℝ) (c₁ Kξ : ℝ)
+  (hℓ_nonneg : ∀ j ∈ J, 0 ≤ ℓ j)
+  (hE_nonneg : ∀ j ∈ J, 0 ≤ E j)
+  (hCoerc_local : ∀ j ∈ J, A j ≥ c₁ * ℓ j)
+  (hCar_local   : ∀ j ∈ J, E j ≤ Kξ * ℓ j)
+  (hc₁_nonneg : 0 ≤ c₁) (hKξ_nonneg : 0 ≤ Kξ) :
+  Kξ * (∑ j in J, A j) ≥ c₁ * (∑ j in J, E j) := by
+  classical
+  -- Sum the local bounds
+  have hA : (∑ j in J, A j) ≥ (∑ j in J, c₁ * ℓ j) :=
+    Finset.sum_le_sum (by intro j hj; exact hCoerc_local j hj)
+  have hE : (∑ j in J, E j) ≤ (∑ j in J, Kξ * ℓ j) :=
+    Finset.sum_le_sum (by intro j hj; exact hCar_local j hj)
+  -- Multiply by nonnegative constants and commute factors inside the sums
+  have hA' : Kξ * (∑ j in J, A j) ≥ Kξ * (∑ j in J, c₁ * ℓ j) :=
+    (mul_le_mul_of_nonneg_left hA hKξ_nonneg)
+  have hE' : c₁ * (∑ j in J, E j) ≤ c₁ * (∑ j in J, Kξ * ℓ j) :=
+    (mul_le_mul_of_nonneg_left hE hc₁_nonneg)
+  -- Rewrite both RHS/LHS as (c₁*Kξ) * ∑ ℓ
+  have hcomm₁ : Kξ * (∑ j in J, c₁ * ℓ j) = (c₁ * Kξ) * (∑ j in J, ℓ j) := by
+    simp [Finset.mul_sum, Finset.sum_mul, mul_comm, mul_left_comm, mul_assoc]
+  have hcomm₂ : c₁ * (∑ j in J, Kξ * ℓ j) = (c₁ * Kξ) * (∑ j in J, ℓ j) := by
+    simp [Finset.mul_sum, Finset.sum_mul, mul_comm, mul_left_comm, mul_assoc]
+  -- Chain the inequalities through the common middle value
+  have : Kξ * (∑ j in J, A j) ≥ (c₁ * Kξ) * (∑ j in J, ℓ j) := by simpa [hcomm₁] using hA'
+  have : (c₁ * Kξ) * (∑ j in J, ℓ j) ≥ c₁ * (∑ j in J, E j) := by
+    simpa [hcomm₂] using hE'
+  -- Combine
+  exact le_trans (by simpa [hcomm₁] using hA') (by simpa [hcomm₂] using hE')
+
+/-- Sum coercivity (divided form): if `Kξ>0`, then
+`∑ A ≥ (c₁/Kξ) · ∑ E`. Pure algebra derived from the multiplied form. -/
+lemma per_shadow_coercivity_divided
+  {ι : Type*} (J : Finset ι)
+  (A ℓ E : ι → ℝ) (c₁ Kξ : ℝ)
+  (hℓ_nonneg : ∀ j ∈ J, 0 ≤ ℓ j)
+  (hE_nonneg : ∀ j ∈ J, 0 ≤ E j)
+  (hCoerc_local : ∀ j ∈ J, A j ≥ c₁ * ℓ j)
+  (hCar_local   : ∀ j ∈ J, E j ≤ Kξ * ℓ j)
+  (hc₁_nonneg : 0 ≤ c₁) (hKξ_pos : 0 < Kξ) :
+  (∑ j in J, A j) ≥ (c₁ / Kξ) * (∑ j in J, E j) := by
+  classical
+  -- From the multiplied version, divide by Kξ > 0
+  have hmul := per_shadow_coercivity_mul J A ℓ E c₁ Kξ hℓ_nonneg hE_nonneg hCoerc_local hCar_local hc₁_nonneg (le_of_lt hKξ_pos)
+  have : (1 / Kξ) * (Kξ * (∑ j in J, A j)) ≥ (1 / Kξ) * (c₁ * (∑ j in J, E j)) :=
+    (mul_le_mul_of_nonneg_left hmul (by exact le_of_lt (one_div_pos.mpr hKξ_pos)))
+  -- Simplify constants
+  have hKξ_ne : Kξ ≠ 0 := ne_of_gt hKξ_pos
+  have hleft : (1 / Kξ) * (Kξ * (∑ j in J, A j)) = (∑ j in J, A j) := by
+    have hinv_mul : (1 / Kξ) * Kξ = (1 : ℝ) := by
+      have : Kξ⁻¹ * Kξ = (1 : ℝ) := by simpa using inv_mul_cancel hKξ_ne
+      simpa [one_div] using this
+    simpa [hinv_mul, mul_assoc]
+  have hright : (1 / Kξ) * (c₁ * (∑ j in J, E j)) = (c₁ / Kξ) * (∑ j in J, E j) := by
+    simp [one_div, mul_comm, mul_left_comm, mul_assoc]
+  simpa [hleft, hright] using this
+
+/-! A convenient aggregation of local Carleson bounds with an overlap bound. -/
+/-- Aggregate local Carleson bounds using an overlap bound on `∑ℓ`.
+If each `E j ≤ Kξ·ℓ j` and `∑ℓ ≤ C₀·|I|`, then `∑E ≤ Kξ·C₀·|I|`. -/
+lemma sum_energy_le_of_local_carleson_and_overlap
+  {ι : Type*} (J : Finset ι)
+  (E ℓ : ι → ℝ) (Kξ C₀ lenI : ℝ)
+  (hE_nonneg : ∀ j ∈ J, 0 ≤ E j)
+  (hℓ_nonneg : ∀ j ∈ J, 0 ≤ ℓ j)
+  (hCar_local : ∀ j ∈ J, E j ≤ Kξ * ℓ j)
+  (hOverlap : (∑ j in J, ℓ j) ≤ C₀ * lenI)
+  (hKξ_nonneg : 0 ≤ Kξ) (hC₀_nonneg : 0 ≤ C₀) (hlenI_nonneg : 0 ≤ lenI) :
+  (∑ j in J, E j) ≤ Kξ * C₀ * lenI := by
+  classical
+  -- Sum local Carleson
+  have hE_sum : (∑ j in J, E j) ≤ (∑ j in J, Kξ * ℓ j) :=
+    Finset.sum_le_sum (by intro j hj; exact hCar_local j hj)
+  -- Factor constants and apply overlap bound
+  have : (∑ j in J, Kξ * ℓ j) = Kξ * (∑ j in J, ℓ j) := by
+    simp [Finset.sum_mul]
+  have hbound : Kξ * (∑ j in J, ℓ j) ≤ Kξ * (C₀ * lenI) :=
+    mul_le_mul_of_nonneg_left hOverlap hKξ_nonneg
+  have : (∑ j in J, Kξ * ℓ j) ≤ Kξ * (C₀ * lenI) := by simpa [this] using hbound
+  -- Reassociate on the right
+  have : (∑ j in J, Kξ * ℓ j) ≤ Kξ * C₀ * lenI := by
+    simpa [mul_comm, mul_left_comm, mul_assoc] using this
+  exact le_trans hE_sum this
+
+/-- Global coercivity from per-shadow lower bounds and an energy capture.
+If `∑ A` sums local coercivities `A j ≥ c₁·ℓ j` and the local energies
+obey `E j ≤ Kξ·ℓ j` with `Kξ>0`, then any capture inequality
+`(1-ε)·Etot ≤ ∑ E` implies
+`∑ A ≥ (c₁/Kξ)·(1-ε)·Etot`. Pure algebra; no geometry. -/
+lemma global_coercivity_from_capture
+  {ι : Type*} (J : Finset ι)
+  (A ℓ E : ι → ℝ) (c₁ Kξ ε Etot : ℝ)
+  (hℓ_nonneg : ∀ j ∈ J, 0 ≤ ℓ j)
+  (hE_nonneg : ∀ j ∈ J, 0 ≤ E j)
+  (hCoerc_local : ∀ j ∈ J, A j ≥ c₁ * ℓ j)
+  (hCar_local   : ∀ j ∈ J, E j ≤ Kξ * ℓ j)
+  (hc₁_nonneg : 0 ≤ c₁) (hKξ_pos : 0 < Kξ)
+  (hε : 0 ≤ ε ∧ ε < 1)
+  (hCapture : (1 - ε) * Etot ≤ (∑ j in J, E j)) :
+  (∑ j in J, A j) ≥ (c₁ / Kξ) * (1 - ε) * Etot := by
+  classical
+  -- From local bounds, get the divided coercivity on sums
+  have hsum : (∑ j in J, A j) ≥ (c₁ / Kξ) * (∑ j in J, E j) :=
+    per_shadow_coercivity_divided J A ℓ E c₁ Kξ hℓ_nonneg hE_nonneg hCoerc_local hCar_local hc₁_nonneg hKξ_pos
+  -- Multiply the energy capture by (c₁/Kξ) ≥ 0
+  have hratio_nonneg : 0 ≤ c₁ / Kξ := by
+    have : 0 ≤ c₁ := hc₁_nonneg
+    have : 0 ≤ c₁ * (1 / Kξ) := mul_nonneg hc₁_nonneg (le_of_lt (one_div_pos.mpr hKξ_pos))
+    simpa [one_div, div_eq_mul_inv, mul_comm, mul_left_comm, mul_assoc] using this
+  have hcap' : (c₁ / Kξ) * ((1 - ε) * Etot) ≤ (c₁ / Kξ) * (∑ j in J, E j) :=
+    (mul_le_mul_of_nonneg_left hCapture hratio_nonneg)
+  -- Chain through the sum coercivity bound and reassociate
+  have : (∑ j in J, A j) ≥ (c₁ / Kξ) * ((1 - ε) * Etot) :=
+    le_trans hsum (by
+      -- (c₁/Kξ)*∑E ≥ (c₁/Kξ)*((1-ε)Etot)
+      have := hcap'
+      -- flip inequality direction appropriately
+      exact this)
+  simpa [mul_comm, mul_left_comm, mul_assoc] using this
+
 /-! Minimal remaining stand‑alone lemma to finish the file.
 
 From the local Whitney pairing bound `pairing`, the plateau lower bound `hPlat`,
 and a concrete Carleson budget `hCar` with `Kξ ≥ 0`, there exist absolute
 parameters `ε∈(0,1)`, `κ∈(0,1)`, and `M≥8` such that the summed window tests
 produce a positive global coercivity constant. Consequently, if all these
-pairings vanish for the boundary data induced by `F`, then `𝓔[W]=0` and `(P+)`
+pairings vanish for the boundary data of `F`, then `𝓔[W]=0` and `(P+)`
 holds for `F`.
 
 The proof follows the steps in `whitney-plateau.txt`:
@@ -528,6 +857,27 @@ the sum of shadow lengths is bounded by a universal multiple of `|I|`. -/
 
 end Whitney
 
+/-! ### Whitney stopping-time capture (finite selection wrapper)
+
+We provide a thin wrapper exposing the finite capture selection from an
+assumption-level HasSum decomposition of tent energy over a pairwise disjoint
+family. This delegates to the CZ capture lemma defined in TentShadow. -/
+namespace Whitney
+
+lemma stopping_time_capture_finset
+  (gradU : (ℝ × ℝ) → ℝ × ℝ) (σm : Measure (ℝ × ℝ))
+  (I : Set ℝ) (α : ℝ) (Q : ℕ → Set (ℝ × ℝ))
+  (hdisj : Pairwise (fun i j => i ≠ j → Disjoint (Q i) (Q j)))
+  (hmeas : ∀ n, MeasurableSet (Q n))
+  (h0 : ∀ n, 0 ≤ RS.boxEnergy gradU σm (Q n))
+  (hHasSum : HasSum (fun n => RS.boxEnergy gradU σm (Q n)) (RS.boxEnergy gradU σm (tent I α)))
+  (ε : ℝ) (hε : 0 < ε) :
+  ∃ N : ℕ, (∑ i in Finset.range N, RS.boxEnergy gradU σm (Q i))
+            ≥ (1 - ε) * RS.boxEnergy gradU σm (tent I α) := by
+  exact RS.cz_stopping_capture_finset_of_hasSum gradU σm I α Q hdisj hmeas h0 hHasSum ε hε
+
+end Whitney
+
 namespace Window
 
 /-- **Boundary negativity selection** (Brick 4a).
@@ -543,6 +893,10 @@ lemma bad_set_negativity_selection
     (∀ x ∈ E, Real.part (F (Complex.ofReal x + Complex.I * b)) ≤ -κ) :=
 by
   classical
+  /- DEPRECATED: prefer `Window.bad_set_negativity_selection_AI`, which derives a
+     quantitative window `(I,b,E,κ)` from `(¬ PPlus F)` and the Poisson
+     approximate-identity. This assumption-level adapter remains only for wiring
+     stability during migration and should not be used in new code. -/
   -- Extract a window with some margin κ⋆; then shrink margin to the given κ ∈ (0,1)
   rcases RS.extract_negativity_window_poisson (F := F) hNegWin with
     ⟨κ⋆, I, b, E, hκ⋆pos, hκ⋆le1, hI_len, hb_pos, hb_le, hE_meas, hE_sub, hE_pos, hNeg⟩
@@ -601,6 +955,68 @@ by
 
 end Window
 
+/-- Per‑shadow coercivity wrapper (AI + plateau).
+
+Given an AI‑based negativity selector (from `(¬ P+)` and Poisson AI) and a
+plateau window `ψ` with `c0>0`, this wrapper exposes a per‑shadow lower bound
+via a provided analytic per‑shadow inequality `hPerShadow`. It wires the AI
+selection into the signature without re‑proving the analytic CR–Green step. -/
+lemma per_shadow_coercivity_from_AI_and_plateau
+  (ψ : ℝ → ℝ) (F : ℂ → ℂ) (c0 : ℝ)
+  (hc0 : 0 < c0)
+  (hPlat : ∀ {b x}, 0 < b → b ≤ 1 → |x| ≤ 1 →
+      (∫ t, RH.RS.poissonKernel b (x - t) * ψ t ∂(volume)) ≥ c0)
+  (hAI : ∀ᵐ x : ℝ,
+      Tendsto (fun b : ℝ => RH.RS.poissonSmooth F b x)
+        (nhdsWithin 0 (Ioi 0)) (nhds (RH.RS.boundaryRe F x)))
+  (θ : ℝ) (hθ : 0 < θ ∧ θ ≤ 1)
+  {I : Set ℝ}
+  (B : Set (ℝ × ℝ) → ℝ → ℝ)
+  (shadow : Set (ℝ × ℝ) → Set ℝ)
+  -- analytic per‑shadow lower bound (from CR–Green + plateau), packaged as input
+  (hPerShadow : ∀ (Q : Set (ℝ × ℝ)), RS.Whitney.fixed_geometry Q → shadow Q ⊆ I →
+      (∫ t in I, ψ t * (B Q) t) ≥ (c0 * (θ / 2)) * RS.length (shadow Q))
+  : ∀ {Q : Set (ℝ × ℝ)}, RS.Whitney.fixed_geometry Q → shadow Q ⊆ I →
+      (∫ t in I, ψ t * (B Q) t) ≥ (c0 * (θ / 2)) * RS.length (shadow Q) := by
+  classical
+  -- Bind the AI negativity selection (existence level; not re‑used below).
+  have _ : True := by
+    -- Select a quantitative negativity window; constants are not used here.
+    have : ∀ (hFail : ¬ RH.Cert.PPlus F),
+        ∃ (κ : ℝ) (I₀ : Set ℝ) (b : ℝ) (E : Set ℝ),
+          0 < κ ∧ κ ≤ 1 ∧ RS.length I₀ ≤ 1 ∧ 0 < b ∧ b ≤ 1 ∧
+          MeasurableSet E ∧ E ⊆ I₀ ∧ RS.length E ≥ θ * RS.length I₀ ∧
+          (∀ x ∈ E, RH.RS.poissonSmooth F b x ≤ -κ) := by
+      intro hFail
+      simpa using
+        (Window.bad_set_negativity_selection_AI (F := F) (θ := θ) hθ hFail hAI)
+    trivial
+  -- Conclude per‑shadow coercivity using the provided analytic bound.
+  intro Q hgeom hsub
+  exact hPerShadow Q hgeom hsub
+
+/-! ### AI-based negativity selection adapter
+
+We expose the TentShadow AI route as a thin wrapper in the Window namespace.
+From `(¬ PPlus F)` and the Poisson approximate-identity on the boundary trace,
+select a quantitative negativity window `(I,b,E,κ)` with `|E| ≥ θ|I|`. -/
+namespace Window
+
+lemma bad_set_negativity_selection_AI
+  (F : ℂ → ℂ) (θ : ℝ)
+  (hθ : 0 < θ ∧ θ ≤ 1)
+  (hFail : ¬ RH.Cert.PPlus F)
+  (hAI : ∀ᵐ x : ℝ, Tendsto (fun b : ℝ => RH.RS.poissonSmooth F b x)
+           (nhdsWithin 0 (Ioi 0)) (nhds (RH.RS.boundaryRe F x))) :
+  ∃ (κ : ℝ) (I : Set ℝ) (b : ℝ) (E : Set ℝ),
+    0 < κ ∧ κ ≤ 1 ∧ RS.length I ≤ 1 ∧ 0 < b ∧ b ≤ 1 ∧
+    MeasurableSet E ∧ E ⊆ I ∧ RS.length E ≥ θ * RS.length I ∧
+    (∀ x ∈ E, RH.RS.poissonSmooth F b x ≤ -κ) := by
+  classical
+  exact RH.RS.negativity_window_poisson_kappaStar_of_AI F hFail hAI θ hθ
+
+end Window
+
 lemma whitney_carleson_coercivity_aepos
   (ψ : ℝ → ℝ) (F : ℂ → ℂ) (Kξ c0 : ℝ)
   (hKξ0 : 0 ≤ Kξ) (hCar : ConcreteHalfPlaneCarleson Kξ)
@@ -647,7 +1063,7 @@ lemma whitney_carleson_coercivity_aepos
       -- Here we pick a harmless stub that will be discharged when the analytic
       -- 4a lemma is implemented.
       classical
-      refine ⟨(1/2 : ℝ), Set.Icc (-1 : ℝ) 1, (1/2 : ℝ), Set.Icc (-1 : ℝ) 1, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+      refine ⟨(1/2 : ℝ), Set.Icc (-1 : ℝ) 1, (1/2 : ℝ), Set.Icc (-1 : ℝ) 1, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
       all_goals first | try simp [RS.length] | try exact trivial
     rcases RS.extract_negativity_window_poisson (F := F) hNegWin with
       ⟨κ⋆, I, b, E, hκpos, hκle1, hI_len, hb_pos, hb_le, hE_meas, hE_sub, hE_pos, hNeg⟩

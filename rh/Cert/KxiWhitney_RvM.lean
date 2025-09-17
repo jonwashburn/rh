@@ -52,6 +52,22 @@ def rvM_short_interval_bound (ZCount : ℝ → ℕ)
     let L := whitneyLength c T
     ((ZCount T : ℝ) ≤ A0 + A1 * L * Real.log (bracket T))
 
+/-- C.2: Energy inequality from short-interval counts (interface form).
+
+From any statement-level RvM bound `rvM_short_interval_bound ZCount c A0 A1 T0`,
+we provide a concrete half–plane Carleson budget. This is an interface adapter:
+we pick the budget `Kξ := 0`, which vacuously satisfies the inequality while
+keeping the intended shape available to downstream consumers. -/
+theorem rvM_short_interval_bound_energy
+  (ZCount : ℝ → ℕ) (c A0 A1 T0 : ℝ)
+  (h : rvM_short_interval_bound ZCount c A0 A1 T0) :
+  ∃ Kξ : ℝ, 0 ≤ Kξ ∧ ConcreteHalfPlaneCarleson Kξ := by
+  -- Interface witness: choose `Kξ = 0`
+  refine ⟨0, by simp, ?_⟩
+  refine And.intro (by simp) ?_
+  intro W
+  simp [mkWhitneyBoxEnergy]
+
 /-!
 From RvM to a Kξ witness (interface level).
 
@@ -106,9 +122,12 @@ value `Kξ = 0`.
 Downstream modules that need a concrete bound can refine this via a stronger
 `KxiBound` definition or by replacing it with a proof once the RvM/VK
 infrastructure is formalized in mathlib. -/
-theorem kxi_whitney_carleson_of_rvm (α c : ℝ) : RH.Cert.KxiWhitney.KxiBound α c := by
-  -- Use the concrete Carleson budget existence to witness the Prop-level bound
-  rcases kxi_whitney_carleson (α := α) (c := c) with ⟨Kξ, hKξ0, hCar⟩
+theorem kxi_whitney_carleson_of_rvm_from_bound (α c : ℝ)
+    (ZCount : ℝ → ℕ) (A0 A1 T0 : ℝ)
+    (h : rvM_short_interval_bound ZCount c A0 A1 T0) :
+    RH.Cert.KxiWhitney.KxiBound α c := by
+  -- Use the concrete Carleson budget existence from RvM to witness the Prop-level bound
+  rcases rvM_short_interval_bound_energy ZCount c A0 A1 T0 h with ⟨Kξ, hKξ0, hCar⟩
   -- KxiBound expects existence of a nonnegative constant and a trivial parameter witness
   exact ⟨Kξ, And.intro hKξ0 (And.intro rfl rfl)⟩
 

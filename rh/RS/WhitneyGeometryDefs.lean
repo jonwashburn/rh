@@ -266,5 +266,51 @@ def boxEnergy := Whitney.boxEnergy
 def tentEnergy := Whitney.tentEnergy
 def length := Whitney.length
 
+/-- Pass‑through packing helper (interface form).
+If a shadow overlap bound is available for a Whitney family inside `T(I)`,
+expose the same inequality using the project constant `shadowOverlapConst`.
+This is a lightweight name-stabilizer for downstream modules. -/
+theorem Whitney.shadow_overlap_bound_pass
+  {ι : Type*} (S : Finset ι)
+  (Q : ι → Set (ℝ × ℝ)) (I : Set ℝ)
+  (h : (∑ i in S, Whitney.shadowLen (Q i)) ≤ Whitney.shadowOverlapConst * Whitney.length I)
+  : (∑ i in S, Whitney.shadowLen (Q i)) ≤ Whitney.shadowOverlapConst * Whitney.length I :=
+  h
+
+/-- Bounded shadow overlap from a pointwise indicator bound on the boundary.
+
+If almost everywhere on ℝ we have the pointwise inequality
+  ∑_{i∈S} 1_{shadow(Q i)} ≤ C · 1_I,
+then the sum of shadow lengths is at most `C · |I|`.
+
+This is the overlap summation step used in the global coercivity assembly. -/
+theorem Whitney.shadow_overlap_sum_of_indicator_bound
+  {ι : Type*} (S : Finset ι) (Q : ι → Set (ℝ × ℝ))
+  (I : Set ℝ) (C : ℝ)
+  (hmeasI : MeasurableSet I)
+  (hmeasSh : ∀ i ∈ S, MeasurableSet (Whitney.shadow (Q i)))
+  (h_ae : ∀ᵐ t ∂(volume),
+            (∑ i in S, Set.indicator (Whitney.shadow (Q i)) (fun _ => (1 : ℝ)) t)
+              ≤ C * Set.indicator I (fun _ => (1 : ℝ)) t) :
+  (∑ i in S, Whitney.shadowLen (Q i)) ≤ C * Whitney.length I := by
+  -- Integrate both sides over ℝ and use linearity of the integral
+  have hlin_left :
+      ∫ t, (∑ i in S, Set.indicator (Whitney.shadow (Q i)) (fun _ => (1 : ℝ)) t) ∂(volume)
+        = ∑ i in S, (volume (Whitney.shadow (Q i))).toReal := by
+    -- swap integral and finite sum; integral of indicator = measure
+    simp [integral_finset_sum, integral_indicator, (hmeasSh _), *]
+  have hlin_right :
+      ∫ t, C * Set.indicator I (fun _ => (1 : ℝ)) t ∂(volume)
+        = C * (volume I).toReal := by
+    simp [integral_mul_left, integral_indicator, hmeasI]
+  -- integrate the a.e. inequality
+  have hint :
+      ∫ t, (∑ i in S, Set.indicator (Whitney.shadow (Q i)) (fun _ => (1 : ℝ)) t) ∂(volume)
+        ≤ ∫ t, C * Set.indicator I (fun _ => (1 : ℝ)) t ∂(volume) :=
+    integral_mono_ae h_ae
+  -- rewrite both sides using the identities above
+  simpa [Whitney.length, Whitney.shadowLen, hlin_left, hlin_right]
+    using hint
+
 end RS
 end RH

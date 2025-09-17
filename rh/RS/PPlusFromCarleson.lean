@@ -4,6 +4,7 @@ import rh.Cert.KxiPPlus
 import rh.RS.BoundaryWedge
 import rh.RS.CRGreenOuter
 import rh.RS.PoissonPlateau
+import rh.RS.TentShadow
 
 /-!
 RS bridge: Concrete Carleson ⇒ (P+).
@@ -104,6 +105,70 @@ theorem localWedge_from_CRGreen_and_Poisson
             (hEnergy_le := hEnergy_le))
       (plateau := ⟨c0, hc0_pos, hPlateau⟩)
 
+/-- Analytic local wedge with Poisson AI: use the AI-based coercivity lemma. -/
+theorem localWedge_from_CRGreen_and_Poisson_AI
+    (F : ℂ → ℂ)
+    (hex : ∃ Kξ : ℝ, 0 ≤ Kξ ∧ RH.Cert.ConcreteHalfPlaneCarleson Kξ)
+    (hAI : ∀ᵐ x : ℝ,
+      Filter.Tendsto (fun b : ℝ => RH.RS.poissonSmooth F b x)
+        (nhdsWithin (0 : ℝ) (Set.Ioi (0 : ℝ))) (nhds (RH.RS.boundaryRe F x))) :
+    localWedge_from_WhitneyCarleson (F := F) hex := by
+  classical
+  rcases hex with ⟨Kξ, hKξ0, hCar⟩
+  -- Plateau window and strictly positive lower bound
+  obtain ⟨ψ, _hψ_even, _hψ_nonneg, _hψ_comp, _hψ_mass1,
+          ⟨c0, hc0_pos, hPlateau⟩⟩ := RH.RS.poisson_plateau_c0
+  -- Pairing ingredient via CR–Green + Carleson budget
+  have pairing :
+      ∀ {lenI : ℝ}
+        (U : ℝ × ℝ → ℝ) (W : ℝ → ℝ) (_ψ : ℝ → ℝ) (χ : ℝ × ℝ → ℝ)
+        (I : Set ℝ) (α' : ℝ)
+        (σ : MeasureTheory.Measure (ℝ × ℝ)) (Q : Set (ℝ × ℝ))
+        (gradU gradChiVpsi : (ℝ × ℝ) → ℝ × ℝ) (B : ℝ → ℝ)
+        (Cψ_pair Cψ_rem : ℝ)
+        (hPairVol :
+          |∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ|
+            ≤ Cψ_pair * Real.sqrt (RS.boxEnergy gradU σ Q))
+        (Rside Rtop Rint : ℝ)
+        (hEqDecomp :
+          (∫ x in Q, (gradU x) ⋅ (gradChiVpsi x) ∂σ)
+            = (∫ t in I, _ψ t * B t) + Rside + Rtop + Rint)
+        (hSideZero : Rside = 0) (hTopZero : Rtop = 0)
+        (hRintBound : |Rint| ≤ Cψ_rem * Real.sqrt (RS.boxEnergy gradU σ Q))
+        (hCψ_nonneg : 0 ≤ Cψ_pair + Cψ_rem)
+        (hEnergy_le : RS.boxEnergy gradU σ Q ≤ Kξ * lenI),
+        |∫ t in I, _ψ t * B t|
+          ≤ (Cψ_pair + Cψ_rem) * Real.sqrt (Kξ * lenI) :=
+    by
+      intro lenI U W _ψ χ I α' σ Q gradU gradChiVpsi B Cψ_pair Cψ_rem hPairVol Rside Rtop Rint hEqDecomp hSideZero hTopZero hRintBound hCψ_nonneg hEnergy_le
+      exact
+        RS.local_pairing_bound_from_IBP_and_Carleson
+          (Kξ := Kξ) (lenI := lenI) (hCar := hCar)
+          U W _ψ χ I α' σ Q gradU gradChiVpsi B Cψ_pair Cψ_rem
+          (hPairVol := hPairVol)
+          (Rside := Rside) (Rtop := Rtop) (Rint := Rint)
+          (hEqDecomp := hEqDecomp)
+          (hSideZero := hSideZero) (hTopZero := hTopZero)
+          (hRintBound := hRintBound)
+          (hCψ_nonneg := hCψ_nonneg)
+          (hEnergy_le := hEnergy_le)
+  -- Coercivity ⇒ (P+) via AI route
+  have hCoercive : RH.Cert.PPlus F :=
+    whitney_carleson_coercivity_aepos_AI
+      (ψ := ψ) (F := F) (Kξ := Kξ) (c0 := c0)
+      (hKξ0 := hKξ0) (hCar := hCar) (hc0 := hc0_pos)
+      (pairing := pairing)
+      (hPlat := by
+        intro b x hb hb1 hx
+        simpa using (hPlateau (b := b) (x := x) hb hb1 hx))
+      (hAI := hAI)
+      (ε := (1/2 : ℝ)) (κ := (1/4 : ℝ)) (M := (8 : ℝ))
+      (hε := by constructor <;> norm_num)
+      (hκ := by constructor <;> norm_num)
+      (hM := by norm_num)
+  -- Local wedge alias is `(P+)`
+  exact hCoercive
+
 
 
 /-- Concrete‑constant form: from a nonnegative concrete half–plane Carleson
@@ -129,6 +194,21 @@ theorem PPlusFromCarleson_exists_proved
   have hLoc :
       localWedge_from_WhitneyCarleson (F := F) hex :=
     localWedge_from_CRGreen_and_Poisson (F := F) hex
+  -- A.e. upgrade to `(P+)`.
+  exact ae_of_localWedge_on_Whitney (F := F) hex hLoc
+
+/-- Existence‑level bundle with Poisson AI: `(∃Kξ ≥ 0, Carleson Kξ) → (P+)`. -/
+theorem PPlusFromCarleson_exists_proved_AI
+    (F : ℂ → ℂ)
+    (hAI : ∀ᵐ x : ℝ,
+      Filter.Tendsto (fun b : ℝ => RH.RS.poissonSmooth F b x)
+        (nhdsWithin (0 : ℝ) (Set.Ioi (0 : ℝ))) (nhds (RH.RS.boundaryRe F x)))
+    : RH.Cert.PPlusFromCarleson_exists F := by
+  intro hex
+  -- Local wedge via CR–Green + plateau + Carleson + AI
+  have hLoc :
+      localWedge_from_WhitneyCarleson (F := F) hex :=
+    localWedge_from_CRGreen_and_Poisson_AI (F := F) hex hAI
   -- A.e. upgrade to `(P+)`.
   exact ae_of_localWedge_on_Whitney (F := F) hex hLoc
 

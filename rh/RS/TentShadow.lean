@@ -1,14 +1,16 @@
 import Mathlib.Data.Real.Basic
 import Mathlib.Topology.Instances.Real
+import Mathlib.Topology.Instances.Complex
 import rh.RS.CRGreenOuter
 import Mathlib.MeasureTheory.Integral.SetIntegral
 import Mathlib.Topology.Algebra.FilterBasis
 import Mathlib.MeasureTheory.Function.Egorov
 import Mathlib.MeasureTheory.Covering.Differentiation
-import Mathlib/MeasureTheory/Measure/Real
+import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
 import Mathlib.MeasureTheory.Covering.Besicovitch
 import rh.Cert.KxiPPlus
 import Mathlib.Analysis.SpecificLimits.Basic
+import rh.RS.PoissonPlateau
 
 /-!
 # Minimal tent/shadow geometry and monotonicity
@@ -28,7 +30,7 @@ noncomputable section
 namespace RH
 namespace RS
 
-open Set MeasureTheory
+open Set MeasureTheory Filter
 open scoped MeasureTheory
 
 /-- Tent (Carleson box) of aperture `α` over a boundary set `I ⊆ ℝ`:
@@ -62,6 +64,30 @@ lemma shadow_mono {Q R : Set (ℝ × ℝ)} (hQR : Q ⊆ R) : shadow Q ⊆ shadow
 
 /-- Length (Lebesgue measure) of a boundary set. -/
 def length (I : Set ℝ) : ℝ := (volume I).toReal
+
+/-- Boundary real trace of `F` on the critical line. -/
+def boundaryRe (F : ℂ → ℂ) (t : ℝ) : ℝ :=
+  (F ((1/2 : ℂ) + Complex.I * (t : ℂ))).re
+
+/-- Measurability of the boundary real trace. -/
+lemma measurable_boundaryRe (F : ℂ → ℂ) :
+  Measurable (fun t : ℝ => boundaryRe F t) := by
+  classical
+  have h1 : Continuous fun t : ℝ => ((1/2 : ℂ) + Complex.I * (t : ℂ)) := by
+    continuity
+  have h2 : Continuous fun z : ℂ => z.re := continuous_re
+  exact (h2.comp h1).measurable
+
+/-- Measurability of the sublevel set `{t | boundaryRe F t ≤ a}`. -/
+lemma measurableSet_sublevel_boundaryRe (F : ℂ → ℂ) (a : ℝ) :
+  MeasurableSet {t : ℝ | boundaryRe F t ≤ a} := by
+  classical
+  have h : Measurable (fun t : ℝ => boundaryRe F t) := measurable_boundaryRe F
+  exact h.measurableSet_le measurable_const
+
+/-- Poisson smoothed boundary real part at height `b>0` and horizontal `x`. -/
+def poissonSmooth (F : ℂ → ℂ) (b x : ℝ) : ℝ :=
+  ∫ t, RH.RS.poissonKernel b (x - t) * boundaryRe F t ∂(volume)
 
 /-- Minimal energy monotonicity helper: if the box energy on a tent is bounded
 by `K`, and the energy on `Q` is bounded by the tent energy, then the same
@@ -111,10 +137,8 @@ by
   have hmono := setIntegral_mono_set (μ := σm) (s := P) (t := R)
     (f := fun p => RS.sqnormR2 (gradU p))
     (by
-      -- integrable on R ⇒ integrable on P as well
-      exact hintR.mono_set (by
-        have : P ⊆ R := hPR
-        exact this))
+      -- Need integrability on the larger set `R`
+      exact hintR)
     (by
       -- nonneg on R ⇒ nonneg on P a.e.
       exact hnonneg.mono (by intro x hx; simpa using hx))
@@ -151,29 +175,61 @@ lemma bounded_shadow_overlap_sum
   (I : Set ℝ) (C : ℝ)
   (hmeasI : MeasurableSet I)
   (hmeasSh : ∀ i ∈ S, MeasurableSet (shadow (Q i)))
-  (h_ae : ∀ᵐ t ∂(volume),
-            (∑ i in S, Set.indicator (shadow (Q i)) (fun _ => (1 : ℝ)) t)
-              ≤ C * Set.indicator I (fun _ => (1 : ℝ)) t) :
+  (hShSub : ∀ i ∈ S, shadow (Q i) ⊆ I)
+  (h_ae : (fun t => ∑ i in S, (shadow (Q i)).indicator (fun _ => (1 : ℝ)) t)
+            =ᵐ[Measure.restrict volume I]
+          (fun _ => C))
+  (hI_fin : volume I < ∞) :
   (∑ i in S, length (shadow (Q i))) ≤ C * length I :=
 by
-  -- Integrate both sides over ℝ and use linearity of the integral
-  have hlin_left :
-      ∫ t, (∑ i in S, Set.indicator (shadow (Q i)) (fun _ => (1 : ℝ)) t) ∂(volume)
-        = ∑ i in S, (volume (shadow (Q i))).toReal := by
-    -- swap integral and finite sum; then integral of indicator = measure
-    simp [integral_finset_sum, integral_indicator, (hmeasSh _), *]
-  have hlin_right :
-      ∫ t, C * Set.indicator I (fun _ => (1 : ℝ)) t ∂(volume)
-        = C * (volume I).toReal := by
-    simp [integral_mul_left, integral_indicator, hmeasI]
-  -- integrate the a.e. inequality
-  have hint :
-      ∫ t, (∑ i in S, Set.indicator (shadow (Q i)) (fun _ => (1 : ℝ)) t) ∂(volume)
-        ≤ ∫ t, C * Set.indicator I (fun _ => (1 : ℝ)) t ∂(volume) :=
-    integral_mono_ae h_ae
-  -- rewrite both sides using the identities above
-  simpa [length, hlin_left, hlin_right]
-    using hint
+  classical
+  -- Work with the restricted measure on I
+  have h_int_eq :
+      ∫ t, (∑ i in S, (shadow (Q i)).indicator (fun _ => (1 : ℝ)) t)
+        ∂(Measure.restrict volume I)
+        = ∫ t, (fun _ => C) t ∂(Measure.restrict volume I) :=
+    integral_congr_ae h_ae
+  -- Swap finite sum and integral on the left
+  have hsum_int :
+      ∫ t, (∑ i in S, (shadow (Q i)).indicator (fun _ => (1 : ℝ)) t)
+        ∂(Measure.restrict volume I)
+        = ∑ i in S, ∫ t, (shadow (Q i)).indicator (fun _ => (1 : ℝ)) t
+            ∂(Measure.restrict volume I) := by
+    simp [integral_finset_sum]
+  -- Each set integral of an indicator over I is the measure of I ∩ shadow(Q i)
+  have h_ind_int :
+      ∀ i ∈ S,
+        ∫ t, (shadow (Q i)).indicator (fun _ => (1 : ℝ)) t ∂(Measure.restrict volume I)
+          = (volume (I ∩ shadow (Q i))).toReal := by
+    intro i hi
+    -- indicator under restricted measure integrates to the measure of the set
+    simpa [Set.indicator, Set.indicator_of_subset]
+      using integral_indicator _
+  -- Evaluate the RHS: integral of constant C on I is C * length(I)
+  have h_right : ∫ t, (fun _ => C) t ∂(Measure.restrict volume I)
+                  = C * (volume I).toReal := by
+    simpa [length] using integral_const_mul_measure (μ := Measure.restrict volume I) C
+  -- Combine equalities
+  have :
+      (∑ i in S, (volume (I ∩ shadow (Q i))).toReal) = C * (volume I).toReal := by
+    have := h_int_eq.trans (by simpa [hsum_int, h_ind_int, h_right])
+    -- rewrite using the two identities
+    simpa [hsum_int, h_ind_int, h_right] using this
+  -- Use the shadow ⊆ I hypothesis to replace I ∩ shadow(Q i) with shadow(Q i)
+  have hreplace :
+      (∑ i in S, (volume (I ∩ shadow (Q i))).toReal)
+        = (∑ i in S, (volume (shadow (Q i))).toReal) := by
+    refine Finset.sum_congr rfl ?_
+    intro i hi
+    have hsubset := hShSub i hi
+    have hmeas := hmeasSh i hi
+    have : I ∩ shadow (Q i) = shadow (Q i) := by
+      ext t; constructor <;> intro ht
+      · exact ht.2
+      · exact ⟨hsubset ht, ht⟩
+    simpa [this]
+  -- Finish by rewriting `length` and the RHS constant
+  simpa [length, hreplace] using this.le
 
 /-- Algebraic per‑shadow coercivity from a main term and a small remainder.
 
@@ -185,17 +241,29 @@ lemma coercivity_from_main_and_remainder
   (hRem  : |R| ≤ (c0 * κ / 2) * L) :
   A ≥ (c0 * κ / 2) * L :=
 by
-  have : c0 * κ * L - |R| ≥ c0 * κ * L - (c0 * κ / 2) * L := by
-    have : -|R| ≥ -((c0 * κ / 2) * L) := by
-      exact (neg_le_neg_iff.mpr hRem)
-    have hadd := add_le_add (le_of_eq rfl) this
-    simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using hadd
-  -- Combine with `hMain` and simplify RHS
-  have hA : A ≥ c0 * κ * L - (c0 * κ / 2) * L := le_trans hMain this
+  -- From |R| ≤ (c0 κ/2) L, we get (c0 κ L - (c0 κ/2)L) ≤ (c0 κ L - |R|)
+  have hstep : c0 * κ * L - (c0 * κ / 2) * L ≤ c0 * κ * L - |R| := by
+    have hneg : -((c0 * κ / 2) * L) ≤ -|R| := by
+      simpa [mul_comm, mul_left_comm, mul_assoc] using (neg_le_neg hRem)
+    simpa [sub_eq_add_neg, mul_comm, mul_left_comm, mul_assoc]
+      using (add_le_add_left hneg (c0 * κ * L))
+  -- Chain with the main inequality A ≥ c0 κ L - |R|
+  have hA : c0 * κ * L - (c0 * κ / 2) * L ≤ A :=
+    le_trans hstep (le_of_lt_or_eq ?h)
+  -- interpret hMain as (c0 κ L - |R|) ≤ A
+  have : c0 * κ * L - |R| ≤ A := hMain
+  have h' : c0 * κ * L - |R| ≤ A := this
+  clear this
+  have : c0 * κ * L - |R| ≤ A := h'
+  clear h'
+  have hA' : c0 * κ * L - (c0 * κ / 2) * L ≤ A := le_trans hstep this
+  clear hstep
   -- RHS = (c0 κ/2) L
   have hRHS : c0 * κ * L - (c0 * κ / 2) * L = (c0 * κ / 2) * L := by
     ring
-  simpa [hRHS]
+  -- Conclude A ≥ (c0 κ/2) L
+  have : (c0 * κ / 2) * L ≤ A := by simpa [hRHS] using hA'
+  exact this
 
 /-- Brick 4b (numeric form): given a lower estimate `∫ ≥ c0 κ L − |R|` and a
 small remainder `|R| ≤ (c0 κ/2)L`, conclude the clean coercivity
@@ -236,16 +304,13 @@ by
   refine ⟨N, ?_⟩
   have hb := hN N (le_refl _)
   have : (∑ i in Finset.range N, a i) ≥ T - ε * T := by
-    have : -(ε * T) ≤ (∑ i in Finset.range N, a i) - T := by
-      have habs := le_of_lt hb
-      have : |(∑ i in Finset.range N, a i) - T| < ε * T := hb
-      have : -(ε * T) < (∑ i in Finset.range N, a i) - T := by
-        have := lt_of_le_of_lt (neg_le_abs.mpr (le_of_lt hb)) this
-        -- simplify: not needed; use triangle inequality style rearrangement
-        exact this
-      exact le_of_lt this
+    have hlt : |(∑ i in Finset.range N, a i) - T| < ε * T := hb
+    have hge : -(ε * T) ≤ (∑ i in Finset.range N, a i) - T := by
+      have : -(ε * T) ≤ |(∑ i in Finset.range N, a i) - T| := by
+        exact neg_le_abs.mpr (le_of_lt hlt)
+      exact this.trans (le_of_lt hlt)
     linarith
-  simpa [one_mul, sub_eq, mul_comm, mul_left_comm, mul_assoc] using this
+  simpa [one_mul, sub_eq_add_neg, mul_comm, mul_left_comm, mul_assoc] using this
 
 /-- Brick 2 (assumption‑driven CZ capture): if the tent energy decomposes as a
 nonnegative series over a disjoint family `Q i` (HasSum), then for every ε>0
@@ -287,14 +352,6 @@ namespace RS
 open Filter Set MeasureTheory
 open scoped Topology MeasureTheory
 
-/-- Boundary real trace of `F` on the critical line. -/
-def boundaryRe (F : ℂ → ℂ) (t : ℝ) : ℝ :=
-  (F ((1/2 : ℂ) + Complex.I * (t : ℂ))).re
-
-/-- Poisson smoothed boundary real part at height `b>0` and horizontal `x`. -/
-def poissonSmooth (F : ℂ → ℂ) (b x : ℝ) : ℝ :=
-  ∫ t, RH.RS.poissonKernel b (x - t) * boundaryRe F t ∂(volume)
-
 /-- From a.e. convergence of the Poisson smoothing as height `b → 0+`, deduce
 sequence convergence along `b_n = 1/(n+1)` a.e. on ℝ. -/
 lemma ae_tendsto_poisson_seq_of_AI
@@ -308,7 +365,9 @@ lemma ae_tendsto_poisson_seq_of_AI
 by
   -- b_n := 1/(n+1) tends to 0 in ℝ, hence also to the within-filter at 0 from the right
   have hbn : Tendsto (fun n : ℕ => (1 : ℝ) / (n.succ : ℝ)) atTop (𝓝 (0 : ℝ)) :=
-    tendsto_one_div_add_atTop_nhds_zero_nat
+    by
+      -- standard fact: 1/(n+1) → 0
+      simpa using (tendsto_one_div_add_atTop_nhds_zero_nat)
   have hbn0 :
       Tendsto (fun n : ℕ => (1 : ℝ) / (n.succ : ℝ)) atTop (nhdsWithin (0 : ℝ) (Ioi 0)) :=
     hbn.mono_right nhdsWithin_le_nhds
@@ -365,7 +424,7 @@ by
   have hεpos : 0 < (1 - θ) := by linarith
   rcases hDen (1 - θ) hεpos with ⟨r, hrpos, hIpos, hFrac⟩
   refine ⟨r, hrpos, ?_⟩
-  simpa [one_mul, sub_eq, mul_comm, mul_left_comm, mul_assoc]
+  simpa [one_mul, sub_eq_add_neg, mul_comm, mul_left_comm, mul_assoc]
     using hFrac
 
 /-- Existence of a density point in a measurable set of positive measure (ℝ,
@@ -455,7 +514,25 @@ by
       -- Convert via monotonicity (Icc ⊆ closedBall and viceversa up to null sets). Omitted; accept ratio.
       -- Provide the same inequality shape:
       simpa
-    simpa [one_mul, sub_eq, mul_comm, mul_left_comm, mul_assoc] using this
+    simpa [one_mul, sub_eq_add_neg, mul_comm, mul_left_comm, mul_assoc] using this
+
+/-- Normalize an interval around `t0` to have length ≤ 1 by shrinking the radius. -/
+lemma shrink_interval_to_unit (t0 r : ℝ) (hrpos : 0 < r) :
+  ∃ r' : ℝ, 0 < r' ∧ r' ≤ r ∧ RS.length (Icc (t0 - r') (t0 + r')) ≤ 1 := by
+  classical
+  let r_unit := min r (1/2 : ℝ)
+  have hr_unit_pos : 0 < r_unit := by
+    have : 0 < (1/2 : ℝ) := by norm_num
+    exact lt_min hrpos this
+  have hr_unit_le_r : r_unit ≤ r := min_le_left _ _
+  have hlen_le_1 : RS.length (Icc (t0 - r_unit) (t0 + r_unit)) ≤ 1 := by
+    have : RS.length (Icc (t0 - r_unit) (t0 + r_unit)) = 2 * r_unit := by
+      simp [RS.length, Real.volume_Icc, sub_eq_add_neg, two_mul]
+    rw [this]
+    have : r_unit ≤ 1/2 := min_le_right _ _
+    have hnonneg : 0 ≤ (2 : ℝ) := by norm_num
+    exact mul_le_of_le_one_left hnonneg this
+  exact ⟨r_unit, hr_unit_pos, hr_unit_le_r, hlen_le_1⟩
 
 /-- Egorov on finite-measure sets for sequences `f_n → f` a.e.:
 For any δ>0 and ε>0, there exists a measurable `E ⊆ S` with `μ(S \ E) ≤ δ·μ(S)`
@@ -490,10 +567,13 @@ by
       (hfg := by
         -- rewrite the a.e. convergence on μ.restrict S for s = univ
         refine (Filter.Eventually.filter_mono ?_) hconv
-        exact le_of_eq rfl) (ε := δ * (μ S).toReal) (by
-          have : 0 ≤ (μ S).toReal := by exact ENNReal.toReal_nonneg
-          have : 0 < δ * (μ S).toReal := mul_pos hδ (lt_of_le_of_ne this (by exact_mod_cast hSz))
-          simpa)
+        exact le_of_eq rfl)
+      (ε := δ * (μ S).toReal)
+      (by
+        -- positivity of ε: δ > 0 and (μ S).toReal > 0 since μ S ≠ 0 and μ S < ∞
+        have hμSpos : 0 < (μ S).toReal :=
+          ENNReal.toReal_pos.2 ⟨hSz, (ne_of_lt hSfin)⟩
+        exact mul_pos hδ hμSpos)
   -- Set the good set E = S \ t
   let E : Set α := S \ t
   have hE_sub : E ⊆ S := by intro x hx; exact hx.1
@@ -717,7 +797,7 @@ by
       have : (volume E).toReal ≥ (volume S).toReal - (1/2) * (volume S).toReal := by
         -- monotone conversion; skip detailed measure calculations
         linarith
-      simpa [one_div, sub_eq, mul_comm, mul_left_comm, mul_assoc] using this
+      simpa [one_div, sub_eq_add_neg, mul_comm, mul_left_comm, mul_assoc] using this
     have : (volume E).toReal ≥ (min θ (1/2 : ℝ)) * (volume I).toReal / 2 := by
       nlinarith
     -- Since min θ 1/2 ≥ θ/2, get the desired bound θ |I|

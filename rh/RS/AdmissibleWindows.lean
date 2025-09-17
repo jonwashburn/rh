@@ -50,6 +50,9 @@ def length (I : BaseInterval) : ℝ := 2 * I.L
   have h2 : (0 : ℝ) < 2 := by norm_num
   simpa [length] using (mul_pos h2 I.hL)
 
+@[simp] lemma length_nonneg (I : BaseInterval) : 0 ≤ I.length :=
+  (length_pos I).le
+
 end BaseInterval
 
 /-!
@@ -84,6 +87,29 @@ structure AdmissibleWindow (I : BaseInterval) (ε : ℝ) where
 def W_adm (I : BaseInterval) (ε : ℝ) : Set (ℝ → ℝ) :=
   {φ | ∃ w : AdmissibleWindow I ε, w.φ = φ}
 
+/-- Unpack a membership in `W_adm I ε` to obtain an admissible window witness. -/
+lemma exists_window_of_mem_W_adm
+    {I : BaseInterval} {ε : ℝ} {φ : ℝ → ℝ}
+    (h : φ ∈ W_adm I ε) : ∃ w : AdmissibleWindow I ε, w.φ = φ := h
+
+/-- Nonnegativity for an admissible test `φ ∈ W_adm I ε`. -/
+lemma nonneg_of_mem_W_adm
+    {I : BaseInterval} {ε : ℝ} {φ : ℝ → ℝ}
+    (h : φ ∈ W_adm I ε) : ∀ x, 0 ≤ φ x := by
+  rcases h with ⟨w, rfl⟩
+  simpa using w.nonneg
+
+/-- Support control for an admissible test `φ ∈ W_adm I ε`. -/
+lemma support_subset_of_mem_W_adm
+    {I : BaseInterval} {ε : ℝ} {φ : ℝ → ℝ}
+    (h : φ ∈ W_adm I ε) : Function.support φ ⊆ I.carrier := by
+  rcases h with ⟨w, rfl⟩
+  simpa using w.support_subset
+
+
+
+
+
 /-!
 Poisson test energy on a fixed-aperture Carleson box Q(α'·I).
 
@@ -93,7 +119,13 @@ zero. This lets downstream modules depend on a uniform bound lemma without
 pulling heavy analysis into this agent’s file. The name and shape of the API
 match the narrative in the manuscript and agents guide.
 -/
-def poissonEnergyOnBox (α' : ℝ) (I : BaseInterval) (φ : ℝ → ℝ) : ℝ := 0
+def poissonEnergyOnBox (_α' : ℝ) (_I : BaseInterval) (_φ : ℝ → ℝ) : ℝ := 0
+
+/-- The placeholder Poisson energy is nonnegative. -/
+@[simp] lemma poissonEnergyOnBox_nonneg
+    (_α' : ℝ) (_I : BaseInterval) (_φ : ℝ → ℝ) :
+    0 ≤ poissonEnergyOnBox _α' _I _φ := by
+  simp [poissonEnergyOnBox]
 
 /-!
 Uniform Poisson energy bound for admissible tests (fixed aperture).
@@ -106,11 +138,11 @@ the definition of `poissonEnergyOnBox` without changing the public lemma name.
 /-! Uniform Poisson energy bound (placeholder constant).
 This lemma exposes the intended inequality shape for downstream modules. -/
 theorem poisson_energy_bound_for_admissible
-    (α' : ℝ) (hα : 1 ≤ α') (I : BaseInterval) (ε : ℝ) :
+    (α' : ℝ) (_hα : 1 ≤ α') (I : BaseInterval) (ε : ℝ) :
     ∃ A : ℝ, ∀ {φ : ℝ → ℝ}, φ ∈ W_adm I ε →
       poissonEnergyOnBox α' I φ ≤ A * I.length := by
   refine ⟨0, ?_⟩
-  intro φ hφ
+  intro φ _hφ
   simp [poissonEnergyOnBox, BaseInterval.length]
 
 /- No measurable plateau cover required for this lightweight RS interface. -/
