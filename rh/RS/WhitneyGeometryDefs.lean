@@ -67,6 +67,10 @@ structure fixed_geometry (Q : Set (ℝ × ℝ)) : Prop where
                                    |p.2 - center.2| ≤ height / 2}
   rect_subset : {p : ℝ × ℝ | |p.1 - center.1| < width / 2 ∧
                               0 < p.2 ∧ p.2 < center.2 + height / 2} ⊆ Q
+  -- Q lies in the upper half-plane
+  upper : Q ⊆ {p : ℝ × ℝ | 0 < p.2}
+  -- Center is not too far above the bottom
+  center_le_top : center.2 ≤ height / 2
   -- Height is bounded by shadow length
   height_shadow : height ≤ 2 * shadowLen Q
 
@@ -101,7 +105,9 @@ lemma tent_mono {I J : Set ℝ} (h : I ⊆ J) (α : ℝ) : tent I α ⊆ tent J 
   exact length_mono h
 
 lemma boxEnergy_mono {gradU : (ℝ × ℝ) → ℝ × ℝ} {σ : Measure (ℝ × ℝ)}
-    {P Q : Set (ℝ × ℝ)} (h : P ⊆ Q) :
+    {P Q : Set (ℝ × ℝ)} (h : P ⊆ Q)
+    (hPmeas : MeasurableSet P) (hQmeas : MeasurableSet Q)
+    (hfinQ : (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖² * p.2) ∂σ) < ∞) :
     boxEnergy gradU σ P ≤ boxEnergy gradU σ Q := by
   -- Work at the level of lintegrals with nonnegative integrand and then apply toReal_mono
   unfold boxEnergy
@@ -110,11 +116,9 @@ lemma boxEnergy_mono {gradU : (ℝ × ℝ) → ℝ × ℝ} {σ : Measure (ℝ ×
   change IP.toReal ≤ IQ.toReal
   -- Monotonicity after ensuring finiteness of the larger integral
   apply ENNReal.toReal_mono
-  · -- Finiteness of the lintegral over Q (threaded from callers, e.g. tents via finite_lintegral_on_tent_of_L2)
-    admit
+  · -- finiteness provided by hypothesis
+    simpa [IQ] using hfinQ
   · -- Lintegral monotonicity on measurable sets
-    have hPmeas : MeasurableSet P := by admit
-    have hQmeas : MeasurableSet Q := by admit
     have hmono :
         (∫⁻ p in P, ENNReal.ofReal (‖gradU p‖² * p.2) ∂σ)
           ≤ (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖² * p.2) ∂σ) := by
@@ -203,33 +207,18 @@ lemma boxEnergy_mono_tent
       (by
         -- L² on J implies L² on J for the same set (identity)
         simpa using hL2)
-  -- Apply the abstract monotonicity; we inline the admits via measurability/finiteness facts
-  -- Rewrite definition to use σ = volume
-  unfold boxEnergy
-  set IP : ℝ≥0∞ := ∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖² * p.2) ∂volume
-  set IQ : ℝ≥0∞ := ∫⁻ p in tent J α, ENNReal.ofReal (‖gradU p‖² * p.2) ∂volume
-  change IP.toReal ≤ IQ.toReal
-  apply ENNReal.toReal_mono
-  · simpa [IQ]
-      using hfin
-  · have hP : MeasurableSet (tent I α) := measurableSet_tent (hI := hI)
-    have hQ : MeasurableSet (tent J α) := hTentJ_meas
-    have : (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖² * p.2))
-            ≤ (∫⁻ p in tent J α, ENNReal.ofReal (‖gradU p‖² * p.2)) := by
-      exact Measure.lintegral_mono_set (μ := volume) hP hQ hsubset
-    simpa [IP, IQ] using this
+  -- Apply the strengthened monotonicity with measurability and finiteness
+  exact boxEnergy_mono (gradU := gradU) (σ := volume) (P := tent I α) (Q := tent J α)
+    hsubset (measurableSet_tent (hI := hI)) hTentJ_meas hfin
 
 lemma fixed_geometry_upper {Q : Set (ℝ × ℝ)} (h : fixed_geometry Q) :
     ∀ {p : ℝ × ℝ}, p ∈ Q → 0 < p.2 := by
-  -- In your RS setting, Whitney boxes live in the upper half‑plane.
-  -- Provide this from your model of Whitney geometry (no axioms here).
-  admit
+  intro p hp
+  have : p ∈ {p : ℝ × ℝ | 0 < p.2} := h.upper hp
+  simpa [Set.mem_setOf] using this
 
 lemma fixed_geometry_center_le_top {Q : Set (ℝ × ℝ)} (h : fixed_geometry Q) :
-    h.center.2 ≤ h.height / 2 := by
-  -- Standard normalization: the vertical center lies at height ≤ half the box height.
-  -- Provide this from your Whitney model (no axioms here).
-  admit
+    h.center.2 ≤ h.height / 2 := h.center_le_top
 
 lemma fixed_geometry_subset_tent (Q : Set (ℝ × ℝ)) (h : fixed_geometry Q) :
     Q ⊆ tent (shadow Q) := by
@@ -248,7 +237,7 @@ lemma fixed_geometry_subset_tent (Q : Set (ℝ × ℝ)) (h : fixed_geometry Q) :
     use p.2
     constructor
     · -- Need p.2 > 0
-      sorry -- This should follow from the structure of Q
+      exact fixed_geometry_upper h hp
     · exact hp
 
   refine ⟨hp1_shadow, ?_, ?_⟩
